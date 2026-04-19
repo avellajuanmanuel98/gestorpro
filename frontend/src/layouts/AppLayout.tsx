@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, FileText, Package, LogOut } from 'lucide-react'
+import { LayoutDashboard, Users, FileText, LogOut } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
 const navItems = [

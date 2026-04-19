@@ -62,7 +62,8 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
     formState: { errors },
     control,
   } = useForm<InvoiceFormData>({
-    resolver: zodResolver(invoiceSchema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(invoiceSchema) as any,
     defaultValues: {
       invoice_type: 'invoice',
       status:       'draft',
@@ -104,7 +105,8 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
   }, 0)
   const total = subtotal + taxAmount - Number(watchDiscount)
 
-  const onSubmit = (data: InvoiceFormData) => mutation.mutate(data)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onSubmit = (data: InvoiceFormData) => mutation.mutate(data as any)
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
