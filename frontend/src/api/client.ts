@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // Toda la comunicación con el backend pasa por aquí
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api',
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -32,7 +32,7 @@ apiClient.interceptors.response.use(
       if (refresh) {
         try {
           const { data } = await axios.post(
-            'http://localhost:8000/api/auth/token/refresh/',
+            `${import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'}/auth/token/refresh/`,
             { refresh }
           )
           localStorage.setItem('access_token', data.access)
