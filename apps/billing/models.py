@@ -28,6 +28,7 @@ class Invoice(models.Model):
     company = models.ForeignKey(
         'companies.Company',
         on_delete=models.CASCADE,
+        null=True,
         related_name='invoices'
     )
 
@@ -41,6 +42,7 @@ class Invoice(models.Model):
     client = models.ForeignKey(
         'clients.Client',
         on_delete=models.PROTECT,  # PROTECT: no permite borrar un cliente con facturas
+        null=True,
         related_name='invoices'
     )
     created_by = models.ForeignKey(
