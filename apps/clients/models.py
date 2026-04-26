@@ -37,6 +37,14 @@ class Client(models.Model):
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
     notes  = models.TextField(blank=True, default='')
 
+    # ── Multitenancy ─────────────────────────────────
+    # Cada cliente pertenece a una empresa específica
+    company = models.ForeignKey(
+        'companies.Company',
+        on_delete=models.CASCADE,
+        related_name='clients'
+    )
+
     # ── Auditoría ────────────────────────────────────
     # created_by guarda quién creó este cliente
     created_by = models.ForeignKey(

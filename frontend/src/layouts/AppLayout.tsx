@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, FileText, LogOut, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Users, FileText, Building2, LogOut, Menu, X } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
 const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard'  },
   { to: '/clients',   icon: Users,           label: 'Clientes'   },
   { to: '/invoices',  icon: FileText,         label: 'Facturas'   },
+  { to: '/company',   icon: Building2,        label: 'Mi Empresa' },
 ]
 
 export default function AppLayout() {

@@ -14,4 +14,14 @@ export default defineConfig({
       '@': '/src',
     },
   },
+  server: {
+    // Proxy de desarrollo: las peticiones a /api/* se redirigen al backend Django.
+    // Esto evita problemas de CORS y de IPv4 vs IPv6 en Windows.
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+    },
+  },
 })

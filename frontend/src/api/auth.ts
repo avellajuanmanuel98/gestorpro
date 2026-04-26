@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { AuthTokens, User } from '@/types'
+import type { AuthTokens, User, Company } from '@/types'
 
 export const authApi = {
   login: async (email: string, password: string): Promise<AuthTokens> => {
@@ -13,6 +13,7 @@ export const authApi = {
     last_name: string
     password: string
     password2: string
+    company_name: string
   }) => {
     const { data } = await apiClient.post('/auth/register/', payload)
     return data
@@ -25,6 +26,17 @@ export const authApi = {
 
   updateProfile: async (payload: Partial<User>): Promise<User> => {
     const { data } = await apiClient.put<User>('/auth/profile/', payload)
+    return data
+  },
+
+  // ── Empresa ────────────────────────────────────
+  getMyCompany: async (): Promise<Company> => {
+    const { data } = await apiClient.get<Company>('/companies/me/')
+    return data
+  },
+
+  updateMyCompany: async (payload: Partial<Company>): Promise<Company> => {
+    const { data } = await apiClient.patch<Company>('/companies/me/', payload)
     return data
   },
 }

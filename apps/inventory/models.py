@@ -9,11 +9,18 @@ class Category(models.Model):
     Categoría de productos. Ej: Electrónica, Ropa, Servicios.
     Separamos categorías de productos para poder filtrar y organizar.
     """
-    name        = models.CharField(max_length=100, unique=True)
+    name        = models.CharField(max_length=100)
     description = models.TextField(blank=True, default='')
+    company     = models.ForeignKey(
+        'companies.Company',
+        on_delete=models.CASCADE,
+        related_name='categories'
+    )
     created_at  = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        # El nombre de categoría es único por empresa
+        unique_together     = [['company', 'name']]
         verbose_name        = 'Categoría'
         verbose_name_plural = 'Categorías'
         ordering            = ['name']
@@ -65,6 +72,13 @@ class Product(models.Model):
 
     # ── Estado ──────────────────────────────────────
     is_active  = models.BooleanField(default=True)
+
+    # ── Multitenancy ─────────────────────────────────
+    company = models.ForeignKey(
+        'companies.Company',
+        on_delete=models.CASCADE,
+        related_name='products'
+    )
 
     # ── Auditoría ────────────────────────────────────
     created_by = models.ForeignKey(

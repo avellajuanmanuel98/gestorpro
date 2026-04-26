@@ -1,14 +1,16 @@
 import axios from 'axios'
 
-// Toda la comunicación con el backend pasa por aquí
+// En desarrollo, el proxy de Vite redirige /api/* → http://127.0.0.1:8000/api/*
+// En producción, VITE_API_URL apunta a la URL del backend en Railway
+const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api',
+  baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 })
 
 // INTERCEPTOR DE REQUEST
 // Antes de cada petición, agrega el token JWT automáticamente
-// Así no hay que pasarlo manualmente en cada llamada
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token')
   if (token) {
@@ -31,10 +33,7 @@ apiClient.interceptors.response.use(
 
       if (refresh) {
         try {
-          const { data } = await axios.post(
-            `${import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'}/auth/token/refresh/`,
-            { refresh }
-          )
+          const { data } = await axios.post(`${BASE_URL}/auth/token/refresh/`, { refresh })
           localStorage.setItem('access_token', data.access)
           original.headers.Authorization = `Bearer ${data.access}`
           return apiClient(original)

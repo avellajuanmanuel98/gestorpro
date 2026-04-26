@@ -31,7 +31,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     """
 
     class Role(models.TextChoices):
-        ADMIN = 'admin', 'Administrador'
+        ADMIN    = 'admin',    'Administrador'
         EMPLOYEE = 'employee', 'Empleado'
 
     # Datos principales
@@ -40,6 +40,16 @@ class User(AbstractBaseUser, PermissionsMixin):
     last_name  = models.CharField(max_length=100)
     role       = models.CharField(max_length=20, choices=Role.choices, default=Role.EMPLOYEE)
     avatar     = models.ImageField(upload_to='avatars/', null=True, blank=True)
+
+    # Empresa a la que pertenece este usuario.
+    # null=True permite que superusuarios de Django no necesiten empresa.
+    company = models.ForeignKey(
+        'companies.Company',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='members'
+    )
 
     # Campos requeridos por Django
     is_active   = models.BooleanField(default=True)

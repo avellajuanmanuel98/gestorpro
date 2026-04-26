@@ -2,10 +2,12 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 
 // Páginas
-import LoginPage from '@/pages/auth/LoginPage'
-import DashboardPage from '@/pages/dashboard/DashboardPage'
-import ClientsPage from '@/pages/clients/ClientsPage'
-import InvoicesPage from '@/pages/billing/InvoicesPage'
+import LoginPage       from '@/pages/auth/LoginPage'
+import RegisterPage    from '@/pages/auth/RegisterPage'
+import DashboardPage   from '@/pages/dashboard/DashboardPage'
+import ClientsPage     from '@/pages/clients/ClientsPage'
+import InvoicesPage    from '@/pages/billing/InvoicesPage'
+import CompanyPage     from '@/pages/settings/CompanyPage'
 
 // Layout principal con sidebar
 import AppLayout from '@/layouts/AppLayout'
@@ -19,8 +21,9 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <Routes>
-      {/* Ruta pública */}
-      <Route path="/login" element={<LoginPage />} />
+      {/* Rutas públicas */}
+      <Route path="/login"    element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
 
       {/* Rutas protegidas — todas dentro del AppLayout (sidebar + header) */}
       <Route
@@ -33,8 +36,9 @@ function App() {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="clients" element={<ClientsPage />} />
-        <Route path="invoices" element={<InvoicesPage />} />
+        <Route path="clients"   element={<ClientsPage />} />
+        <Route path="invoices"  element={<InvoicesPage />} />
+        <Route path="company"   element={<CompanyPage />} />
       </Route>
 
       {/* Cualquier ruta desconocida → dashboard */}

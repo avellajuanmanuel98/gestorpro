@@ -24,8 +24,16 @@ class Invoice(models.Model):
         QUOTE   = 'quote',   'Cotización'
         INVOICE = 'invoice', 'Factura'
 
+    # ── Multitenancy ─────────────────────────────────
+    company = models.ForeignKey(
+        'companies.Company',
+        on_delete=models.CASCADE,
+        related_name='invoices'
+    )
+
     # ── Identificación ──────────────────────────────
-    number       = models.CharField(max_length=20, unique=True)  # Ej: FAC-2024-001
+    # El número es único POR empresa, no globalmente
+    number       = models.CharField(max_length=20)  # Ej: FAC-2024-001
     invoice_type = models.CharField(max_length=10, choices=InvoiceType.choices, default=InvoiceType.INVOICE)
     status       = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
 
@@ -61,6 +69,8 @@ class Invoice(models.Model):
         verbose_name        = 'Factura'
         verbose_name_plural = 'Facturas'
         ordering            = ['-created_at']
+        # El número de factura es único dentro de cada empresa
+        unique_together     = [['company', 'number']]
 
     def __str__(self):
         return f'{self.number} — {self.client}'

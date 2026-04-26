@@ -10,6 +10,22 @@ export interface User {
   date_joined: string
 }
 
+// ── Empresa ──────────────────────────────────────
+export interface Company {
+  id: number
+  name: string
+  slug: string
+  plan: 'free' | 'starter' | 'pro'
+  email: string
+  phone: string
+  address: string
+  city: string
+  nit: string
+  logo: string | null
+  is_active: boolean
+  created_at: string
+}
+
 export interface AuthTokens {
   access: string
   refresh: string

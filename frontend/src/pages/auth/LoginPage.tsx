@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { authApi } from '@/api/auth'
 
@@ -29,8 +29,13 @@ export default function LoginPage() {
 
       // 3. Redirigimos al dashboard
       navigate('/dashboard')
-    } catch {
-      setError('Email o contraseña incorrectos.')
+    } catch (err: any) {
+      console.error('Login error:', err)
+      if (err.message === 'Network Error') {
+        setError('No se puede conectar con el servidor. ¿Está corriendo el backend en localhost:8000?')
+      } else {
+        setError('Email o contraseña incorrectos.')
+      }
     } finally {
       setLoading(false)
     }
@@ -90,6 +95,14 @@ export default function LoginPage() {
               {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </button>
           </form>
+
+          {/* Link al registro */}
+          <p className="text-center text-sm text-gray-500 mt-6">
+            ¿No tienes cuenta?{' '}
+            <Link to="/register" className="text-indigo-600 hover:underline font-medium">
+              Créala gratis
+            </Link>
+          </p>
         </div>
       </div>
     </div>
