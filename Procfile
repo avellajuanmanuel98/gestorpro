@@ -1,1 +1,1 @@
-web: python -c "import pathlib; pathlib.Path('db.sqlite3').unlink(missing_ok=True)" && python manage.py migrate --noinput && python manage.py seed_demo && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+web: python manage.py wipe_db && python manage.py migrate --noinput && python manage.py seed_demo && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
