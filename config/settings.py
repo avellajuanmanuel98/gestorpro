@@ -194,6 +194,11 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
+# WhiteNoise sirve el index.html y los assets del frontend React
+# desde la raíz del dominio (mismo servidor que la API)
+WHITENOISE_ROOT = BASE_DIR / 'frontend' / 'dist'
+WHITENOISE_INDEX_FILE = True
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
