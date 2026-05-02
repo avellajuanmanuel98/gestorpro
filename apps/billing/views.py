@@ -72,3 +72,71 @@ class InvoiceSummaryView(APIView):
             'overdue_count':  invoices.filter(status='overdue').count(),
         }
         return Response(summary)
+
+
+class MonthlyRevenueView(APIView):
+    """
+    GET /api/billing/monthly-revenue/
+    Devuelve las ventas pagadas agrupadas por mes (últimos 6 meses).
+    Usada para la gráfica de barras del dashboard.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Sum
+        from django.db.models.functions import TruncMonth
+        from django.utils import timezone
+        from datetime import timedelta
+        from decimal import Decimal
+
+        # Últimos 6 meses
+        since = timezone.now() - timedelta(days=180)
+
+        rows = (
+            Invoice.objects
+            .filter(company=request.user.company, status='paid', issue_date__gte=since)
+            .annotate(month=TruncMonth('issue_date'))
+            .values('month')
+            .annotate(total=Sum('total'))
+            .order_by('month')
+        )
+
+        MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
+        data = [
+            {
+                'mes': MESES[row['month'].month - 1],
+                'total': float(row['total'] or Decimal('0')),
+            }
+            for row in rows
+        ]
+
+        return Response(data)
+
+
+class RecentInvoicesView(APIView):
+    """
+    GET /api/billing/recent/
+    Devuelve las últimas 5 facturas de la empresa para el dashboard.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        invoices = (
+            Invoice.objects
+            .filter(company=request.user.company)
+            .select_related('client')
+            .order_by('-created_at')[:5]
+        )
+        data = [
+            {
+                'id':     inv.id,
+                'number': inv.number,
+                'client': str(inv.client) if inv.client else '—',
+                'total':  float(inv.total),
+                'status': inv.status,
+            }
+            for inv in invoices
+        ]
+        return Response(data)

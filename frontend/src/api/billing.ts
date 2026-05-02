@@ -30,4 +30,16 @@ export const billingApi = {
     const { data } = await apiClient.get<BillingSummary>('/billing/summary/')
     return data
   },
+
+  monthlyRevenue: async (): Promise<{ mes: string; total: number }[]> => {
+    const { data } = await apiClient.get('/billing/monthly-revenue/')
+    return data
+  },
+
+  recent: async (): Promise<{
+    id: number; number: string; client: string; total: number; status: string
+  }[]> => {
+    const { data } = await apiClient.get('/billing/recent/')
+    return data
+  },
 }
