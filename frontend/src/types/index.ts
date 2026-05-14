@@ -145,6 +145,26 @@ export interface Employee {
   updated_at: string
 }
 
+// ── Proveedores ──────────────────────────────────
+export interface Supplier {
+  id: number
+  company_name: string
+  contact_name: string
+  document_type: 'NIT' | 'CC' | 'CE' | 'PP'
+  document_number: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  website: string
+  category: 'materials' | 'services' | 'technology' | 'logistics' | 'marketing' | 'other'
+  status: 'active' | 'inactive'
+  notes: string
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
 // ── Paginación ───────────────────────────────────
 // Django devuelve esta estructura en todos los listados
 export interface PaginatedResponse<T> {

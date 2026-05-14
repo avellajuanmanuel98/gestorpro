@@ -9,6 +9,7 @@ import ClientsPage     from '@/pages/clients/ClientsPage'
 import InvoicesPage    from '@/pages/billing/InvoicesPage'
 import CompanyPage     from '@/pages/settings/CompanyPage'
 import EmployeesPage   from '@/pages/employees/EmployeesPage'
+import SuppliersPage   from '@/pages/suppliers/SuppliersPage'
 
 // Layout principal con sidebar
 import AppLayout from '@/layouts/AppLayout'
@@ -40,6 +41,7 @@ function App() {
         <Route path="clients"   element={<ClientsPage />} />
         <Route path="invoices"  element={<InvoicesPage />} />
         <Route path="employees" element={<EmployeesPage />} />
+        <Route path="suppliers" element={<SuppliersPage />} />
         <Route path="company"   element={<CompanyPage />} />
       </Route>
 
