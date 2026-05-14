@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, FileText, Building2, LogOut, Menu, X, UserCheck, Truck, BarChart2 } from 'lucide-react'
+import { LayoutDashboard, Users, FileText, Building2, LogOut, Menu, X, UserCheck, Truck, BarChart2, Boxes } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard'  },
   { to: '/clients',   icon: Users,           label: 'Clientes'   },
   { to: '/invoices',  icon: FileText,        label: 'Facturas'   },
+  { to: '/inventory', icon: Boxes,           label: 'Inventario' },
   { to: '/employees', icon: UserCheck,       label: 'Empleados'  },
   { to: '/suppliers', icon: Truck,           label: 'Proveedores'},
   { to: '/reports',   icon: BarChart2,       label: 'Reportes'   },

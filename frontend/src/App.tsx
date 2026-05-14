@@ -11,6 +11,7 @@ import CompanyPage     from '@/pages/settings/CompanyPage'
 import EmployeesPage   from '@/pages/employees/EmployeesPage'
 import SuppliersPage   from '@/pages/suppliers/SuppliersPage'
 import ReportsPage     from '@/pages/reports/ReportsPage'
+import InventoryPage   from '@/pages/inventory/InventoryPage'
 
 // Layout principal con sidebar
 import AppLayout from '@/layouts/AppLayout'
@@ -41,6 +42,7 @@ function App() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="clients"   element={<ClientsPage />} />
         <Route path="invoices"  element={<InvoicesPage />} />
+        <Route path="inventory" element={<InventoryPage />} />
         <Route path="employees" element={<EmployeesPage />} />
         <Route path="suppliers" element={<SuppliersPage />} />
         <Route path="reports"   element={<ReportsPage />} />
