@@ -8,6 +8,7 @@ import DashboardPage   from '@/pages/dashboard/DashboardPage'
 import ClientsPage     from '@/pages/clients/ClientsPage'
 import InvoicesPage    from '@/pages/billing/InvoicesPage'
 import CompanyPage     from '@/pages/settings/CompanyPage'
+import EmployeesPage   from '@/pages/employees/EmployeesPage'
 
 // Layout principal con sidebar
 import AppLayout from '@/layouts/AppLayout'
@@ -38,6 +39,7 @@ function App() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="clients"   element={<ClientsPage />} />
         <Route path="invoices"  element={<InvoicesPage />} />
+        <Route path="employees" element={<EmployeesPage />} />
         <Route path="company"   element={<CompanyPage />} />
       </Route>
 

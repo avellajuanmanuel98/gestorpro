@@ -122,6 +122,29 @@ export interface BillingSummary {
   overdue_count: number
 }
 
+// ── Empleados ────────────────────────────────────
+export interface Employee {
+  id: number
+  document_type: 'CC' | 'CE' | 'PP'
+  document_number: string
+  first_name: string
+  last_name: string
+  full_name: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  position: string
+  department: 'admin' | 'sales' | 'operations' | 'finance' | 'it' | 'hr' | 'other'
+  hire_date: string
+  salary: string | null
+  status: 'active' | 'inactive'
+  notes: string
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
 // ── Paginación ───────────────────────────────────
 // Django devuelve esta estructura en todos los listados
 export interface PaginatedResponse<T> {

@@ -20,6 +20,7 @@ urlpatterns = [
     path('api/billing/', include('apps.billing.urls')),
     path('api/inventory/', include('apps.inventory.urls')),
     path('api/companies/', include('apps.companies.urls')),
+    path('api/employees/', include('apps.employees.urls')),
 ]
 
 # En desarrollo, Django sirve los archivos de media (imágenes subidas)
