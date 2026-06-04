@@ -362,7 +362,7 @@ export default function DashboardPage() {
               <div className="flex justify-between text-xs text-zinc-400 dark:text-zinc-500">
                 <span>Tasa de cobro</span>
                 <span>
-                  {summary.paid_total + summary.pending_total > 0
+                  {Number(summary.paid_total) + Number(summary.pending_total) > 0
                     ? Math.round(
                         (Number(summary.paid_total) /
                           (Number(summary.paid_total) + Number(summary.pending_total))) *
@@ -376,7 +376,7 @@ export default function DashboardPage() {
                   className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 rounded-full transition-all duration-700"
                   style={{
                     width:
-                      summary.paid_total + summary.pending_total > 0
+                      Number(summary.paid_total) + Number(summary.pending_total) > 0
                         ? `${Math.round(
                             (Number(summary.paid_total) /
                               (Number(summary.paid_total) + Number(summary.pending_total))) *

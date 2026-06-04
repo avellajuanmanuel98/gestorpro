@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Search, Plus, Mail, Phone, MapPin,
-  Pencil, Trash2, Users, MoreHorizontal,
+  Pencil, Trash2, Users,
 } from 'lucide-react'
 import { clientsApi } from '@/api/clients'
 import type { Client } from '@/types'
