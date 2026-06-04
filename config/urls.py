@@ -23,6 +23,7 @@ urlpatterns = [
     path('api/employees/', include('apps.employees.urls')),
     path('api/suppliers/', include('apps.suppliers.urls')),
     path('api/reports/',   include('apps.reports.urls')),
+    path('api/assistant/', include('apps.assistant.urls')),
 ]
 
 # En desarrollo, Django sirve los archivos de media (imágenes subidas)

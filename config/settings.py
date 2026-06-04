@@ -15,6 +15,11 @@ SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
+# ─────────────────────────────────────────────
+# IA — Groq (free tier)
+# ─────────────────────────────────────────────
+GROQ_API_KEY = config('GROQ_API_KEY', default='')
+
 
 # ─────────────────────────────────────────────
 # APLICACIONES
@@ -46,6 +51,7 @@ LOCAL_APPS = [
     'apps.employees',
     'apps.suppliers',
     'apps.reports',
+    'apps.assistant',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -156,8 +162,20 @@ SIMPLE_JWT = {
 # ─────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:5173,http://localhost:3000'
+    default='http://localhost:5173,http://localhost:5174,http://localhost:3000'
 ).split(',')
+
+# Necesario para que el streaming SSE funcione desde el frontend
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'origin',
+    'x-csrftoken',
+    'x-requested-with',
+]
+CORS_EXPOSE_HEADERS = ['Content-Type']
 
 
 # ─────────────────────────────────────────────

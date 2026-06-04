@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
+import AssistantButton from '@/components/ai/AssistantButton'
 
 // Páginas
 import LoginPage       from '@/pages/auth/LoginPage'
@@ -23,35 +24,42 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+
   return (
-    <Routes>
-      {/* Rutas públicas */}
-      <Route path="/login"    element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+    <>
+      <Routes>
+        {/* Rutas públicas */}
+        <Route path="/login"    element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
-      {/* Rutas protegidas — todas dentro del AppLayout (sidebar + header) */}
-      <Route
-        path="/"
-        element={
-          <PrivateRoute>
-            <AppLayout />
-          </PrivateRoute>
-        }
-      >
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="clients"   element={<ClientsPage />} />
-        <Route path="invoices"  element={<InvoicesPage />} />
-        <Route path="inventory" element={<InventoryPage />} />
-        <Route path="employees" element={<EmployeesPage />} />
-        <Route path="suppliers" element={<SuppliersPage />} />
-        <Route path="reports"   element={<ReportsPage />} />
-        <Route path="company"   element={<CompanyPage />} />
-      </Route>
+        {/* Rutas protegidas — todas dentro del AppLayout (sidebar + header) */}
+        <Route
+          path="/"
+          element={
+            <PrivateRoute>
+              <AppLayout />
+            </PrivateRoute>
+          }
+        >
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="clients"   element={<ClientsPage />} />
+          <Route path="invoices"  element={<InvoicesPage />} />
+          <Route path="inventory" element={<InventoryPage />} />
+          <Route path="employees" element={<EmployeesPage />} />
+          <Route path="suppliers" element={<SuppliersPage />} />
+          <Route path="reports"   element={<ReportsPage />} />
+          <Route path="company"   element={<CompanyPage />} />
+        </Route>
 
-      {/* Cualquier ruta desconocida → dashboard */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+        {/* Cualquier ruta desconocida → dashboard */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+
+      {/* Asistente IA — disponible cuando el usuario está autenticado */}
+      {isAuthenticated && <AssistantButton />}
+    </>
   )
 }
 
