@@ -68,7 +68,8 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # CSRF desactivado — la API usa JWT en Authorization header, no cookies
+    # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -176,6 +177,17 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 CORS_EXPOSE_HEADERS = ['Content-Type']
+
+# CSRF — permite que el frontend en Vercel haga POST sin cookie CSRF
+# La API usa JWT en el header Authorization, no necesita CSRF
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='http://localhost:5173,http://localhost:5174'
+).split(',')
+
+# Las rutas /api/* no necesitan CSRF porque usan JWT
+CSRF_COOKIE_SAMESITE = 'None'
+CSRF_COOKIE_SECURE   = True
 
 
 # ─────────────────────────────────────────────
