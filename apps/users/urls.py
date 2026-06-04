@@ -1,21 +1,16 @@
 from django.urls import path
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from .views import RegisterView, ProfileView, ChangePasswordView
 
 urlpatterns = [
-    # Registro de nuevo usuario
-    path('register/', RegisterView.as_view(), name='auth-register'),
+    # Registro y login son públicos y no usan cookies — exentos de CSRF
+    path('register/',      csrf_exempt(RegisterView.as_view()),        name='auth-register'),
+    path('login/',         csrf_exempt(TokenObtainPairView.as_view()), name='auth-login'),
+    path('token/refresh/', csrf_exempt(TokenRefreshView.as_view()),    name='auth-token-refresh'),
 
-    # Login — recibe email+password y devuelve access+refresh token
-    path('login/', TokenObtainPairView.as_view(), name='auth-login'),
-
-    # Renovar el access token usando el refresh token
-    path('token/refresh/', TokenRefreshView.as_view(), name='auth-token-refresh'),
-
-    # Perfil del usuario autenticado
-    path('profile/', ProfileView.as_view(), name='auth-profile'),
-
-    # Cambiar contraseña
+    # Rutas autenticadas con JWT
+    path('profile/',         ProfileView.as_view(),        name='auth-profile'),
     path('change-password/', ChangePasswordView.as_view(), name='auth-change-password'),
 ]

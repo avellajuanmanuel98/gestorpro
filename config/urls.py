@@ -5,12 +5,12 @@ from django.conf.urls.static import static
 from django.http import FileResponse
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+
 urlpatterns = [
     # Panel de administración de Django
     path('admin/', admin.site.urls),
 
     # Documentación automática de la API (Swagger UI)
-    # Entra a http://localhost:8000/api/docs/ para verla
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
 
