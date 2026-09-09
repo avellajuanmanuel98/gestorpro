@@ -219,10 +219,3 @@ Todos los endpoints excepto `login` y `register` requieren la cabecera `Authoriz
 
 <!-- Añade un archivo LICENSE al repositorio y ajusta esta línea -->
 Distribuido bajo licencia MIT.
-
-**Juan Manuel** — Ingeniero de Sistemas - Software Developer  
-📍 Bogotá, Colombia  
-🔗 [LinkedIn](https://www.linkedin.com/in/juan-manuel-garc%C3%ADa-avella-/)) · [GitHub](https://github.com/avellajuanmanuel98)
-#   g e s t o r p r o 
- 
- 
