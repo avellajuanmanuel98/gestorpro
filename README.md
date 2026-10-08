@@ -52,159 +52,105 @@ Las PYMEs suelen gestionar clientes en una hoja de cálculo, inventario en otra 
 
 ## Decisiones técnicas
 
-Algunas elecciones que vale la pena explicar:
-
-- **TanStack Query en lugar de estado global para datos del servidor.** El caché, la invalidación y los reintentos quedan resueltos por la librería; Zustand se reserva únicamente para el estado de autenticación, que sí es global y sincrónico.
-- **Interceptores de Axios para el refresh de tokens.** La renovación del JWT es transparente para los componentes: ninguna vista necesita saber que el token expiró.
-- **Validación duplicada con Zod y DRF serializers.** Zod da retroalimentación inmediata en el formulario; los serializers garantizan que la API no confíe en el cliente.
-- **SQLite en desarrollo, PostgreSQL en producción.** Arranque local sin dependencias externas, sin renunciar a un motor real en producción.
-- **Apps de Django por dominio** (`users`, `clients`, `billing`, `inventory`) en lugar de una app monolítica, para mantener los límites del modelo de negocio explícitos.
+- **Multi-tenant fail-closed.** Todas las tablas de negocio tienen `tenant_id`. El manager por defecto filtra por la empresa activa y **lanza un error si no hay una**: un descuido produce un error, no una fuga de datos. Detalle en [`docs/miga/02-arquitectura-multitenant.md`](docs/miga/02-arquitectura-multitenant.md).
+- **Usuarios multiempresa y roles por empresa.** Un usuario puede pertenecer a varias empresas con un rol distinto en cada una. Los permisos se validan en backend por método HTTP; el frontend solo los usa para adaptar la interfaz.
+- **Capas Platform / Core / Capabilities / Verticals**, con contratos de importación verificados en CI (`lint-imports`).
+- **El servidor calcula el dinero.** `Decimal` con un único redondeo; los importes viajan como string. Precio e impuesto salen del catálogo y cambiarlos exige permiso.
+- **PostgreSQL en todos los entornos** (desarrollo, tests y producción), sin SQLite.
+- **TanStack Query** para estado del servidor; **Zustand** solo para la sesión.
 
 ## Stack tecnológico
 
-### Backend
-
-| Tecnología | Uso |
+| Backend | Frontend |
 |---|---|
-| Python 3.14 + Django 6 | Framework principal |
-| Django REST Framework | API REST |
-| SimpleJWT | Autenticación con tokens JWT |
-| drf-spectacular | Documentación OpenAPI/Swagger automática |
-| SQLite (dev) / PostgreSQL (prod) | Base de datos |
-| Railway | Despliegue del backend |
-
-### Frontend
-
-| Tecnología | Uso |
-|---|---|
-| React 19 + TypeScript | UI |
-| Vite | Bundler y servidor de desarrollo |
-| Tailwind CSS | Estilos |
-| TanStack Query | Caché y estado del servidor |
-| Zustand | Estado global (autenticación) |
-| React Hook Form + Zod | Formularios con validación tipada |
-| Axios | Cliente HTTP con interceptores JWT |
-| Vercel | Despliegue del frontend |
+| Python 3.13 + Django 6 + DRF | React 19 + TypeScript + Vite |
+| SimpleJWT (rotación + lista negra) | Tailwind CSS 4 |
+| PostgreSQL 16 | TanStack Query + Zustand |
+| drf-spectacular (OpenAPI) | React Hook Form + Zod, Recharts |
+| pytest + ruff + import-linter | ESLint |
 
 ## Arquitectura
 
 ```
 gestorpro/
-├── backend/
-│   ├── apps/
-│   │   ├── users/        # Autenticación y roles
-│   │   ├── clients/      # CRM de clientes
-│   │   ├── billing/      # Facturas y cotizaciones
-│   │   └── inventory/    # Productos y stock
-│   └── config/           # Settings y URLs principales
-└── frontend/
-    └── src/
-        ├── api/          # Servicios HTTP (axios)
-        ├── components/   # Componentes reutilizables
-        ├── pages/        # Vistas por módulo
-        ├── store/        # Estado global (zustand)
-        └── types/        # Interfaces TypeScript
+├── config/settings/        base · dev · test · prod
+├── gestorpro/
+│   ├── kernel/             dinero, paginación, errores
+│   ├── core/               tenancy · identity · access · customers · suppliers · catalog · billing · reporting
+│   ├── capabilities/       hr · assistant (IA)
+│   ├── verticals/bakery/   Miga — panaderías
+│   └── platform/           consola interna de GestorPro (/admin/)
+├── tests/                  isolation · architecture · core
+├── frontend/src/           api · components · pages · store · lib · types
+└── docs/miga/              auditoría y decisiones de arquitectura
 ```
-
-El frontend consume la API por HTTP; no hay renderizado en servidor ni acoplamiento entre ambos despliegues, lo que permite versionarlos y desplegarlos por separado.
 
 ## Instalación local
 
-**Requisitos:** Python 3.14+, Node.js 20+, y opcionalmente PostgreSQL.
-
-### 1. Clonar el repositorio
+**Requisitos:** Python 3.13, Node.js 22, Docker (para PostgreSQL).
 
 ```bash
 git clone https://github.com/avellajuanmanuel98/gestorpro.git
 cd gestorpro
-```
 
-### 2. Backend
+# Base de datos (PostgreSQL 16)
+docker compose up -d db
 
-```bash
-cd backend
-
-# Entorno virtual
-python -m venv venv
-venv\Scripts\activate          # Windows
-source venv/bin/activate       # macOS / Linux
-
-pip install -r requirements.txt
-
-# Variables de entorno
-cp .env.example .env           # copy .env.example .env en Windows
-
-# Base de datos y usuario administrador
+# Backend
+python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate
+pip install -r requirements-dev.txt
+cp .env.example .env                               # y define SECRET_KEY
 python manage.py migrate
-python manage.py createsuperuser
-
+DEMO_PASSWORD='elige-una' python manage.py seed_demo   # panadería demo (solo DEBUG)
 python manage.py runserver
-```
 
-### 3. Frontend
-
-En otra terminal:
-
-```bash
-cd frontend
-npm install
-cp .env.example .env
-npm run dev
+# Frontend (otra terminal)
+cd frontend && npm ci && npm run dev
 ```
 
 | Servicio | URL |
 |---|---|
 | Aplicación | http://localhost:5173 |
-| API | http://localhost:8000 |
-| Swagger | http://localhost:8000/api/docs/ |
-| Admin de Django | http://localhost:8000/admin/ |
+| API / Swagger | http://localhost:8000/api/docs/ |
+| Consola de plataforma | http://localhost:8000/admin/ (requiere `createsuperuser`) |
+
+### Tests y verificaciones (las mismas que el CI)
+
+```bash
+ruff check .
+lint-imports                                   # contratos de capas
+python manage.py makemigrations --check --dry-run
+pytest -m isolation                            # aislamiento entre empresas (obligatorio)
+pytest                                         # suite completa
+cd frontend && npm run lint && npm run build
+```
 
 ### Variables de entorno
 
-<!-- Ajusta esta tabla a los nombres reales de tu .env.example -->
-
-**`backend/.env`**
-
-| Variable | Descripción |
-|---|---|
-| `SECRET_KEY` | Clave secreta de Django |
-| `DEBUG` | `True` en desarrollo, `False` en producción |
-| `ALLOWED_HOSTS` | Hosts permitidos, separados por comas |
-| `DATABASE_URL` | Cadena de conexión de PostgreSQL (opcional en dev) |
-| `CORS_ALLOWED_ORIGINS` | Origen del frontend |
-
-**`frontend/.env`**
-
-| Variable | Descripción |
-|---|---|
-| `VITE_API_URL` | URL base de la API |
+Ver [`.env.example`](.env.example). Las imprescindibles: `SECRET_KEY` y `DATABASE_URL` (PostgreSQL).
 
 ## API
 
-Documentación interactiva completa en [`/api/docs/`](https://web-production-cd18a.up.railway.app/api/docs/). Endpoints principales:
+Documentación interactiva en `/api/docs/`. Todos los endpoints de negocio operan sobre la **empresa activa** del token y exigen un permiso por método.
 
-| Método | Endpoint | Descripción |
-|---|---|---|
-| `POST` | `/api/auth/login/` | Login → retorna tokens JWT |
-| `POST` | `/api/auth/register/` | Registro de usuario |
-| `GET` `PUT` | `/api/auth/profile/` | Perfil del usuario autenticado |
-| `GET` `POST` | `/api/clients/` | Listar y crear clientes |
-| `GET` `PUT` `DELETE` | `/api/clients/{id}/` | Detalle de cliente |
-| `GET` `POST` | `/api/inventory/products/` | Productos |
-| `GET` `POST` | `/api/inventory/categories/` | Categorías |
-| `GET` | `/api/inventory/low-stock/` | Productos con stock bajo |
-| `GET` `POST` | `/api/billing/invoices/` | Facturas y cotizaciones |
-| `GET` | `/api/billing/summary/` | Resumen para el dashboard |
+| Grupo | Endpoints |
+|---|---|
+| Sesión | `auth/register` · `auth/login` · `auth/token/refresh` · `auth/logout` · `auth/me` · `auth/switch-tenant` · `auth/change-password` |
+| Empresa | `tenant/` · `tenant/locations/` |
+| Core | `customers/` · `suppliers/` · `catalog/products/` · `catalog/categories/` · `catalog/low-stock/` · `billing/invoices/` · `billing/summary/` · `reports/billing/` · `reports/inventory/` |
+| Capabilities | `employees/` · `reports/hr/` · `assistant/chat/` |
 
-Todos los endpoints excepto `login` y `register` requieren la cabecera `Authorization: Bearer <access_token>`.
+Los listados devuelven `count`, `page`, `page_size`, `total_pages` y `results` (máximo 100 por página).
 
 ## Roadmap
 
-- [ ] Exportación de facturas a PDF
-- [ ] Reportes de ventas por período
-- [ ] Multi-tenencia por empresa
-- [ ] Suite de pruebas automatizadas (pytest + Vitest)
-- [ ] CI en GitHub Actions
+GestorPro está evolucionando hacia una plataforma SaaS para PYMES con verticales especializados; el primero es **Miga** (panaderías). Plan completo en [`docs/miga/01-auditoria-y-arquitectura.md`](docs/miga/01-auditoria-y-arquitectura.md).
+
+- [x] Fase 0 — Contención de seguridad del despliegue
+- [x] Fases 2–3 — Arquitectura por capas, multi-tenancy fail-closed, roles y permisos, CI
+- [ ] Fase 4 — Auditoría, gestión de usuarios y roles, planes
+- [ ] Fase 5 — Sistema de diseño y unificación visual
+- [ ] Fases 6–9 — Miga: catálogo e ingredientes, POS y caja, inventario y producción, analítica
 
 ## Autor
 

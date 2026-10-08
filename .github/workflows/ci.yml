@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.13'
+  NODE_VERSION: '22'
+  SECRET_KEY: ci-only-secret-key-not-used-anywhere-else-0123456789abcdef
+  DATABASE_URL: postgres://postgres:postgres@localhost:5432/gestorpro
+
+jobs:
+  # Obligatorio: aislamiento entre empresas, permisos y seguridad de despliegue.
+  tenant-isolation:
+    name: Tenant isolation (obligatorio)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: gestorpro }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '${{ env.PYTHON_VERSION }}', cache: pip, cache-dependency-path: requirements*.txt }
+      - run: pip install -r requirements-dev.txt
+      - name: Tests de aislamiento
+        run: pytest -m isolation -q
+
+  backend:
+    name: Backend (lint, arquitectura, migraciones, tests)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: gestorpro }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '${{ env.PYTHON_VERSION }}', cache: pip, cache-dependency-path: requirements*.txt }
+      - run: pip install -r requirements-dev.txt
+      - name: Lint (ruff)
+        run: ruff check .
+      - name: Contratos de capas (Platform/Core/Capabilities/Verticals)
+        run: lint-imports
+      - name: Migraciones sincronizadas con los modelos
+        run: python manage.py makemigrations --check --dry-run --settings=config.settings.test
+      - name: Checks de despliegue (settings de producción)
+        run: python manage.py check --deploy --fail-level ERROR --settings=config.settings.prod
+        env:
+          SECRET_KEY: ci-prod-check-0123456789abcdefghijklmnopqrstuvwxyz-0123456789
+      - name: Suite completa
+        run: pytest -q
+
+  frontend:
+    name: Frontend (lint, tipos, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
