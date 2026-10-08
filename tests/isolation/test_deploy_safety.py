@@ -37,3 +37,24 @@ def test_demo_seed_never_creates_superuser():
         except Exception:
             pass
     assert not get_user_model().objects.filter(is_superuser=True).exists()
+
+
+@pytest.mark.django_db
+def test_demo_seed_refuses_to_run_in_production_settings():
+    from django.core.management import call_command
+    from django.core.management.base import CommandError
+    with pytest.raises(CommandError):
+        call_command('seed_demo')
+
+
+@pytest.mark.django_db
+def test_demo_seed_in_debug_creates_bakery_without_superuser(settings):
+    from django.contrib.auth import get_user_model
+    from django.core.management import call_command
+    settings.DEBUG = True
+    call_command('seed_demo')
+    call_command('seed_demo')  # idempotente
+    User = get_user_model()
+    assert User.objects.filter(email='propietaria@demo.miga.co').count() == 1
+    assert not User.objects.filter(is_superuser=True).exists()
+    assert not User.objects.filter(is_staff=True).exists()

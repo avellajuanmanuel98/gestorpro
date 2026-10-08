@@ -1,0 +1,40 @@
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+extend-exclude = ["frontend", "**/migrations/*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "DJ"]
+ignore = ["B904"]
+
+[tool.ruff.lint.per-file-ignores]
+# Test escrito contra el código legacy, que no tenía una excepción específica.
+# La versión precisa (TenantContextMissing) está en tests/architecture/.
+"tests/isolation/test_cross_tenant_access.py" = ["B017"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["gestorpro", "config", "tests"]
+
+[tool.importlinter]
+root_packages = ["gestorpro"]
+
+# Capas: las de arriba pueden importar las de abajo, nunca al revés.
+# Platform y Verticals son independientes entre sí.
+[[tool.importlinter.contracts]]
+name = "Capas de GestorPro"
+type = "layers"
+layers = [
+    "gestorpro.platform | gestorpro.verticals",
+    "gestorpro.capabilities",
+    "gestorpro.core",
+    "gestorpro.kernel",
+]
+
+# Las capabilities no se acoplan entre sí salvo declaración explícita.
+[[tool.importlinter.contracts]]
+name = "Capabilities independientes"
+type = "independence"
+modules = [
+    "gestorpro.capabilities.hr",
+    "gestorpro.capabilities.assistant",
+]
