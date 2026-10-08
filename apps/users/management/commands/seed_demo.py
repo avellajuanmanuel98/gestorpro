@@ -1,8 +1,16 @@
 """
-Comando para cargar datos de demostración.
-Se ejecuta: python manage.py seed_demo
+Comando para cargar datos de demostración (solo desarrollo).
+Se ejecuta: DEMO_PASSWORD=... python manage.py seed_demo
+
+- Nunca crea superusuarios.
+- Se niega a correr con DEBUG=False.
+- La contraseña se toma de DEMO_PASSWORD o se genera aleatoriamente.
 """
-from django.core.management.base import BaseCommand
+import os
+import secrets
+
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -12,6 +20,9 @@ class Command(BaseCommand):
     help = 'Carga datos de demostración para el portafolio'
 
     def handle(self, *args, **kwargs):
+        if not settings.DEBUG:
+            raise CommandError('seed_demo solo puede ejecutarse con DEBUG=True.')
+        password = os.environ.get('DEMO_PASSWORD') or secrets.token_urlsafe(12)
         self.stdout.write('Cargando datos de demo...')
 
         # ── Empresa demo ─────────────────────────────
@@ -24,9 +35,9 @@ class Command(BaseCommand):
 
         # ── Usuario demo ──────────────────────────────
         if not User.objects.filter(email='demo@gestorpro.com').exists():
-            User.objects.create_superuser(
+            User.objects.create_user(
                 email='demo@gestorpro.com',
-                password='demo1234',
+                password=password,
                 first_name='Demo',
                 last_name='GestorPro',
                 role='admin',
@@ -130,4 +141,4 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('[OK] Facturas creadas'))
         self.stdout.write(self.style.SUCCESS('\n[LISTO] Datos de demo cargados'))
         self.stdout.write('   Email:    demo@gestorpro.com')
-        self.stdout.write('   Password: demo1234')
+        self.stdout.write(f'   Password: {password}')

@@ -24,12 +24,10 @@ Las PYMEs suelen gestionar clientes en una hoja de cálculo, inventario en otra 
 | **Aplicación** | https://gestorpro-lac.vercel.app |
 | **API + Swagger** | https://web-production-cd18a.up.railway.app/api/docs/ |
 
-**Credenciales de prueba:**
-
-```
-Email:    demo@gestorpro.com
-Password: demo1234
-```
+> [!IMPORTANT]
+> La demo ya no expone credenciales públicas. Para probar la aplicación en local
+> ejecuta `seed_demo` (ver *Instalación local*); la contraseña se define con la
+> variable `DEMO_PASSWORD` o se genera aleatoriamente y se imprime en consola.
 
 > [!NOTE]
 > El backend está en el plan gratuito de Railway. La primera petición puede tardar unos segundos mientras el servicio arranca.
