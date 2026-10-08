@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import {
   Users, FileText, TrendingUp, AlertTriangle,
   ArrowUpRight, ArrowDownRight, Minus,
@@ -8,20 +9,17 @@ import {
   Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { billingApi } from '@/api/billing'
-import { clientsApi } from '@/api/clients'
+import { customersApi } from '@/api/customers'
 import Badge from '@/components/ui/Badge'
+import EmptyState from '@/components/ui/EmptyState'
 import { SkeletonCard } from '@/components/ui/Skeleton'
+import { formatCOP, formatCompactNumber, toDisplayNumber } from '@/lib/money'
+import { useAuthStore, useCan } from '@/store/authStore'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('es-CO', {
-    style:                 'currency',
-    currency:              'COP',
-    minimumFractionDigits: 0,
-    notation:              value >= 1_000_000 ? 'compact' : 'standard',
-    maximumFractionDigits: value >= 1_000_000 ? 1 : 0,
-  }).format(value)
+function formatCurrency(value: string | number) {
+  return formatCOP(value, { compact: true })
 }
 
 const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'info' | 'success' | 'danger' | 'warning' }> = {
@@ -96,7 +94,13 @@ function StatCard({ title, value, icon: Icon, trend, colorClass, glowClass, dela
 
 // ── Custom Tooltip ────────────────────────────────────────────────────────────
 
-function CustomTooltip({ active, payload, label }: any) {
+interface ChartTooltipProps {
+  active?:  boolean
+  label?:   string
+  payload?: { value: number }[]
+}
+
+function CustomTooltip({ active, payload, label }: ChartTooltipProps) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-xl px-4 py-3 text-sm">
@@ -111,12 +115,37 @@ function CustomTooltip({ active, payload, label }: any) {
 // ── Dashboard Page ────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { data: summary,       isLoading: l1 } = useQuery({ queryKey: ['billing-summary'],   queryFn: billingApi.summary })
-  const { data: clients,       isLoading: l2 } = useQuery({ queryKey: ['clients'],           queryFn: () => clientsApi.list() })
-  const { data: monthlyRevenue = [], isLoading: l3 } = useQuery({ queryKey: ['monthly-revenue'], queryFn: billingApi.monthlyRevenue })
-  const { data: recentInvoices = [], isLoading: l4 } = useQuery({ queryKey: ['recent-invoices'], queryFn: billingApi.recent })
+  const can = useCan()
+  const tenantName = useAuthStore((s) => s.session?.tenant?.name)
+  // Sin permiso no se consulta: mostrar ceros sería mostrar datos inventados.
+  const canBilling   = can('billing.view')
+  const canCustomers = can('customers.view')
 
-  const loading = l1 || l2 || l3 || l4
+  const { data: summary,       isLoading: l1 } = useQuery({ queryKey: ['billing-summary'],   queryFn: billingApi.summary, enabled: canBilling })
+  const { data: activeCustomers, isLoading: l2 } = useQuery({
+    queryKey: ['customers', 'active-count'],
+    queryFn:  () => customersApi.list({ status: 'active', page_size: 1 }),
+    enabled:  canCustomers,
+  })
+  const { data: monthlyRevenueRaw = [], isLoading: l3 } = useQuery({ queryKey: ['monthly-revenue'], queryFn: billingApi.monthlyRevenue, enabled: canBilling })
+  const { data: recentInvoices = [], isLoading: l4 } = useQuery({ queryKey: ['recent-invoices'], queryFn: billingApi.recent, enabled: canBilling })
+
+  const loading = (canBilling && (l1 || l3 || l4)) || (canCustomers && l2)
+  // Recharts necesita números: conversión solo para dibujar
+  const monthlyRevenue = monthlyRevenueRaw.map((m) => ({ ...m, total: toDisplayNumber(m.total) }))
+  const hasRevenue = monthlyRevenue.some((m) => m.total > 0)
+
+  if (!canBilling && !canCustomers) {
+    return (
+      <div className="p-5 md:p-8 max-w-7xl mx-auto">
+        <EmptyState
+          icon={<TrendingUp size={24} />}
+          title="Tu rol no incluye métricas comerciales"
+          description="Usa el menú lateral para acceder a los módulos de tu rol."
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="p-5 md:p-8 space-y-7 max-w-7xl mx-auto">
@@ -124,10 +153,10 @@ export default function DashboardPage() {
       {/* ── Page header ── */}
       <div className="animate-fade-down">
         <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
-          Bienvenido de nuevo 👋
+          Resumen
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-          Aquí tienes el resumen de tu negocio hoy.
+          {tenantName ?? 'Tu empresa'} · datos de facturación y clientes
         </p>
       </div>
 
@@ -140,7 +169,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <StatCard
             title="Clientes activos"
-            value={clients?.count ?? 0}
+            value={canCustomers ? (activeCustomers?.count ?? 0) : '—'}
             icon={Users}
             colorClass="bg-indigo-500"
             glowClass="card-glow-indigo"
@@ -148,16 +177,15 @@ export default function DashboardPage() {
           />
           <StatCard
             title="Total recaudado"
-            value={formatCurrency(Number(summary?.paid_total ?? 0))}
+            value={canBilling ? formatCurrency(summary?.paid_total ?? 0) : '—'}
             icon={TrendingUp}
-            trend={12}
             colorClass="bg-emerald-500"
             glowClass="card-glow-green"
             delay="delay-100"
           />
           <StatCard
             title="Por cobrar"
-            value={formatCurrency(Number(summary?.pending_total ?? 0))}
+            value={canBilling ? formatCurrency(summary?.pending_total ?? 0) : '—'}
             icon={FileText}
             colorClass="bg-amber-500"
             glowClass="card-glow-amber"
@@ -165,7 +193,7 @@ export default function DashboardPage() {
           />
           <StatCard
             title="Facturas vencidas"
-            value={summary?.overdue_count ?? 0}
+            value={canBilling ? (summary?.overdue_count ?? 0) : '—'}
             icon={AlertTriangle}
             colorClass="bg-red-500"
             glowClass="card-glow-red"
@@ -185,12 +213,15 @@ export default function DashboardPage() {
               Últimos 6 meses
             </p>
           </div>
-          <Badge variant="info" dot>En tiempo real</Badge>
         </div>
 
         {loading ? (
           <div className="skeleton rounded-xl" style={{ height: 220 }} />
-        ) : monthlyRevenue.length === 0 ? (
+        ) : !canBilling ? (
+          <div className="flex items-center justify-center h-48 text-sm text-zinc-400 dark:text-zinc-500">
+            Tu rol no incluye información de facturación.
+          </div>
+        ) : !hasRevenue ? (
           <div className="flex flex-col items-center justify-center h-48 text-zinc-400 dark:text-zinc-600">
             <BarChart2Icon />
             <p className="text-sm mt-3 font-medium">Sin datos de ventas aún</p>
@@ -213,11 +244,7 @@ export default function DashboardPage() {
                 tickLine={false}
               />
               <YAxis
-                tickFormatter={(v) =>
-                  new Intl.NumberFormat('es-CO', {
-                    notation: 'compact', maximumFractionDigits: 1,
-                  }).format(v)
-                }
+                tickFormatter={(v) => formatCompactNumber(v)}
                 tick={{ fontSize: 11, fill: '#a1a1aa' }}
                 axisLine={false}
                 tickLine={false}
@@ -238,19 +265,20 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* ── Bottom row ── */}
+      {/* ── Bottom row (solo con permiso de facturación) ── */}
+      {canBilling && (
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
         {/* Recent invoices — 3/5 */}
         <div className="lg:col-span-3 animate-fade-up delay-300 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden">
           <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Facturas recientes</h2>
-            <a
-              href="/invoices"
+            <Link
+              to="/invoices"
               className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
             >
               Ver todas
-            </a>
+            </Link>
           </div>
 
           {loading ? (
@@ -289,7 +317,7 @@ export default function DashboardPage() {
                       <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
                         {inv.number}
                       </p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-500 truncate">{inv.client}</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-500 truncate">{inv.customer}</p>
                     </div>
 
                     <Badge variant={st.variant} dot>{st.label}</Badge>
@@ -336,12 +364,12 @@ export default function DashboardPage() {
                 },
                 {
                   label: 'Total recaudado',
-                  value: formatCurrency(Number(summary?.paid_total ?? 0)),
+                  value: formatCurrency(summary?.paid_total ?? 0),
                   color: 'text-emerald-600 dark:text-emerald-400 font-semibold',
                 },
                 {
                   label: 'Pendiente de cobro',
-                  value: formatCurrency(Number(summary?.pending_total ?? 0)),
+                  value: formatCurrency(summary?.pending_total ?? 0),
                   color: 'text-amber-600 dark:text-amber-400 font-semibold',
                 },
               ].map(({ label, value, color }, i) => (
@@ -390,6 +418,7 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+      )}
     </div>
   )
 }

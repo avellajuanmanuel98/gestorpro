@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { authApi } from '@/api/auth'
+import { getErrorMessage } from '@/lib/errors'
 
 // Estructura del formulario
 interface FormData {
@@ -24,7 +25,7 @@ const EMPTY_FORM: FormData = {
 
 export default function RegisterPage() {
   const navigate = useNavigate()
-  const setUser  = useAuthStore((s) => s.setUser)
+  const startSession = useAuthStore((s) => s.startSession)
 
   const [form,    setForm]    = useState<FormData>(EMPTY_FORM)
   const [error,   setError]   = useState<string>('')
@@ -48,44 +49,15 @@ export default function RegisterPage() {
       setError('La contraseña debe tener al menos 8 caracteres.')
       return
     }
+    // La validación definitiva (contraseñas comunes, similitud, etc.) la hace el backend
 
     setLoading(true)
     try {
-      // 1. Registramos — el backend crea empresa + usuario admin
-      await authApi.register(form)
-
-      // 2. Hacemos login automático con las credenciales recién creadas
-      const tokens = await authApi.login(form.email, form.password)
-      localStorage.setItem('access_token',  tokens.access)
-      localStorage.setItem('refresh_token', tokens.refresh)
-
-      // 3. Cargamos perfil y guardamos en Zustand
-      const user = await authApi.getProfile()
-      setUser(user)
-
-      // 4. Al dashboard
+      // El backend crea cuenta + empresa (como propietario) y devuelve tokens
+      await startSession(await authApi.register(form))
       navigate('/dashboard')
-    } catch (err: any) {
-      // Imprimimos en consola para debugging (F12 → Console)
-      console.error('Register error:', err)
-
-      if (err.response?.data) {
-        // El backend devuelve errores como { email: ['...'], password: ['...'] }
-        const data = err.response.data
-        // Puede ser un objeto con listas, o un objeto con string, o un string directo
-        if (typeof data === 'string') {
-          setError(data)
-        } else if (data.detail) {
-          setError(data.detail)
-        } else {
-          const msgs = Object.values(data).flat() as string[]
-          setError(msgs.join(' '))
-        }
-      } else if (err.message === 'Network Error') {
-        setError('No se puede conectar con el servidor. ¿Está corriendo el backend en localhost:8000?')
-      } else {
-        setError(`Error: ${err.message ?? 'Intenta de nuevo.'}`)
-      }
+    } catch (err) {
+      setError(getErrorMessage(err))
     } finally {
       setLoading(false)
     }

@@ -1,42 +1,39 @@
-import apiClient from './client'
-import type { AuthTokens, User, Company } from '@/types'
+import apiClient, { tokenStorage } from './client'
+import type { AuthTokens, Session, Tenant } from '@/types'
+
+export interface RegisterPayload {
+  email: string
+  first_name: string
+  last_name: string
+  password: string
+  password2: string
+  company_name: string
+}
 
 export const authApi = {
-  login: async (email: string, password: string): Promise<AuthTokens> => {
-    const { data } = await apiClient.post<AuthTokens>('/auth/login/', { email, password })
-    return data
-  },
+  login: async (email: string, password: string): Promise<AuthTokens> =>
+    (await apiClient.post<AuthTokens>('/auth/login/', { email, password })).data,
 
-  register: async (payload: {
-    email: string
-    first_name: string
-    last_name: string
-    password: string
-    password2: string
-    company_name: string
-  }) => {
-    const { data } = await apiClient.post('/auth/register/', payload)
-    return data
-  },
+  /** Crea cuenta + empresa y devuelve tokens (inicio de sesión inmediato). */
+  register: async (payload: RegisterPayload): Promise<AuthTokens> =>
+    (await apiClient.post<AuthTokens>('/auth/register/', payload)).data,
 
-  getProfile: async (): Promise<User> => {
-    const { data } = await apiClient.get<User>('/auth/profile/')
-    return data
-  },
+  me: async (): Promise<Session> => (await apiClient.get<Session>('/auth/me/')).data,
 
-  updateProfile: async (payload: Partial<User>): Promise<User> => {
-    const { data } = await apiClient.put<User>('/auth/profile/', payload)
-    return data
-  },
+  switchTenant: async (tenantId: number): Promise<AuthTokens> =>
+    (await apiClient.post<AuthTokens>('/auth/switch-tenant/', {
+      tenant_id: tenantId, refresh: tokenStorage.refresh,
+    })).data,
 
-  // ── Empresa ────────────────────────────────────
-  getMyCompany: async (): Promise<Company> => {
-    const { data } = await apiClient.get<Company>('/companies/me/')
-    return data
+  /** Revoca el refresh token en el servidor. */
+  logout: async (): Promise<void> => {
+    const refresh = tokenStorage.refresh
+    if (refresh) await apiClient.post('/auth/logout/', { refresh })
   },
+}
 
-  updateMyCompany: async (payload: Partial<Company>): Promise<Company> => {
-    const { data } = await apiClient.patch<Company>('/companies/me/', payload)
-    return data
-  },
+export const tenantApi = {
+  current: async (): Promise<Tenant> => (await apiClient.get<Tenant>('/tenant/')).data,
+  update: async (payload: Partial<Tenant>): Promise<Tenant> =>
+    (await apiClient.patch<Tenant>('/tenant/', payload)).data,
 }

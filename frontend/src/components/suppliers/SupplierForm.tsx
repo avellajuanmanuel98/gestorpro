@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { suppliersApi } from '@/api/suppliers'
 import type { Supplier } from '@/types'
 import Input from '@/components/ui/Input'
+import { getErrorMessage } from '@/lib/errors'
 
 const CATEGORIES = [
   { value: 'materials',  label: 'Materiales e insumos' },
@@ -183,7 +184,7 @@ export default function SupplierForm({ supplier, onSuccess }: SupplierFormProps)
 
       {mutation.isError && (
         <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
-          Ocurrió un error al guardar. Intenta de nuevo.
+          {getErrorMessage(mutation.error)}
         </p>
       )}
 

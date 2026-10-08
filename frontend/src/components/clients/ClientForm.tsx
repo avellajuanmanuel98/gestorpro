@@ -2,19 +2,20 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { clientsApi } from '@/api/clients'
-import type { Client } from '@/types'
+import { customersApi } from '@/api/customers'
+import { getErrorMessage } from '@/lib/errors'
+import type { Customer as Client } from '@/types'
 import Input from '@/components/ui/Input'
 
 // ── Esquema de validación con Zod ─────────────────
 // Zod valida los datos ANTES de enviarlos al backend
 const clientSchema = z.object({
   document_type:   z.enum(['CC', 'NIT', 'CE', 'PP']),
-  document_number: z.string().min(5, 'Mínimo 5 caracteres'),
+  document_number: z.string().optional(),
   first_name:      z.string().min(2, 'Mínimo 2 caracteres'),
-  last_name:       z.string().min(2, 'Mínimo 2 caracteres'),
+  last_name:       z.string().optional(),
   company_name:    z.string().optional(),
-  email:           z.string().email('Email inválido'),
+  email:           z.union([z.literal(''), z.string().email('Email inválido')]),
   phone:           z.string().optional(),
   city:            z.string().optional(),
   status:          z.enum(['active', 'inactive']),
@@ -56,11 +57,11 @@ export default function ClientForm({ client, onSuccess }: ClientFormProps) {
   const mutation = useMutation({
     mutationFn: (data: ClientFormData) =>
       isEditing
-        ? clientsApi.update(client!.id, data)
-        : clientsApi.create(data),
+        ? customersApi.update(client!.id, data)
+        : customersApi.create(data),
     onSuccess: () => {
       // Invalida el caché de clientes → React Query hace el fetch automáticamente
-      queryClient.invalidateQueries({ queryKey: ['clients'] })
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
       onSuccess()
     },
   })
@@ -165,7 +166,7 @@ export default function ClientForm({ client, onSuccess }: ClientFormProps) {
       {/* Error general */}
       {mutation.isError && (
         <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
-          Ocurrió un error. Verifica que el email y documento no estén duplicados.
+          {getErrorMessage(mutation.error)}
         </p>
       )}
 

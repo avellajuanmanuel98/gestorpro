@@ -3,11 +3,12 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, ArrowRight, AlertCircle } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { authApi } from '@/api/auth'
+import { isAxiosError } from 'axios'
 import Button from '@/components/ui/Button'
 
 export default function LoginPage() {
   const navigate  = useNavigate()
-  const setUser   = useAuthStore((s) => s.setUser)
+  const startSession = useAuthStore((s) => s.startSession)
 
   const [email,       setEmail]       = useState('')
   const [password,    setPassword]    = useState('')
@@ -21,15 +22,13 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const tokens = await authApi.login(email, password)
-      localStorage.setItem('access_token',  tokens.access)
-      localStorage.setItem('refresh_token', tokens.refresh)
-      const user = await authApi.getProfile()
-      setUser(user)
+      await startSession(await authApi.login(email, password))
       navigate('/dashboard')
-    } catch (err: any) {
-      if (err.message === 'Network Error') {
-        setError('No se puede conectar con el servidor. Verifica que el backend esté activo.')
+    } catch (err) {
+      if (isAxiosError(err) && !err.response) {
+        setError('No se puede conectar con el servidor. Verifica tu conexión.')
+      } else if (isAxiosError(err) && err.response?.status === 429) {
+        setError('Demasiados intentos. Espera un minuto e inténtalo de nuevo.')
       } else {
         setError('Email o contraseña incorrectos. Intenta de nuevo.')
       }

@@ -4,16 +4,20 @@ import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2 } from 'lucide-react'
 import { billingApi } from '@/api/billing'
-import { clientsApi } from '@/api/clients'
+import { customersApi } from '@/api/customers'
 import { inventoryApi } from '@/api/inventory'
 import Input from '@/components/ui/Input'
+import { getErrorMessage } from '@/lib/errors'
+import { formatCOP } from '@/lib/money'
+import { useCan } from '@/store/authStore'
+import type { InvoiceInput } from '@/types'
 
 // ── Validación ────────────────────────────────────
 const itemSchema = z.object({
   product:    z.coerce.number().min(1, 'Selecciona un producto'),
   quantity:   z.coerce.number().min(0.01, 'Mínimo 0.01'),
-  unit_price: z.coerce.number().min(0, 'Precio inválido'),
-  tax_rate:   z.coerce.number().min(0).max(100),
+  // Solo se envía si el usuario tiene permiso de cambiar precios; si no, el backend usa el del catálogo
+  unit_price: z.coerce.number().min(0, 'Precio inválido').optional(),
   description: z.string().optional(),
 })
 
@@ -21,7 +25,7 @@ const invoiceSchema = z.object({
   number:       z.string().min(1, 'El número es obligatorio'),
   invoice_type: z.enum(['invoice', 'quote']),
   status:       z.enum(['draft', 'sent', 'paid', 'overdue', 'cancelled']),
-  client:       z.coerce.number().min(1, 'Selecciona un cliente'),
+  customer:     z.coerce.number().min(1, 'Selecciona un cliente'),
   issue_date:   z.string().min(1, 'La fecha es obligatoria'),
   due_date:     z.string().min(1, 'La fecha de vencimiento es obligatoria'),
   discount:     z.coerce.number().min(0).default(0),
@@ -35,23 +39,21 @@ interface InvoiceFormProps {
   onSuccess: () => void
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency', currency: 'COP', minimumFractionDigits: 0,
-  }).format(value)
-}
-
 export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
   const queryClient = useQueryClient()
+  const can = useCan()
+  const canOverridePrice = can('billing.override_price')
+  const canDiscount = can('billing.apply_discount')
 
+  // TODO(fase 5): reemplazar estos <select> por un combobox con búsqueda en servidor.
   const { data: clientsData } = useQuery({
-    queryKey: ['clients-select'],
-    queryFn: () => clientsApi.list({ status: 'active' }),
+    queryKey: ['customers-select'],
+    queryFn: () => customersApi.list({ status: 'active', page_size: 100 }),
   })
 
   const { data: productsData } = useQuery({
     queryKey: ['products-select'],
-    queryFn: () => inventoryApi.listProducts({ is_active: true }),
+    queryFn: () => inventoryApi.listProducts({ is_active: true, page_size: 100 }),
   })
 
   const {
@@ -68,7 +70,7 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
       invoice_type: 'invoice',
       status:       'draft',
       discount:     0,
-      items:        [{ product: 0, quantity: 1, unit_price: 0, tax_rate: 19, description: '' }],
+      items:        [{ product: 0, quantity: 1, unit_price: 0, description: '' }],
     },
   })
 
@@ -84,29 +86,42 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
     },
   })
 
-  // Cuando el usuario selecciona un producto, auto-rellena el precio
+  const productById = (id: number) => productsData?.results.find(p => p.id === id)
+
+  // Cuando el usuario selecciona un producto, muestra el precio del catálogo
   const handleProductChange = (index: number, productId: number) => {
-    const product = productsData?.results.find(p => p.id === productId)
-    if (product) {
-      setValue(`items.${index}.unit_price`, parseFloat(product.price))
-      setValue(`items.${index}.tax_rate`,   parseFloat(product.tax_rate))
-    }
+    const product = productById(productId)
+    if (product) setValue(`items.${index}.unit_price`, Number(product.price))
   }
 
-  // Cálculo de totales en tiempo real
+  // Vista previa en vivo. El importe definitivo (con redondeo exacto) lo calcula el servidor.
   const watchItems    = watch('items') ?? []
   const watchDiscount = watch('discount') ?? 0
-
-  const subtotal = watchItems.reduce((sum, item) => {
-    return sum + (Number(item.quantity) * Number(item.unit_price))
-  }, 0)
-  const taxAmount = watchItems.reduce((sum, item) => {
-    return sum + (Number(item.quantity) * Number(item.unit_price) * Number(item.tax_rate) / 100)
-  }, 0)
+  const previewLine = (item: InvoiceFormData['items'][number] | undefined) => {
+    const product = item ? productById(Number(item.product)) : undefined
+    const price = canOverridePrice ? Number(item?.unit_price ?? 0) : Number(product?.price ?? 0)
+    const base = Number(item?.quantity ?? 0) * price
+    return { base, tax: base * Number(product?.tax_rate ?? 0) / 100, taxRate: product?.tax_rate }
+  }
+  const subtotal  = watchItems.reduce((sum, item) => sum + previewLine(item).base, 0)
+  const taxAmount = watchItems.reduce((sum, item) => sum + previewLine(item).tax, 0)
   const total = subtotal + taxAmount - Number(watchDiscount)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const onSubmit = (data: InvoiceFormData) => mutation.mutate(data as any)
+  const onSubmit = (data: InvoiceFormData) => {
+    const payload: InvoiceInput = {
+      number: data.number, invoice_type: data.invoice_type, status: data.status,
+      customer: data.customer, issue_date: data.issue_date, due_date: data.due_date,
+      notes: data.notes ?? '',
+      ...(canDiscount ? { discount: data.discount } : {}),
+      items: data.items.map((item) => ({
+        product: item.product,
+        quantity: item.quantity,
+        description: item.description,
+        ...(canOverridePrice ? { unit_price: item.unit_price } : {}),
+      })),
+    }
+    mutation.mutate(payload)
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -146,9 +161,9 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
         <div className="col-span-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
           <select
-            {...register('client')}
+            {...register('customer')}
             className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-              errors.client ? 'border-red-400' : 'border-gray-300'
+              errors.customer ? 'border-red-400' : 'border-gray-300'
             }`}
           >
             <option value={0}>Seleccionar...</option>
@@ -156,7 +171,7 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
               <option key={c.id} value={c.id}>{c.full_name}</option>
             ))}
           </select>
-          {errors.client && <p className="mt-1 text-xs text-red-600">{errors.client.message}</p>}
+          {errors.customer && <p className="mt-1 text-xs text-red-600">{errors.customer.message}</p>}
         </div>
         <Input
           label="Fecha emisión"
@@ -178,7 +193,7 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
           <label className="text-sm font-medium text-gray-700">Productos / Servicios</label>
           <button
             type="button"
-            onClick={() => append({ product: 0, quantity: 1, unit_price: 0, tax_rate: 19, description: '' })}
+            onClick={() => append({ product: 0, quantity: 1, unit_price: 0, description: '' })}
             className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium"
           >
             <Plus size={13} /> Agregar línea
@@ -203,10 +218,8 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {fields.map((field, index) => {
-                const qty   = Number(watchItems[index]?.quantity  ?? 0)
-                const price = Number(watchItems[index]?.unit_price ?? 0)
-                const tax   = Number(watchItems[index]?.tax_rate   ?? 0)
-                const lineTotal = qty * price * (1 + tax / 100)
+                const preview = previewLine(watchItems[index])
+                const lineTotal = preview.base + preview.tax
 
                 return (
                   <tr key={field.id}>
@@ -235,20 +248,17 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
                       <input
                         type="number"
                         step="0.01"
+                        readOnly={!canOverridePrice}
+                        title={canOverridePrice ? undefined : 'Precio del catálogo (no tienes permiso para cambiarlo)'}
                         {...register(`items.${index}.unit_price`)}
-                        className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 read-only:bg-gray-50 read-only:text-gray-500"
                       />
                     </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        step="0.01"
-                        {...register(`items.${index}.tax_rate`)}
-                        className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                      />
+                    <td className="px-3 py-2 text-gray-500 tabular-nums">
+                      {preview.taxRate != null ? `${Number(preview.taxRate)} %` : '—'}
                     </td>
                     <td className="px-3 py-2 text-gray-900 font-medium whitespace-nowrap">
-                      {formatCurrency(lineTotal)}
+                      {formatCOP(lineTotal)}
                     </td>
                     <td className="px-3 py-2">
                       {fields.length > 1 && (
@@ -274,24 +284,26 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
         <div className="w-64 space-y-2 text-sm">
           <div className="flex justify-between text-gray-600">
             <span>Subtotal</span>
-            <span>{formatCurrency(subtotal)}</span>
+            <span>{formatCOP(subtotal)}</span>
           </div>
           <div className="flex justify-between text-gray-600">
             <span>IVA</span>
-            <span>{formatCurrency(taxAmount)}</span>
+            <span>{formatCOP(taxAmount)}</span>
           </div>
           <div className="flex justify-between items-center text-gray-600">
             <span>Descuento</span>
             <input
               type="number"
               step="0.01"
+              disabled={!canDiscount}
+              title={canDiscount ? undefined : 'No tienes permiso para aplicar descuentos'}
               {...register('discount')}
-              className="w-28 border border-gray-300 rounded px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-28 disabled:bg-gray-50 disabled:text-gray-400 border border-gray-300 rounded px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
           <div className="flex justify-between font-bold text-gray-900 text-base pt-2 border-t border-gray-200">
-            <span>Total</span>
-            <span>{formatCurrency(total)}</span>
+            <span>Total estimado</span>
+            <span>{formatCOP(total)}</span>
           </div>
         </div>
       </div>
@@ -309,7 +321,7 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
 
       {mutation.isError && (
         <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
-          Error al guardar. Verifica que el número de factura no esté duplicado.
+          {getErrorMessage(mutation.error)}
         </p>
       )}
 

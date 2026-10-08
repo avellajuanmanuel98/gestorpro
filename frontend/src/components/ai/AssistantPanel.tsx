@@ -243,8 +243,8 @@ export default function AssistantPanel({ onClose }: AssistantPanelProps) {
         },
         controller.signal
       )
-    } catch (err: any) {
-      if (err?.name === 'AbortError') {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId

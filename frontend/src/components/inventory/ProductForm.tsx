@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { inventoryApi } from '@/api/inventory'
 import type { Product } from '@/types'
 import Input from '@/components/ui/Input'
+import { getErrorMessage } from '@/lib/errors'
 
 const productSchema = z.object({
   name:          z.string().min(2, 'Mínimo 2 caracteres'),
@@ -31,8 +32,8 @@ export default function ProductForm({ product, onSuccess }: ProductFormProps) {
   const isEditing   = !!product
 
   const { data: categories } = useQuery({
-    queryKey: ['categories'],
-    queryFn:  inventoryApi.listCategories,
+    queryKey: ['categories', 'select'],
+    queryFn:  () => inventoryApi.listCategories({ page_size: 100 }),
   })
 
   const {
@@ -186,7 +187,7 @@ export default function ProductForm({ product, onSuccess }: ProductFormProps) {
 
       {mutation.isError && (
         <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
-          Error al guardar. Verifica que el código no esté duplicado.
+          {getErrorMessage(mutation.error)}
         </p>
       )}
 

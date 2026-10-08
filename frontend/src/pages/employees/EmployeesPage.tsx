@@ -5,6 +5,7 @@ import { employeesApi } from '@/api/employees'
 import type { Employee } from '@/types'
 import Modal from '@/components/ui/Modal'
 import EmployeeForm from '@/components/employees/EmployeeForm'
+import Pagination from '@/components/ui/Pagination'
 
 const DEPARTMENT_LABELS: Record<Employee['department'], string> = {
   admin:      'Administración',
@@ -29,12 +30,14 @@ function StatusBadge({ status }: { status: Employee['status'] }) {
 export default function EmployeesPage() {
   const queryClient = useQueryClient()
   const [search,           setSearch]           = useState('')
+  const [page,             setPage]             = useState(1)
   const [modalOpen,        setModalOpen]        = useState(false)
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | undefined>()
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['employees', search],
-    queryFn:  () => employeesApi.list({ search }),
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['employees', search, page],
+    queryFn:  () => employeesApi.list({ search, page }),
+    placeholderData: (previous) => previous,
     enabled:  search.length !== 1,
   })
 
@@ -82,7 +85,7 @@ export default function EmployeesPage() {
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
           placeholder="Buscar por nombre, email o cargo..."
           className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
@@ -168,6 +171,7 @@ export default function EmployeesPage() {
               </tbody>
             </table>
           )}
+          <Pagination data={data} onPageChange={setPage} noun="empleados" isFetching={isFetching} />
         </div>
       )}
 

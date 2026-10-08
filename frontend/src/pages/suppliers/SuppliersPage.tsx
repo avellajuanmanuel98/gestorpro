@@ -5,6 +5,7 @@ import { suppliersApi } from '@/api/suppliers'
 import type { Supplier } from '@/types'
 import Modal from '@/components/ui/Modal'
 import SupplierForm from '@/components/suppliers/SupplierForm'
+import Pagination from '@/components/ui/Pagination'
 
 const CATEGORY_LABELS: Record<Supplier['category'], string> = {
   materials:  'Materiales e insumos',
@@ -45,12 +46,14 @@ function CategoryBadge({ category }: { category: Supplier['category'] }) {
 export default function SuppliersPage() {
   const queryClient = useQueryClient()
   const [search,           setSearch]           = useState('')
+  const [page,             setPage]             = useState(1)
   const [modalOpen,        setModalOpen]        = useState(false)
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | undefined>()
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['suppliers', search],
-    queryFn:  () => suppliersApi.list({ search }),
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['suppliers', search, page],
+    queryFn:  () => suppliersApi.list({ search, page }),
+    placeholderData: (previous) => previous,
     enabled:  search.length !== 1,
   })
 
@@ -98,7 +101,7 @@ export default function SuppliersPage() {
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
           placeholder="Buscar por nombre, contacto o email..."
           className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
@@ -187,6 +190,7 @@ export default function SuppliersPage() {
               </tbody>
             </table>
           )}
+          <Pagination data={data} onPageChange={setPage} noun="proveedores" isFetching={isFetching} />
         </div>
       )}
 

@@ -5,14 +5,11 @@ import { inventoryApi } from '@/api/inventory'
 import type { Product, Category } from '@/types'
 import Modal from '@/components/ui/Modal'
 import ProductForm from '@/components/inventory/ProductForm'
+import Pagination from '@/components/ui/Pagination'
+import { formatCOP } from '@/lib/money'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatCurrency(v: string | number) {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency', currency: 'COP', minimumFractionDigits: 0,
-  }).format(Number(v))
-}
 
 // ── Tab: Productos ────────────────────────────────────────────────────────────
 
@@ -20,16 +17,19 @@ function ProductsTab() {
   const queryClient = useQueryClient()
   const [search,     setSearch]     = useState('')
   const [typeFilter, setTypeFilter] = useState('')
+  const [page,       setPage]       = useState(1)
   const [modalOpen,  setModalOpen]  = useState(false)
   const [selected,   setSelected]   = useState<Product | undefined>()
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['products', search, typeFilter],
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['products', search, typeFilter, page],
     queryFn:  () => inventoryApi.listProducts({
       search,
+      page,
       ...(typeFilter ? { product_type: typeFilter } : {}),
     }),
     enabled: search.length !== 1,
+    placeholderData: (previous) => previous,
   })
 
   const deleteMutation = useMutation({
@@ -55,14 +55,14 @@ function ProductsTab() {
           <input
             type="text"
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => { setSearch(e.target.value); setPage(1) }}
             placeholder="Buscar por nombre o código..."
             className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
         <select
           value={typeFilter}
-          onChange={e => setTypeFilter(e.target.value)}
+          onChange={e => { setTypeFilter(e.target.value); setPage(1) }}
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">Todos los tipos</option>
@@ -122,7 +122,7 @@ function ProductsTab() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700 font-medium">
-                      {formatCurrency(product.price)}
+                      {formatCOP(product.price)}
                     </td>
                     <td className="px-6 py-4">
                       {product.product_type === 'service' ? (
@@ -172,6 +172,7 @@ function ProductsTab() {
               </tbody>
             </table>
           )}
+          <Pagination data={data} onPageChange={setPage} noun="productos" isFetching={isFetching} />
         </div>
       )}
 
@@ -197,10 +198,12 @@ function CategoriesTab() {
   const [desc,      setDesc]        = useState('')
   const [saving,    setSaving]      = useState(false)
   const [error,     setError]       = useState('')
+  const [page,      setPage]        = useState(1)
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['categories'],
-    queryFn:  inventoryApi.listCategories,
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['categories', page],
+    queryFn:  () => inventoryApi.listCategories({ page }),
+    placeholderData: (previous) => previous,
   })
 
   const deleteMutation = useMutation({
@@ -289,6 +292,7 @@ function CategoriesTab() {
               </tbody>
             </table>
           )}
+          <Pagination data={data} onPageChange={setPage} noun="categorías" isFetching={isFetching} />
         </div>
       )}
 
@@ -340,13 +344,14 @@ type TabId = 'products' | 'categories'
 export default function InventoryPage() {
   const [activeTab, setActiveTab] = useState<TabId>('products')
 
+  // Solo se usan los totales (count) para el encabezado
   const { data: products } = useQuery({
-    queryKey: ['products'],
-    queryFn:  () => inventoryApi.listProducts({}),
+    queryKey: ['products', 'count'],
+    queryFn:  () => inventoryApi.listProducts({ page_size: 1 }),
   })
   const { data: categories } = useQuery({
-    queryKey: ['categories'],
-    queryFn:  inventoryApi.listCategories,
+    queryKey: ['categories', 'count'],
+    queryFn:  () => inventoryApi.listCategories({ page_size: 1 }),
   })
 
   return (

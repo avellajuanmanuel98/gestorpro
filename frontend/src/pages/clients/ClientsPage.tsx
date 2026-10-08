@@ -4,14 +4,15 @@ import {
   Search, Plus, Mail, Phone, MapPin,
   Pencil, Trash2, Users,
 } from 'lucide-react'
-import { clientsApi } from '@/api/clients'
-import type { Client } from '@/types'
+import { customersApi } from '@/api/customers'
+import type { Customer as Client } from '@/types'
 import Modal from '@/components/ui/Modal'
 import ClientForm from '@/components/clients/ClientForm'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import EmptyState from '@/components/ui/EmptyState'
 import { SkeletonTable } from '@/components/ui/Skeleton'
+import Pagination from '@/components/ui/Pagination'
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 
@@ -85,18 +86,25 @@ function RowActions({
 export default function ClientsPage() {
   const queryClient = useQueryClient()
   const [search,         setSearch]         = useState('')
+  const [page,           setPage]           = useState(1)
   const [modalOpen,      setModalOpen]      = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | undefined>()
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['clients', search],
-    queryFn:  () => clientsApi.list({ search }),
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['customers', search, page],
+    queryFn:  () => customersApi.list({ search, page }),
     enabled:  search.length !== 1,
+    placeholderData: (previous) => previous,
   })
 
+  const updateSearch = (value: string) => {
+    setSearch(value)
+    setPage(1)
+  }
+
   const deleteMutation = useMutation({
-    mutationFn: clientsApi.delete,
-    onSuccess:  () => queryClient.invalidateQueries({ queryKey: ['clients'] }),
+    mutationFn: customersApi.delete,
+    onSuccess:  () => queryClient.invalidateQueries({ queryKey: ['customers'] }),
   })
 
   const openCreate = () => {
@@ -152,7 +160,7 @@ export default function ClientsPage() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => updateSearch(e.target.value)}
             placeholder="Buscar por nombre, email o documento…"
             className={[
               'w-full h-9 pl-8 pr-3 text-sm rounded-lg',
@@ -165,7 +173,7 @@ export default function ClientsPage() {
           />
           {search && (
             <button
-              onClick={() => setSearch('')}
+              onClick={() => updateSearch('')}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
             >
               ×
@@ -231,7 +239,7 @@ export default function ClientsPage() {
                   <div className="min-w-0 space-y-0.5">
                     <div className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
                       <Mail size={11} className="shrink-0 text-zinc-400" />
-                      <span className="truncate">{client.email}</span>
+                      <span className="truncate">{client.email || '—'}</span>
                     </div>
                     {client.phone && (
                       <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-500">
@@ -275,12 +283,7 @@ export default function ClientsPage() {
               ))}
             </div>
 
-            {/* Table footer */}
-            <div className="px-6 py-3 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/20">
-              <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                Mostrando {data.results.length} de {totalCount} cliente{totalCount !== 1 ? 's' : ''}
-              </p>
-            </div>
+            <Pagination data={data} onPageChange={setPage} noun="clientes" isFetching={isFetching} />
           </>
         )}
       </div>

@@ -3,35 +3,45 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Users, FileText, Building2, LogOut,
   Menu, X, UserCheck, Truck, BarChart2, Boxes,
-  Moon, Sun, ChevronRight, Bell,
+  Moon, Sun, ChevronRight, ArrowLeftRight,
 } from 'lucide-react'
-import { useAuthStore } from '@/store/authStore'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuthStore, useCan } from '@/store/authStore'
 import { useThemeStore } from '@/store/themeStore'
 
 // ── Navigation config ─────────────────────────────────────────────────────────
+// `permission`: solo se muestra el módulo si el rol lo incluye. Es una ayuda de
+// UX; el backend rechaza igualmente cualquier acceso no permitido.
 
-const navGroups = [
+interface NavItem {
+  to:          string
+  icon:        React.ElementType
+  label:       string
+  permission?: string
+}
+
+const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: 'Principal',
     items: [
-      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard'   },
-      { to: '/clients',   icon: Users,           label: 'Clientes'    },
-      { to: '/invoices',  icon: FileText,        label: 'Facturación' },
-      { to: '/inventory', icon: Boxes,           label: 'Inventario'  },
+      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard'                                  },
+      { to: '/clients',   icon: Users,           label: 'Clientes',    permission: 'customers.view' },
+      { to: '/invoices',  icon: FileText,        label: 'Facturación', permission: 'billing.view'   },
+      { to: '/inventory', icon: Boxes,           label: 'Inventario',  permission: 'catalog.view'   },
     ],
   },
   {
     label: 'Recursos',
     items: [
-      { to: '/employees', icon: UserCheck, label: 'Empleados'   },
-      { to: '/suppliers', icon: Truck,     label: 'Proveedores' },
-      { to: '/reports',   icon: BarChart2, label: 'Reportes'    },
+      { to: '/employees', icon: UserCheck, label: 'Empleados',   permission: 'hr.view'        },
+      { to: '/suppliers', icon: Truck,     label: 'Proveedores', permission: 'suppliers.view' },
+      { to: '/reports',   icon: BarChart2, label: 'Reportes',    permission: 'reports.view'   },
     ],
   },
   {
     label: 'Configuración',
     items: [
-      { to: '/company', icon: Building2, label: 'Mi Empresa' },
+      { to: '/company', icon: Building2, label: 'Mi Empresa', permission: 'tenant.view' },
     ],
   },
 ]
@@ -78,15 +88,67 @@ function Avatar({ name, size = 'sm' }: { name?: string; size?: 'sm' | 'md' }) {
 
 // ── Sidebar content ───────────────────────────────────────────────────────────
 
-function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
-  const { user, logout }   = useAuthStore()
-  const { theme, toggleTheme } = useThemeStore()
-  const navigate = useNavigate()
+function TenantSwitcher() {
+  const session      = useAuthStore((s) => s.session)
+  const switchTenant = useAuthStore((s) => s.switchTenant)
+  const queryClient  = useQueryClient()
+  const [switching, setSwitching] = useState(false)
 
-  const handleLogout = () => {
-    logout()
+  if (!session?.tenant) return null
+  const others = session.memberships.filter((m) => m.tenant_id !== session.tenant?.id)
+
+  const handleSwitch = async (tenantId: number) => {
+    setSwitching(true)
+    try {
+      await switchTenant(tenantId)
+      queryClient.clear()  // ningún dato en caché de la empresa anterior
+    } finally {
+      setSwitching(false)
+    }
+  }
+
+  return (
+    <div className="px-5 pb-3">
+      <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100 truncate" title={session.tenant.name}>
+        {session.tenant.name}
+      </p>
+      <p className="text-[11px] text-zinc-500 dark:text-zinc-500 truncate">{session.role?.name}</p>
+      {others.length > 0 && (
+        <label className="mt-2 flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+          <ArrowLeftRight size={12} className="shrink-0" />
+          <span className="sr-only">Cambiar de empresa</span>
+          <select
+            value=""
+            disabled={switching}
+            onChange={(e) => e.target.value && void handleSwitch(Number(e.target.value))}
+            className="w-full bg-transparent text-[11px] focus:outline-none cursor-pointer"
+          >
+            <option value="">Cambiar de empresa…</option>
+            {others.map((m) => <option key={m.tenant_id} value={m.tenant_id}>{m.tenant_name}</option>)}
+          </select>
+        </label>
+      )}
+    </div>
+  )
+}
+
+function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
+  const user   = useAuthStore((s) => s.user)
+  const logout = useAuthStore((s) => s.logout)
+  const can    = useCan()
+  const { theme, toggleTheme } = useThemeStore()
+  const navigate    = useNavigate()
+  const queryClient = useQueryClient()
+
+  const handleLogout = async () => {
+    await logout()  // revoca el refresh token en el servidor
+    queryClient.clear()
     navigate('/login')
   }
+
+  const visibleGroups = navGroups
+    .map((g) => ({ ...g, items: g.items.filter((i) => !i.permission || can(i.permission)) }))
+    .filter((g) => g.items.length > 0)
 
   return (
     <div className="flex flex-col h-full">
@@ -103,9 +165,11 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
         </div>
       </div>
 
+      <TenantSwitcher />
+
       {/* ── Navigation ── */}
       <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-5">
-        {navGroups.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.label}>
             <p className="px-2.5 mb-1 text-[10px] font-semibold tracking-widest uppercase text-zinc-400 dark:text-zinc-600">
               {group.label}
@@ -180,10 +244,11 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
             </p>
           </div>
           <button
-            onClick={handleLogout}
+            onClick={() => void handleLogout()}
             title="Cerrar sesión"
+            aria-label="Cerrar sesión"
             className={[
-              'p-1 rounded-md opacity-0 group-hover:opacity-100 transition-all',
+              'p-1 rounded-md transition-all',
               'text-zinc-400 hover:text-red-600 hover:bg-red-50',
               'dark:hover:text-red-400 dark:hover:bg-red-950/40',
             ].join(' ')}
@@ -202,6 +267,7 @@ export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
   const user = useAuthStore((s) => s.user)
+  const tenantName = useAuthStore((s) => s.session?.tenant?.name)
 
   const currentLabel = routeLabels[location.pathname] ?? 'GestorPro'
 
@@ -227,6 +293,7 @@ export default function AppLayout() {
               <button
                 onClick={() => setSidebarOpen(false)}
                 className="p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                aria-label="Cerrar menú"
               >
                 <X size={16} />
               </button>
@@ -246,13 +313,14 @@ export default function AppLayout() {
           <button
             onClick={() => setSidebarOpen(true)}
             className="md:hidden p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            aria-label="Abrir menú"
           >
             <Menu size={18} />
           </button>
 
           {/* Breadcrumb */}
           <div className="flex items-center gap-1.5 text-sm">
-            <span className="hidden md:block text-zinc-400 dark:text-zinc-600 font-medium">GestorPro</span>
+            <span className="hidden md:block text-zinc-400 dark:text-zinc-600 font-medium truncate max-w-[16rem]">{tenantName ?? 'GestorPro'}</span>
             <ChevronRight size={14} className="hidden md:block text-zinc-300 dark:text-zinc-700" />
             <span className="font-semibold text-zinc-900 dark:text-zinc-100">{currentLabel}</span>
           </div>
@@ -262,12 +330,6 @@ export default function AppLayout() {
 
           {/* Right actions */}
           <div className="flex items-center gap-2">
-            {/* Notifications bell (placeholder) */}
-            <button className="relative p-2 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 transition-colors">
-              <Bell size={16} />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-indigo-500 rounded-full" />
-            </button>
-
             {/* Avatar (desktop only) */}
             <div className="hidden md:block">
               <Avatar name={user?.full_name} size="sm" />

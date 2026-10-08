@@ -5,6 +5,8 @@ import { billingApi } from '@/api/billing'
 import type { Invoice } from '@/types'
 import Modal from '@/components/ui/Modal'
 import InvoiceForm from '@/components/billing/InvoiceForm'
+import Pagination from '@/components/ui/Pagination'
+import { formatCOP } from '@/lib/money'
 
 const STATUS_LABELS: Record<Invoice['status'], { label: string; color: string }> = {
   draft:     { label: 'Borrador',  color: 'bg-gray-100 text-gray-600'     },
@@ -14,20 +16,17 @@ const STATUS_LABELS: Record<Invoice['status'], { label: string; color: string }>
   cancelled: { label: 'Cancelada', color: 'bg-orange-100 text-orange-700' },
 }
 
-function formatCurrency(value: string) {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency', currency: 'COP', minimumFractionDigits: 0,
-  }).format(Number(value))
-}
-
 export default function InvoicesPage() {
   const [search,       setSearch]       = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [modalOpen,    setModalOpen]    = useState(false)
+  const [page,         setPage]         = useState(1)
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['invoices', search, statusFilter],
-    queryFn:  () => billingApi.list({ status: statusFilter || undefined }),
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['invoices', search, statusFilter, page],
+    queryFn:  () => billingApi.list({ search: search || undefined, status: statusFilter || undefined, page }),
+    enabled:  search.length !== 1,
+    placeholderData: (previous) => previous,
   })
 
   return (
@@ -53,14 +52,14 @@ export default function InvoicesPage() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             placeholder="Buscar por número o cliente..."
             className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">Todos los estados</option>
@@ -99,11 +98,11 @@ export default function InvoicesPage() {
                   return (
                     <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 font-medium text-indigo-600">{invoice.number}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{invoice.client_name}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{invoice.customer_name}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{invoice.issue_date}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{invoice.due_date}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                        {formatCurrency(invoice.total)}
+                        {formatCOP(invoice.total)}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
@@ -116,6 +115,7 @@ export default function InvoicesPage() {
               </tbody>
             </table>
           )}
+          <Pagination data={data} onPageChange={setPage} noun="documentos" isFetching={isFetching} />
         </div>
       )}
 

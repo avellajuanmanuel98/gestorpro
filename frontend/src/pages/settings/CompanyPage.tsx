@@ -1,29 +1,33 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Building2, Save, Loader2 } from 'lucide-react'
-import { authApi } from '@/api/auth'
-import type { Company } from '@/types'
+import { tenantApi } from '@/api/auth'
+import { useAuthStore, useCan } from '@/store/authStore'
+import type { Tenant } from '@/types'
+import { getErrorMessage } from '@/lib/errors'
 
 export default function CompanyPage() {
   const queryClient = useQueryClient()
   const [saved, setSaved] = useState(false)
+  const canEdit = useCan()('tenant.manage')
+  const refreshSession = useAuthStore((s) => s.refreshSession)
 
-  // Cargamos los datos de la empresa
+  // Datos de la empresa ACTIVA (el endpoint no recibe ids)
   const { data: company, isLoading } = useQuery({
-    queryKey: ['my-company'],
-    queryFn:  authApi.getMyCompany,
+    queryKey: ['tenant'],
+    queryFn:  tenantApi.current,
   })
 
   // Estado local del formulario — se inicializa cuando llegan los datos
-  const [form, setForm] = useState<Partial<Company>>({})
+  const [form, setForm] = useState<Partial<Tenant>>({})
 
   // Sincronizamos el form cuando llegan los datos de la API
   // (solo la primera vez, para no pisar lo que el usuario ya escribió)
-  const formData: Partial<Company> = {
+  const formData: Partial<Tenant> = {
     name:    form.name    ?? company?.name    ?? '',
     email:   form.email   ?? company?.email   ?? '',
     phone:   form.phone   ?? company?.phone   ?? '',
-    nit:     form.nit     ?? company?.nit     ?? '',
+    tax_id:  form.tax_id  ?? company?.tax_id  ?? '',
     city:    form.city    ?? company?.city    ?? '',
     address: form.address ?? company?.address ?? '',
   }
@@ -34,10 +38,10 @@ export default function CompanyPage() {
 
   // Mutación para guardar — usamos PATCH para enviar solo los campos que cambiaron
   const mutation = useMutation({
-    mutationFn: () => authApi.updateMyCompany(formData),
+    mutationFn: () => tenantApi.update(formData),
     onSuccess: (updated) => {
-      // Actualizamos la caché de React Query con los datos nuevos
-      queryClient.setQueryData(['my-company'], updated)
+      queryClient.setQueryData(['tenant'], updated)
+      void refreshSession()  // el nombre de la empresa aparece en la navegación
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     },
@@ -46,13 +50,6 @@ export default function CompanyPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     mutation.mutate()
-  }
-
-  // Plan badge — muestra el plan actual con un color
-  const planColors = {
-    free:    'bg-gray-100 text-gray-600',
-    starter: 'bg-blue-100 text-blue-600',
-    pro:     'bg-indigo-100 text-indigo-700',
   }
 
   if (isLoading) {
@@ -75,19 +72,15 @@ export default function CompanyPage() {
         </div>
       </div>
 
-      {/* Plan actual (solo lectura) */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6 flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-500">Plan actual</p>
-          <p className="text-base font-medium text-gray-900 capitalize">{company?.plan}</p>
-        </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${planColors[company?.plan ?? 'free']}`}>
-          {company?.plan?.toUpperCase()}
-        </span>
-      </div>
+      {!canEdit && (
+        <p className="mb-4 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
+          Solo los administradores pueden editar los datos de la empresa.
+        </p>
+      )}
 
       {/* Formulario */}
       <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+        <fieldset disabled={!canEdit} className="space-y-5 disabled:opacity-70">
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -108,8 +101,8 @@ export default function CompanyPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">NIT / RUT</label>
             <input
               type="text"
-              name="nit"
-              value={formData.nit}
+              name="tax_id"
+              value={formData.tax_id}
               onChange={handleChange}
               placeholder="900123456-7"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -170,8 +163,8 @@ export default function CompanyPage() {
         {/* Feedback de error */}
         {mutation.isError && (
           <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
-            Ocurrió un error al guardar. Intenta de nuevo.
-          </p>
+          {getErrorMessage(mutation.error)}
+        </p>
         )}
 
         {/* Feedback de éxito */}
@@ -193,6 +186,7 @@ export default function CompanyPage() {
             }
           </button>
         </div>
+        </fieldset>
       </form>
     </div>
   )

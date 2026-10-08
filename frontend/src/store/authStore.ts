@@ -1,32 +1,73 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { User } from '@/types'
-
-// Zustand es como useState pero global — cualquier componente
-// puede leer o modificar este estado sin pasar props
+import { authApi } from '@/api/auth'
+import { setSessionExpiredHandler, tokenStorage } from '@/api/client'
+import type { AuthTokens, Session, User } from '@/types'
 
 interface AuthState {
+  session: Session | null
   user: User | null
   isAuthenticated: boolean
-  setUser: (user: User) => void
-  logout: () => void
+  /** Guarda tokens y carga la sesión (usuario, empresa activa, rol, permisos). */
+  startSession: (tokens: AuthTokens) => Promise<Session>
+  refreshSession: () => Promise<void>
+  switchTenant: (tenantId: number) => Promise<void>
+  logout: () => Promise<void>
+  clear: () => void
 }
 
 export const useAuthStore = create<AuthState>()(
-  // persist guarda el estado en localStorage automáticamente
   persist(
-    (set) => ({
+    (set, get) => ({
+      session: null,
       user: null,
       isAuthenticated: false,
 
-      setUser: (user) => set({ user, isAuthenticated: true }),
+      startSession: async (tokens) => {
+        tokenStorage.set(tokens)
+        const session = await authApi.me()
+        set({ session, user: session.user, isAuthenticated: true })
+        return session
+      },
 
-      logout: () => {
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        set({ user: null, isAuthenticated: false })
+      refreshSession: async () => {
+        const session = await authApi.me()
+        set({ session, user: session.user, isAuthenticated: true })
+      },
+
+      switchTenant: async (tenantId) => {
+        const tokens = await authApi.switchTenant(tenantId)
+        await get().startSession(tokens)
+      },
+
+      logout: async () => {
+        try {
+          await authApi.logout()
+        } catch {
+          // La sesión local se cierra igualmente
+        }
+        get().clear()
+      },
+
+      clear: () => {
+        tokenStorage.clear()
+        set({ session: null, user: null, isAuthenticated: false })
       },
     }),
-    { name: 'auth-store' }
-  )
+    {
+      name: 'auth-store',
+      partialize: (s) => ({ session: s.session, user: s.user, isAuthenticated: s.isAuthenticated }),
+    },
+  ),
 )
+
+setSessionExpiredHandler(() => {
+  useAuthStore.getState().clear()
+  if (window.location.pathname !== '/login') window.location.assign('/login')
+})
+
+/** Permisos solo para adaptar la interfaz; la autorización real está en el backend. */
+export function useCan() {
+  const permissions = useAuthStore((s) => s.session?.permissions)
+  return (permission: string) => Boolean(permissions?.includes(permission))
+}

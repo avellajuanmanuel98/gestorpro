@@ -1,29 +1,29 @@
-// ── Auth ─────────────────────────────────────────
+// ── Sesión ───────────────────────────────────────
 export interface User {
   id: number
   email: string
   first_name: string
   last_name: string
   full_name: string
-  role: 'admin' | 'employee'
   avatar: string | null
+  is_platform_admin: boolean
   date_joined: string
 }
 
-// ── Empresa ──────────────────────────────────────
-export interface Company {
+export interface SessionTenant {
   id: number
   name: string
   slug: string
-  plan: 'free' | 'starter' | 'pro'
-  email: string
-  phone: string
-  address: string
-  city: string
-  nit: string
-  logo: string | null
-  is_active: boolean
-  created_at: string
+  vertical: 'generic' | 'bakery'
+}
+
+export interface Session {
+  user: User
+  tenant: SessionTenant | null
+  role: { code: string; name: string } | null
+  /** Solo para adaptar la UI. El backend valida cada permiso. */
+  permissions: string[]
+  memberships: { tenant_id: number; tenant_name: string; role: string }[]
 }
 
 export interface AuthTokens {
@@ -31,8 +31,27 @@ export interface AuthTokens {
   refresh: string
 }
 
+// ── Empresa ──────────────────────────────────────
+export interface Tenant {
+  id: number
+  name: string
+  legal_name: string
+  slug: string
+  tax_id: string
+  vertical: 'generic' | 'bakery'
+  status: 'active' | 'suspended'
+  email: string
+  phone: string
+  address: string
+  city: string
+  logo: string | null
+  timezone: string
+  currency: string
+  created_at: string
+}
+
 // ── Clientes ─────────────────────────────────────
-export interface Client {
+export interface Customer {
   id: number
   document_type: 'CC' | 'NIT' | 'CE' | 'PP'
   document_number: string
@@ -67,10 +86,9 @@ export interface Product {
   description: string
   product_type: 'product' | 'service'
   category: number | null
-  category_name: string
+  category_name: string | null
   price: string
   tax_rate: string
-  price_with_tax: string
   stock: number
   minimum_stock: number
   is_low_stock: boolean
@@ -81,7 +99,8 @@ export interface Product {
 }
 
 // ── Facturación ──────────────────────────────────
-export interface InvoiceItem {
+/** Línea calculada por el servidor (precio e impuesto vienen del catálogo). */
+export interface InvoiceLine {
   id: number
   product: number
   product_name: string
@@ -89,9 +108,17 @@ export interface InvoiceItem {
   quantity: string
   unit_price: string
   tax_rate: string
-  line_total: string
+  line_subtotal: string
   tax_amount: string
-  line_total_with_tax: string
+  line_total: string
+}
+
+/** Lo que el cliente puede pedir al crear/editar. Los importes los calcula el backend. */
+export interface InvoiceLineInput {
+  product: number
+  quantity: string | number
+  unit_price?: string | number
+  description?: string
 }
 
 export interface Invoice {
@@ -99,8 +126,8 @@ export interface Invoice {
   number: string
   invoice_type: 'quote' | 'invoice'
   status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
-  client: number
-  client_name: string
+  customer: number
+  customer_name: string
   issue_date: string
   due_date: string
   subtotal: string
@@ -108,10 +135,16 @@ export interface Invoice {
   discount: string
   total: string
   notes: string
-  items: InvoiceItem[]
+  lines: InvoiceLine[]
   created_by: string
   created_at: string
   updated_at: string
+}
+
+export type InvoiceInput = Pick<Invoice, 'number' | 'invoice_type' | 'customer' | 'issue_date' | 'due_date' | 'notes'> & {
+  status?: Invoice['status']
+  discount?: string | number
+  items?: InvoiceLineInput[]
 }
 
 export interface BillingSummary {
@@ -137,7 +170,8 @@ export interface Employee {
   position: string
   department: 'admin' | 'sales' | 'operations' | 'finance' | 'it' | 'hr' | 'other'
   hire_date: string
-  salary: string | null
+  /** Ausente si el usuario no tiene el permiso hr.view_salary */
+  salary?: string | null
   status: 'active' | 'inactive'
   notes: string
   created_by: string
@@ -166,9 +200,12 @@ export interface Supplier {
 }
 
 // ── Paginación ───────────────────────────────────
-// Django devuelve esta estructura en todos los listados
+// Todos los listados del backend devuelven esta estructura
 export interface PaginatedResponse<T> {
   count: number
+  page: number
+  page_size: number
+  total_pages: number
   next: string | null
   previous: string | null
   results: T[]

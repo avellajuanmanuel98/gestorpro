@@ -2,9 +2,11 @@ import apiClient from './client'
 
 // ── Tipos de respuesta ────────────────────────────────────────────────────────
 
+// Importes como string decimal exacto (ver lib/money.ts)
 export interface MonthlyTrendPoint {
+  month: string
   mes:   string
-  total: number
+  total: string
   count: number
 }
 
@@ -12,12 +14,12 @@ export interface StatusBreakdown {
   status: string
   label:  string
   count:  number
-  total:  number
+  total:  string
 }
 
 export interface TopClient {
   name:  string
-  total: number
+  total: string
   count: number
 }
 
@@ -34,6 +36,7 @@ export interface CategoryStock {
 }
 
 export interface LowStockProduct {
+  id:            number
   name:          string
   code:          string
   stock:         number
@@ -45,7 +48,9 @@ export interface InventoryReport {
   low_stock:        LowStockProduct[]
   total_productos:  number
   total_servicios:  number
-  valor_inventario: number
+  /** Valor a precio de venta (el valor a costo llegará con el libro de inventario) */
+  valor_inventario: string
+  valor_inventario_base: 'sale_price'
 }
 
 export interface DepartmentCount {

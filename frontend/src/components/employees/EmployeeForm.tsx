@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { employeesApi } from '@/api/employees'
 import type { Employee } from '@/types'
 import Input from '@/components/ui/Input'
+import { getErrorMessage } from '@/lib/errors'
 
 const DEPARTMENTS = [
   { value: 'admin',      label: 'Administración' },
@@ -210,7 +211,7 @@ export default function EmployeeForm({ employee, onSuccess }: EmployeeFormProps)
 
       {mutation.isError && (
         <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
-          Ocurrió un error. Verifica que el email y documento no estén duplicados.
+          {getErrorMessage(mutation.error)}
         </p>
       )}
 

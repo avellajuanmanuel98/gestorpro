@@ -6,24 +6,22 @@ import {
 } from 'recharts'
 import { reportsApi } from '@/api/reports'
 import { AlertTriangle, Package, Users, Truck } from 'lucide-react'
+import { formatCOP, formatCompactNumber, toDisplayNumber, type MoneyValue } from '@/lib/money'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatCurrency(v: number) {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency', currency: 'COP', minimumFractionDigits: 0,
-  }).format(v)
-}
+const formatCurrency = (v: MoneyValue) => formatCOP(v)
+const formatCompact = (v: number) => formatCompactNumber(v)
 
-function formatCompact(v: number) {
-  return new Intl.NumberFormat('es-CO', {
-    notation: 'compact', maximumFractionDigits: 1,
-  }).format(v)
+interface TooltipProps {
+  active?:  boolean
+  label?:   string
+  payload?: { value: number; name?: string }[]
 }
 
 const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899']
 
-function CustomTooltipCurrency({ active, payload, label }: any) {
+function CustomTooltipCurrency({ active, payload, label }: TooltipProps) {
   if (active && payload?.length) {
     return (
       <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-2 text-sm">
@@ -35,7 +33,7 @@ function CustomTooltipCurrency({ active, payload, label }: any) {
   return null
 }
 
-function CustomTooltipCount({ active, payload, label }: any) {
+function CustomTooltipCount({ active, payload, label }: TooltipProps) {
   if (active && payload?.length) {
     return (
       <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-2 text-sm">
@@ -79,6 +77,10 @@ function BillingTab() {
 
   if (isLoading) return <Spinner />
 
+  // Recharts necesita números: conversión solo para dibujar
+  const monthlyTrend = (data?.monthly_trend ?? []).map((m) => ({ ...m, total: toDisplayNumber(m.total) }))
+  const hasSales = monthlyTrend.some((m) => m.total > 0)
+
   const STATUS_COLORS: Record<string, string> = {
     paid: '#22c55e', sent: '#6366f1', draft: '#9ca3af',
     overdue: '#ef4444', cancelled: '#d1d5db',
@@ -90,9 +92,9 @@ function BillingTab() {
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h3 className="font-semibold text-gray-900 mb-1">Ventas mensuales (últimos 12 meses)</h3>
         <p className="text-sm text-gray-500 mb-6">Facturas con estado "Pagada"</p>
-        {!data?.monthly_trend.length ? <EmptyState text="Sin ventas registradas aún" /> : (
+        {!hasSales ? <EmptyState text="Sin ventas registradas aún" /> : (
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={data.monthly_trend} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
+            <BarChart data={monthlyTrend} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
               <YAxis tickFormatter={formatCompact} tick={{ fontSize: 12 }} width={64} />
@@ -118,7 +120,7 @@ function BillingTab() {
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
-                  label={({ name, value }: any) => `${name} (${value})`}
+                  label={({ name, value }: { name?: string; value?: number }) => `${name} (${value})`}
                   labelLine={false}
                 >
                   {data.status_breakdown.map((entry) => (
@@ -180,7 +182,7 @@ function InventoryTab() {
         {[
           { label: 'Productos activos',  value: data?.total_productos ?? 0,                    icon: Package,       color: 'bg-indigo-500' },
           { label: 'Servicios activos',  value: data?.total_servicios ?? 0,                    icon: Users,         color: 'bg-purple-500' },
-          { label: 'Valor inventario',   value: formatCurrency(data?.valor_inventario ?? 0),   icon: Package,       color: 'bg-green-500'  },
+          { label: 'Valor a precio de venta', value: formatCurrency(data?.valor_inventario ?? 0), icon: Package,    color: 'bg-green-500'  },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color}`}>

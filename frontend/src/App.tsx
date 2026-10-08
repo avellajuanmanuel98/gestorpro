@@ -1,5 +1,6 @@
+import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore, useCan } from '@/store/authStore'
 import AssistantButton from '@/components/ai/AssistantButton'
 
 // Páginas
@@ -25,6 +26,14 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const refreshSession  = useAuthStore((s) => s.refreshSession)
+  const canUseAssistant = useCan()('assistant.use')
+
+  // Al abrir la app, la sesión (empresa activa, rol y permisos) se vuelve a
+  // pedir al servidor: lo guardado en el navegador puede estar desactualizado.
+  useEffect(() => {
+    if (isAuthenticated) void refreshSession().catch(() => undefined)
+  }, [isAuthenticated, refreshSession])
 
   return (
     <>
@@ -57,8 +66,8 @@ function App() {
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
 
-      {/* Asistente IA — disponible cuando el usuario está autenticado */}
-      {isAuthenticated && <AssistantButton />}
+      {/* Asistente IA — solo si el rol lo incluye (el backend también lo exige) */}
+      {isAuthenticated && canUseAssistant && <AssistantButton />}
     </>
   )
 }
