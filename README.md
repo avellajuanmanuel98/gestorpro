@@ -101,12 +101,38 @@ python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activa
 pip install -r requirements-dev.txt
 cp .env.example .env                               # y define SECRET_KEY
 python manage.py migrate
-DEMO_PASSWORD='elige-una' python manage.py seed_demo   # panadería demo (solo DEBUG)
+python manage.py seed_demo --password "Elige-una-1"   # panadería demo (solo DEBUG)
 python manage.py runserver
 
 # Frontend (otra terminal)
 cd frontend && npm ci && npm run dev
 ```
+
+### Windows (CMD)
+
+```bat
+git fetch origin
+git checkout claude/zen-johnson-hhz8hm
+
+:: PostgreSQL: Docker Desktop (o PostgreSQL 16 instalado nativamente, ver abajo)
+docker compose up -d db
+
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements-dev.txt
+copy .env.example .env
+:: Edita .env y define SECRET_KEY (cualquier texto largo en local)
+
+python manage.py migrate
+python manage.py seed_demo --password "Elige-una-1"
+python manage.py runserver
+```
+
+En otra ventana: `cd frontend`, `npm ci`, `npm run dev`.
+
+**Sin Docker:** instala PostgreSQL 16 para Windows, crea la base
+(`createdb -U postgres gestorpro`) y en `.env` usa
+`DATABASE_URL=postgres://postgres:TU_CLAVE@localhost:5432/gestorpro`.
 
 | Servicio | URL |
 |---|---|

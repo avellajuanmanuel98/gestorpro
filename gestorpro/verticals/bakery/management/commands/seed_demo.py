@@ -1,11 +1,12 @@
 """
 Datos de demostración para DESARROLLO.
 
-    DEMO_PASSWORD=... python manage.py seed_demo
+    python manage.py seed_demo --password "Mi-clave-1"
+    (o variable de entorno DEMO_PASSWORD; si no se indica, se genera aleatoria)
 
 - Se niega a ejecutarse con DEBUG=False (nunca corre en producción).
 - No crea superusuarios.
-- La contraseña viene de DEMO_PASSWORD o se genera aleatoriamente.
+- La contraseña viene de --password, de DEMO_PASSWORD o se genera aleatoriamente.
 - Es idempotente: si la empresa demo existe, no duplica datos.
 """
 import os
@@ -44,13 +45,16 @@ PRODUCTS = [
 class Command(BaseCommand):
     help = 'Crea una panadería demo (solo desarrollo).'
 
+    def add_arguments(self, parser):
+        parser.add_argument('--password', help='Contraseña de los usuarios demo.')
+
     def handle(self, *args, **options):
         if not settings.DEBUG:
             raise CommandError('seed_demo solo puede ejecutarse con DEBUG=True.')
         if Tenant.objects.filter(name='Panadería La Espiga (demo)').exists():
             self.stdout.write('La empresa demo ya existe; no se modifica.')
             return
-        password = os.environ.get('DEMO_PASSWORD') or secrets.token_urlsafe(12)
+        password = options.get('password') or os.environ.get('DEMO_PASSWORD') or secrets.token_urlsafe(12)
         with transaction.atomic():
             owner = User.objects.create_user(email='propietaria@demo.miga.co', password=password,
                                              first_name='Lucía', last_name='Gómez')
