@@ -221,3 +221,12 @@ def test_bakery_vertical_seeds_default_categories():
     generic = s.make_tenant('Ferreteria')
     with tenant_context(generic):
         assert not Category.objects.exists()
+
+
+def test_set_plan_command_changes_plan():
+    from django.core.management import call_command
+    t = s.make_tenant('Cambio Plan', plan_code='starter')
+    call_command('set_plan', t.slug, 'business', '--active')
+    from gestorpro.core.entitlements import for_tenant
+    ent = for_tenant(t.id)
+    assert ent.plan_code == 'business' and ent.status == 'active' and ent.has('module.hr')

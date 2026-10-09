@@ -113,6 +113,16 @@ Los **precios están vacíos a propósito**: es una decisión de negocio tuya. N
 - **Empresas nuevas:** arrancan en **prueba de 14 días** del plan `DEFAULT_PLAN_CODE` (por defecto `starter`).
 - **Estado de la suscripción:** hoy solo `canceled` revoca las funcionalidades. El cobro y el bloqueo por falta de pago llegarán con la integración de pagos.
 
+### Operación
+
+- Las empresas creadas antes de esta fase reciben automáticamente una prueba del plan por defecto (migración `subscriptions/0003`).
+- Para cambiar el plan de una empresa sin entrar al admin:
+
+```bash
+python manage.py set_plan --list                                # empresas y su plan
+python manage.py set_plan panaderia-la-espiga-demo pro --active
+```
+
 ---
 
 ## 4. Vertical Miga
