@@ -264,3 +264,11 @@ def test_owner_can_load_the_starter_catalog_from_the_app(db):
 
     generic = s.api_for(s.make_user(s.make_tenant('Ferretería Web'), 'adm@fer.co', 'ADMIN'))
     assert generic.post('/api/bakery/starter-catalog/').status_code == 404
+
+
+def test_final_consumer_can_be_excluded_from_customer_metrics(db):
+    t = s.make_tenant('Métricas')
+    s.make_customer(t)
+    api = s.api_for(s.make_user(t, 'adm@met.co', 'ADMIN'))
+    assert api.get(s.ENDPOINTS['customers'], {'status': 'active'}).data['count'] == 2
+    assert api.get(s.ENDPOINTS['customers'], {'status': 'active', 'exclude_final_consumer': 'true'}).data['count'] == 1

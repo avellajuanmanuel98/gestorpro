@@ -126,3 +126,32 @@ def test_platform_admin_without_membership_has_no_tenant_data_access(setup):
                          format='json').data
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
     assert client.get(s.ENDPOINTS['customers']).status_code == 403
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('vertical,brand_category', [('bakery', True), ('generic', False), (None, False)])
+def test_registration_sets_the_business_type(vertical, brand_category):
+    from rest_framework.test import APIClient
+
+    from gestorpro.core.catalog.models import Category
+    from gestorpro.core.tenancy.context import tenant_context
+    from gestorpro.core.tenancy.models import Tenant
+    payload = {'email': f'nuevo-{vertical}@neg.co', 'first_name': 'Ana', 'last_name': 'Ruiz',
+               'password': 'Pan-Nuevo-2026!', 'password2': 'Pan-Nuevo-2026!', 'company_name': f'Negocio {vertical}'}
+    if vertical:
+        payload['vertical'] = vertical
+    res = APIClient().post('/api/auth/register/', payload, format='json')
+    assert res.status_code == 201, res.content
+    tenant = Tenant.objects.get(name=f'Negocio {vertical}')
+    assert tenant.vertical == (vertical or 'generic')
+    with tenant_context(tenant):  # solo las panaderías reciben la configuración de Miga
+        assert Category.objects.filter(name='Panes').exists() is brand_category
+
+
+@pytest.mark.django_db
+def test_registration_rejects_unknown_business_type():
+    from rest_framework.test import APIClient
+    res = APIClient().post('/api/auth/register/', {
+        'email': 'x@neg.co', 'first_name': 'A', 'last_name': 'B', 'password': 'Pan-Nuevo-2026!',
+        'password2': 'Pan-Nuevo-2026!', 'company_name': 'X', 'vertical': 'banco'}, format='json')
+    assert res.status_code == 400 and 'vertical' in res.data

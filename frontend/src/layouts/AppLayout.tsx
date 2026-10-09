@@ -19,6 +19,8 @@ interface NavItem {
   label: string
   permission?: string
   feature?: string
+  /** Etiqueta para empresas que NO son panadería (p. ej. Ingredientes → Insumos) */
+  genericLabel?: string
 }
 
 const navGroups: { label: string; items: NavItem[] }[] = [
@@ -29,7 +31,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
       { to: '/clients', icon: Users, label: 'Clientes', permission: 'customers.view' },
       { to: '/invoices', icon: FileText, label: 'Facturación', permission: 'billing.view' },
       { to: '/inventory', icon: Boxes, label: 'Productos', permission: 'catalog.view' },
-      { to: '/ingredients', icon: Wheat, label: 'Ingredientes', permission: 'catalog.view' },
+      { to: '/ingredients', icon: Wheat, label: 'Ingredientes', permission: 'catalog.view', genericLabel: 'Insumos' },
     ],
   },
   {
@@ -121,7 +123,9 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   }
 
   const groups = navGroups
-    .map((g) => ({ ...g, items: g.items.filter((i) => (!i.permission || can(i.permission)) && (!i.feature || hasFeature(i.feature))) }))
+    .map((g) => ({ ...g, items: g.items
+      .filter((i) => (!i.permission || can(i.permission)) && (!i.feature || hasFeature(i.feature)))
+      .map((i) => (i.genericLabel && session?.tenant?.vertical !== 'bakery' ? { ...i, label: i.genericLabel } : i)) }))
     .filter((g) => g.items.length > 0)
 
   return (

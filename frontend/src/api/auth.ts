@@ -8,6 +8,7 @@ export interface RegisterPayload {
   password: string
   password2: string
   company_name: string
+  vertical?: string
 }
 
 export const authApi = {

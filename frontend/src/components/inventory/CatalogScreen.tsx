@@ -39,6 +39,15 @@ const COPY = {
   },
 }
 
+/** Las panaderías hablan de "ingredientes"; el resto de negocios, de "insumos". */
+function useCopy(group: ItemGroup) {
+  const isBakery = useAuthStore((s) => s.session?.tenant?.vertical) === 'bakery'
+  if (group === 'products' || isBakery) return COPY[group]
+  return { ...COPY.ingredients, title: 'Insumos', description: 'Materias primas, insumos y empaques: unidades, costo y existencias',
+           noun: 'insumo', plural: 'insumos', newLabel: 'Nuevo insumo', searchLabel: 'Buscar insumos',
+           emptyTitle: 'Aún no tienes insumos', emptyText: 'Registra las materias primas e insumos con su unidad y su costo.' }
+}
+
 function Stock({ item }: { item: Item }) {
   if (item.kind === 'service') return <span className="text-ink-subtle">—</span>
   return (
@@ -50,7 +59,7 @@ function Stock({ item }: { item: Item }) {
 }
 
 function ItemsTab({ group, canManage }: { group: ItemGroup; canManage: boolean }) {
-  const copy = COPY[group]
+  const copy = useCopy(group)
   const can = useCan()
   const canSeeCosts = can('catalog.view_costs')
   const isBakery = useAuthStore((s) => s.session?.tenant?.vertical) === 'bakery'
@@ -88,7 +97,7 @@ function ItemsTab({ group, canManage }: { group: ItemGroup; canManage: boolean }
   }
 
   const nameCell: Column<Item> = {
-    key: 'name', header: group === 'products' ? 'Producto' : 'Ingrediente', primary: true, cell: (i) => (
+    key: 'name', header: copy.noun[0].toUpperCase() + copy.noun.slice(1), primary: true, cell: (i) => (
       <div className="min-w-0">
         <p className="font-medium text-ink truncate">{i.name}</p>
         <p className="text-xs text-ink-muted">{i.code}{group === 'products' && i.kind !== 'finished_good' && ` · ${ITEM_KIND_LABEL[i.kind]}`}
@@ -182,7 +191,8 @@ function ItemsTab({ group, canManage }: { group: ItemGroup; canManage: boolean }
 }
 
 function CategoriesTab({ group, canManage }: { group: ItemGroup; canManage: boolean }) {
-  const kind = COPY[group].categoryKind
+  const copy = useCopy(group)
+  const kind = copy.categoryKind
   const [page, setPage] = useState(1)
   const [editing, setEditing] = useState<Category | 'new' | null>(null)
   const { data, isLoading, isFetching } = useQuery({
@@ -193,7 +203,7 @@ function CategoriesTab({ group, canManage }: { group: ItemGroup; canManage: bool
   const columns: Column<Category>[] = [
     { key: 'name', header: 'Categoría', primary: true, cell: (c) => <span className="font-medium">{c.name}</span> },
     { key: 'description', header: 'Descripción', hideOnMobile: true, cell: (c) => <span className="text-ink-muted">{c.description || '—'}</span> },
-    { key: 'count', header: COPY[group].title, align: 'right', cell: (c) => c.items_count },
+    { key: 'count', header: copy.title, align: 'right', cell: (c) => c.items_count },
   ]
 
   return (
@@ -210,7 +220,7 @@ function CategoriesTab({ group, canManage }: { group: ItemGroup; canManage: bool
                                            onSuccess={() => setEditing(null)} onCancel={() => setEditing(null)} />}
       </Modal>
       <ConfirmDialog isOpen={del.target !== null} title="Eliminar categoría" confirmLabel="Eliminar"
-                     description={<>Se eliminará <strong className="text-ink">{del.target?.name}</strong>. Sus {COPY[group].plural} quedarán sin categoría.</>}
+                     description={<>Se eliminará <strong className="text-ink">{del.target?.name}</strong>. Sus {copy.plural} quedarán sin categoría.</>}
                      loading={del.loading} error={del.error} onConfirm={del.confirm} onClose={del.close} />
     </div>
   )
@@ -220,7 +230,7 @@ function CategoriesTab({ group, canManage }: { group: ItemGroup; canManage: bool
 export default function CatalogScreen({ group }: { group: ItemGroup }) {
   const canManage = useCan()('catalog.manage')
   const [tab, setTab] = useState<'items' | 'categories'>('items')
-  const copy = COPY[group]
+  const copy = useCopy(group)
   return (
     <Page>
       <PageHeader title={copy.title} description={copy.description} />

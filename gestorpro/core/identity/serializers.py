@@ -3,6 +3,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from gestorpro.core.access.services import provision_tenant
+from gestorpro.core.tenancy.models import Tenant
 
 from .models import User
 
@@ -36,6 +37,8 @@ class RegisterSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, trim_whitespace=False)
     password2 = serializers.CharField(write_only=True, trim_whitespace=False)
     company_name = serializers.CharField(max_length=200)
+    # Tipo de negocio: decide la experiencia (Miga para panaderías, GestorPro general)
+    vertical = serializers.ChoiceField(choices=Tenant.Vertical.choices, default=Tenant.Vertical.GENERIC)
 
     def validate_email(self, value):
         if User.objects.filter(email__iexact=value).exists():
@@ -55,7 +58,7 @@ class RegisterSerializer(serializers.Serializer):
             email=validated['email'], password=validated['password'],
             first_name=validated['first_name'], last_name=validated['last_name'],
         )
-        tenant = provision_tenant(name=validated['company_name'], owner=user)
+        tenant = provision_tenant(name=validated['company_name'], owner=user, vertical=validated['vertical'])
         user.last_tenant = tenant
         user.save(update_fields=['last_tenant'])
         return user

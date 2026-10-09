@@ -59,7 +59,7 @@ export default function DashboardPage() {
   const monthly = useQuery({ queryKey: ['monthly-revenue'], queryFn: billingApi.monthlyRevenue, enabled: canReports })
   const recent = useQuery({ queryKey: ['recent-invoices'], queryFn: billingApi.recent, enabled: canBilling })
   const customers = useQuery({
-    queryKey: ['customers', 'active-count'], queryFn: () => customersApi.list({ status: 'active', page_size: 1 }),
+    queryKey: ['customers', 'active-count'], queryFn: () => customersApi.list({ status: 'active', exclude_final_consumer: true, page_size: 1 }),
     enabled: canCustomers,
   })
   const lowStock = useQuery({ queryKey: ['low-stock'], queryFn: () => catalogApi.lowStock({ page_size: 5 }), enabled: canCatalog })

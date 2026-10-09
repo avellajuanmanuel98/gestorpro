@@ -5,6 +5,7 @@ from gestorpro.core.api.views import TenantDetailView, TenantListCreateView, cru
 
 from .models import Customer
 from .serializers import CustomerListSerializer, CustomerSerializer
+from .services import FINAL_CONSUMER_DOCUMENT
 
 LIST_PERMS, DETAIL_PERMS = crud_permissions('customers')
 
@@ -18,8 +19,12 @@ class CustomerListCreateView(TenantListCreateView):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        status = self.request.query_params.get('status')
-        return qs.filter(status=status) if status else qs
+        params = self.request.query_params
+        if params.get('status'):
+            qs = qs.filter(status=params['status'])
+        if params.get('exclude_final_consumer') == 'true':  # métricas: el genérico no es un cliente real
+            qs = qs.exclude(document_type=Customer.DocumentType.CC, document_number=FINAL_CONSUMER_DOCUMENT)
+        return qs
 
     def get_serializer_class(self):
         return CustomerListSerializer if self.request.method == 'GET' else CustomerSerializer

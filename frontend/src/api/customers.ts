@@ -2,7 +2,7 @@ import apiClient from './client'
 import type { Customer, PaginatedResponse } from '@/types'
 
 export const customersApi = {
-  list: async (params?: { search?: string; status?: string; page?: number; page_size?: number }) =>
+  list: async (params?: { search?: string; status?: string; exclude_final_consumer?: boolean; page?: number; page_size?: number }) =>
     (await apiClient.get<PaginatedResponse<Customer>>('/customers/', { params })).data,
 
   get: async (id: number): Promise<Customer> => (await apiClient.get<Customer>(`/customers/${id}/`)).data,
