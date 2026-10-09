@@ -15,6 +15,7 @@ import { formatCOP, formatCompactNumber, toDisplayNumber } from '@/lib/money'
 import { INVOICE_STATUS } from '@/lib/status'
 import { useCan, useHasFeature } from '@/store/authStore'
 import type { Invoice } from '@/types'
+import { LifecycleMark } from '@/components/ui/StatusMark'
 
 const Loading = () => <div className="grid gap-4 md:grid-cols-2"><Skeleton height={280} /><Skeleton height={280} /></div>
 const NoData = ({ text }: { text: string }) => <EmptyState compact icon={<BarChart2 size={20} />} title={text} />
@@ -55,7 +56,7 @@ function BillingTab() {
                 const pct = Math.round((r.count / statusTotal) * 100)
                 return (
                   <li key={r.status}>
-                    <div className="flex justify-between text-sm"><span className="text-ink">{meta?.label ?? r.label}</span>
+                    <div className="flex justify-between text-sm">{meta ? <LifecycleMark status={meta} /> : <span className="text-ink">{r.label}</span>}
                       <span className="text-ink-muted num">{r.count} · {formatCOP(r.total, { compact: true })}</span></div>
                     <div className="mt-1 h-1.5 rounded-full bg-surface-muted overflow-hidden" aria-hidden>
                       <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />

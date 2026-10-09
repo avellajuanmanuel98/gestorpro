@@ -4,7 +4,6 @@ import { FileText, Plus } from 'lucide-react'
 import { billingApi } from '@/api/billing'
 import InvoiceDetail from '@/components/billing/InvoiceDetail'
 import InvoiceForm from '@/components/billing/InvoiceForm'
-import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import DataTable, { type Column } from '@/components/ui/DataTable'
 import EmptyState from '@/components/ui/EmptyState'
@@ -17,6 +16,7 @@ import { formatCOP } from '@/lib/money'
 import { INVOICE_STATUS } from '@/lib/status'
 import { useCan } from '@/store/authStore'
 import type { Invoice } from '@/types'
+import { LifecycleMark } from '@/components/ui/StatusMark'
 
 export default function InvoicesPage() {
   const can = useCan()
@@ -41,7 +41,7 @@ export default function InvoicesPage() {
     { key: 'issue', header: 'Emisión', hideOnMobile: true, cell: (i) => <span className="text-ink-muted">{formatDate(i.issue_date)}</span> },
     { key: 'due', header: 'Vence', cell: (i) => <span className="text-ink-muted">{formatDate(i.due_date)}</span> },
     { key: 'total', header: 'Total', align: 'right', cell: (i) => <span className="font-medium">{formatCOP(i.total)}</span> },
-    { key: 'status', header: 'Estado', cell: (i) => <Badge variant={INVOICE_STATUS[i.status].variant}>{INVOICE_STATUS[i.status].label}</Badge> },
+    { key: 'status', header: 'Estado', cell: (i) => <LifecycleMark status={INVOICE_STATUS[i.status]} /> },
   ]
   const filtered = Boolean(search || status || type)
 

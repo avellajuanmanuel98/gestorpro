@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query'
 import { Plus, UserCheck } from 'lucide-react'
 import { employeesApi } from '@/api/employees'
 import EmployeeForm from '@/components/employees/EmployeeForm'
-import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import DataTable, { type Column } from '@/components/ui/DataTable'
@@ -19,6 +18,7 @@ import { ACTIVE_STATUS } from '@/lib/status'
 import { useDeleteDialog } from '@/lib/useDeleteDialog'
 import { useCan } from '@/store/authStore'
 import type { Employee } from '@/types'
+import StatusMark from '@/components/ui/StatusMark'
 
 export default function EmployeesPage() {
   const can = useCan()
@@ -49,7 +49,7 @@ export default function EmployeesPage() {
     { key: 'department', header: 'Área', cell: (e) => <span className="text-ink-muted">{label(DEPARTMENTS, e.department)}</span> },
     { key: 'contact', header: 'Contacto', hideOnMobile: true, cell: (e) => <span className="text-ink-muted">{e.phone || e.email || '—'}</span> },
     { key: 'hire', header: 'Ingreso', align: 'right', cell: (e) => formatDate(e.hire_date) },
-    { key: 'status', header: 'Estado', cell: (e) => <Badge variant={ACTIVE_STATUS[e.status].variant}>{ACTIVE_STATUS[e.status].label}</Badge> },
+    { key: 'status', header: 'Estado', cell: (e) => <StatusMark status={ACTIVE_STATUS[e.status]} /> },
   ]
 
   return (

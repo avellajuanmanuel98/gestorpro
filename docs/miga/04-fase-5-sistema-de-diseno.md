@@ -56,7 +56,16 @@ Los componentes **solo** usan tokens semánticos. El modo oscuro y la marca se c
 | `Tabs` | `role="tablist"`, flechas ← → |
 | `KpiTile` | Valor + contexto real; estados de carga y "no disponible" |
 | `PageHeader` + `Page` | Encabezado y contenedor de página consistentes |
+| `StatusMark`, `LifecycleMark`, `StatusStamp` | Lenguaje propio de estados (ver §3.1) |
 | `Card`, `Badge`, `Alert`, `EmptyState`, `Pagination`, `SearchInput`, `RowActions`, `FormActions`, `Skeleton` | — |
+
+### 3.1 Estados: sin "píldoras" genéricas
+
+Los estados no usan la típica píldora de color. La **forma** dice el estado y el color solo lo refuerza: se entiende sin distinguir colores y también impreso en blanco y negro. El texto va en tinta normal, así una tabla llena de estados no se vuelve un mosaico.
+
+- **Cosas vivas** (clientes, productos, usuarios, empleados): una "miga" de la marca. Llena = activo; punteada = inactivo; media llena = invitado o en prueba; con pausa = suspendido.
+- **Documentos:** un riel de tres tramos (borrador → enviada → pagada) que muestra cuánto le falta al documento para cerrarse. Vencida deja el último tramo punteado en rojo, "en deuda", y anulada tacha el riel.
+- **Detalle de factura:** un sello como el "PAGADO" que se estampa en una factura de papel. Doble borde en los estados finales y borde punteado en borrador.
 
 Compartidos en `lib/`: `money` (formato COP), `dates`, `status` (estados de factura y activo/inactivo), `options` (documentos, categorías, áreas), `errors`, `charts`, `markdown`, `useDeleteDialog` y `useDebounced`.
 

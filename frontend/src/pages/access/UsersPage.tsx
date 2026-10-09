@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Copy, Link2, UserPlus, Users } from 'lucide-react'
 import { accessApi } from '@/api/access'
 import { tenantApi } from '@/api/auth'
-import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import EmptyState from '@/components/ui/EmptyState'
@@ -17,12 +16,8 @@ import { formatDate, formatDateTime } from '@/lib/dates'
 import { getErrorMessage } from '@/lib/errors'
 import { useAuthStore, useCan } from '@/store/authStore'
 import type { Invitation, Member, Role } from '@/types'
-
-const STATUS: Record<Member['status'], { label: string; variant: 'success' | 'warning' | 'default' }> = {
-  active:    { label: 'Activo',     variant: 'success' },
-  invited:   { label: 'Invitado',   variant: 'default' },
-  suspended: { label: 'Suspendido', variant: 'warning' },
-}
+import StatusMark from '@/components/ui/StatusMark'
+import { MEMBER_STATUS } from '@/lib/status'
 
 // ── Invitar ───────────────────────────────────────────────────────────────────
 
@@ -193,7 +188,7 @@ export default function UsersPage() {
                         </select>
                       ) : <span className="text-ink">{m.role.name}</span>}
                     </td>
-                    <td className="px-6 py-3.5"><Badge variant={STATUS[m.status].variant} dot>{STATUS[m.status].label}</Badge></td>
+                    <td className="px-6 py-3.5"><StatusMark status={MEMBER_STATUS[m.status]} /></td>
                     <td className="px-6 py-3.5 text-ink-muted tabular-nums">{formatDateTime(m.last_login)}</td>
                     <td className="px-6 py-3.5 text-right whitespace-nowrap">
                       {canEdit(m) && (

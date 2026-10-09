@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { billingApi } from '@/api/billing'
 import Alert from '@/components/ui/Alert'
-import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { SkeletonText } from '@/components/ui/Skeleton'
@@ -13,6 +12,7 @@ import { INVOICE_STATUS } from '@/lib/status'
 import { useCan } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
 import type { Invoice } from '@/types'
+import { StatusStamp } from '@/components/ui/StatusMark'
 
 type Status = Invoice['status']
 
@@ -59,7 +59,7 @@ export default function InvoiceDetail({ id, onClose }: { id: number; onClose: ()
           <p className="text-lg font-semibold text-ink">{invoice.number}</p>
           <p className="text-sm text-ink-muted">{invoice.customer_name}</p>
         </div>
-        <Badge variant={status.variant} size="md">{status.label}</Badge>
+        <StatusStamp status={status} className="mt-1" />
       </div>
 
       <dl className="grid grid-cols-2 gap-3 text-sm">

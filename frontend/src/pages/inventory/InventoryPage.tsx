@@ -4,7 +4,6 @@ import { AlertTriangle, Boxes, Plus, Tags } from 'lucide-react'
 import { inventoryApi } from '@/api/inventory'
 import CategoryForm from '@/components/inventory/CategoryForm'
 import ProductForm from '@/components/inventory/ProductForm'
-import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import DataTable, { type Column } from '@/components/ui/DataTable'
@@ -19,6 +18,8 @@ import { formatCOP } from '@/lib/money'
 import { useDeleteDialog } from '@/lib/useDeleteDialog'
 import { useCan } from '@/store/authStore'
 import type { Category, Product } from '@/types'
+import StatusMark from '@/components/ui/StatusMark'
+import { ACTIVE_STATUS } from '@/lib/status'
 
 function ProductsTab({ canManage }: { canManage: boolean }) {
   const [search, setSearch] = useState('')
@@ -55,7 +56,7 @@ function ProductsTab({ canManage }: { canManage: boolean }) {
       : <span className={p.is_low_stock ? 'text-warning font-medium inline-flex items-center gap-1' : ''}>
           {p.is_low_stock && <AlertTriangle size={13} aria-label="Stock bajo" />}{p.stock.toLocaleString('es-CO')}
         </span> },
-    { key: 'status', header: 'Estado', cell: (p) => <Badge variant={p.is_active ? 'success' : 'default'}>{p.is_active ? 'Activo' : 'Inactivo'}</Badge> },
+    { key: 'status', header: 'Estado', cell: (p) => <StatusMark status={ACTIVE_STATUS[p.is_active ? 'active' : 'inactive']} /> },
   ]
 
   return (

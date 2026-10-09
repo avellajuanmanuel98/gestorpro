@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query'
 import { Plus, Truck } from 'lucide-react'
 import { suppliersApi } from '@/api/suppliers'
 import SupplierForm from '@/components/suppliers/SupplierForm'
-import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import DataTable, { type Column } from '@/components/ui/DataTable'
@@ -18,6 +17,7 @@ import { ACTIVE_STATUS } from '@/lib/status'
 import { useDeleteDialog } from '@/lib/useDeleteDialog'
 import { useCan } from '@/store/authStore'
 import type { Supplier } from '@/types'
+import StatusMark from '@/components/ui/StatusMark'
 
 export default function SuppliersPage() {
   const can = useCan()
@@ -52,7 +52,7 @@ export default function SuppliersPage() {
         {s.email && s.phone && <p className="text-xs">{s.phone}</p>}</div>
     ) },
     { key: 'city', header: 'Ciudad', hideOnMobile: true, cell: (s) => s.city || <span className="text-ink-subtle">—</span> },
-    { key: 'status', header: 'Estado', cell: (s) => <Badge variant={ACTIVE_STATUS[s.status].variant}>{ACTIVE_STATUS[s.status].label}</Badge> },
+    { key: 'status', header: 'Estado', cell: (s) => <StatusMark status={ACTIVE_STATUS[s.status]} /> },
   ]
 
   return (

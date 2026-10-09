@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query'
 import { Plus, Users } from 'lucide-react'
 import { customersApi } from '@/api/customers'
 import ClientForm from '@/components/clients/ClientForm'
-import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import DataTable, { type Column } from '@/components/ui/DataTable'
@@ -17,6 +16,7 @@ import { ACTIVE_STATUS } from '@/lib/status'
 import { useDeleteDialog } from '@/lib/useDeleteDialog'
 import { useCan } from '@/store/authStore'
 import type { Customer } from '@/types'
+import StatusMark from '@/components/ui/StatusMark'
 
 export default function ClientsPage() {
   const can = useCan()
@@ -54,7 +54,7 @@ export default function ClientsPage() {
         {c.email && c.phone && <p className="text-xs">{c.phone}</p>}</div>
     ) },
     { key: 'city', header: 'Ciudad', hideOnMobile: true, cell: (c) => c.city || <span className="text-ink-subtle">—</span> },
-    { key: 'status', header: 'Estado', cell: (c) => <Badge variant={ACTIVE_STATUS[c.status].variant}>{ACTIVE_STATUS[c.status].label}</Badge> },
+    { key: 'status', header: 'Estado', cell: (c) => <StatusMark status={ACTIVE_STATUS[c.status]} /> },
   ]
 
   return (

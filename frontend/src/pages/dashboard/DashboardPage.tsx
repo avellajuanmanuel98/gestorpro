@@ -5,7 +5,6 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { billingApi } from '@/api/billing'
 import { customersApi } from '@/api/customers'
 import { inventoryApi } from '@/api/inventory'
-import Badge from '@/components/ui/Badge'
 import { Card, CardHeader } from '@/components/ui/Card'
 import EmptyState from '@/components/ui/EmptyState'
 import KpiTile from '@/components/ui/KpiTile'
@@ -14,6 +13,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { formatCOP, formatCompactNumber, toDisplayNumber } from '@/lib/money'
 import { INVOICE_STATUS } from '@/lib/status'
 import { useAuthStore, useCan } from '@/store/authStore'
+import { LifecycleMark } from '@/components/ui/StatusMark'
 
 interface ChartTooltipProps { active?: boolean; label?: string; payload?: { value: number }[] }
 
@@ -159,7 +159,7 @@ export default function DashboardPage() {
                     <p className="text-sm font-medium text-ink">{inv.number}</p>
                     <p className="text-xs text-ink-muted truncate">{inv.customer}</p>
                   </div>
-                  <Badge variant={INVOICE_STATUS[inv.status].variant}>{INVOICE_STATUS[inv.status].label}</Badge>
+                  <LifecycleMark status={INVOICE_STATUS[inv.status]} />
                   <span className="text-sm font-medium text-ink num w-28 text-right">{formatCOP(inv.total)}</span>
                 </li>
               ))}

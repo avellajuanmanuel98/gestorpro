@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { tenantApi } from '@/api/auth'
 import Alert from '@/components/ui/Alert'
-import Badge from '@/components/ui/Badge'
 import { Card, CardHeader } from '@/components/ui/Card'
 import FormActions from '@/components/ui/FormActions'
 import Input from '@/components/ui/Input'
@@ -13,6 +12,8 @@ import { getErrorMessage } from '@/lib/errors'
 import { useAuthStore, useCan } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
 import type { Tenant } from '@/types'
+import StatusMark from '@/components/ui/StatusMark'
+import { ACTIVE_STATUS } from '@/lib/status'
 
 type EditableFields = Pick<Tenant, 'name' | 'legal_name' | 'tax_id' | 'email' | 'phone' | 'city' | 'address'>
 
@@ -22,8 +23,8 @@ function PlanCard() {
     <Card>
       <CardHeader title="Plan" description="Lo administra GestorPro. Escríbenos para cambiarlo."
                   actions={plan?.plan.status === 'trialing'
-                    ? <Badge variant="accent">En prueba hasta el {formatDate(plan.plan.trial_ends_at)}</Badge>
-                    : plan?.plan.status === 'active' ? <Badge variant="success">Activo</Badge> : null} />
+                    ? <StatusMark status={{ label: `En prueba hasta el ${formatDate(plan.plan.trial_ends_at)}`, tone: 'accent', glyph: 'half' }} />
+                    : plan?.plan.status === 'active' ? <StatusMark status={ACTIVE_STATUS.active} /> : null} />
       <div className="px-5 pb-5">
         {isLoading || !plan ? <SkeletonText lines={3} /> : (
           <>
