@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, History } from 'lucide-react'
 import { auditApi } from '@/api/access'
 import EmptyState from '@/components/ui/EmptyState'
 import Input from '@/components/ui/Input'
-import PageHeader from '@/components/ui/PageHeader'
+import PageHeader, { Page } from '@/components/ui/PageHeader'
 import Pagination from '@/components/ui/Pagination'
 import Select from '@/components/ui/Select'
 import { SkeletonTable } from '@/components/ui/Skeleton'
@@ -31,11 +31,11 @@ function formatValue(value: unknown): string {
 
 function Changes({ entry }: { entry: AuditEntry }) {
   const rows = Object.entries(entry.changes)
-  if (!rows.length) return <p className="text-xs text-zinc-500">Sin detalle de campos.</p>
+  if (!rows.length) return <p className="text-xs text-ink-muted">Sin detalle de campos.</p>
   return (
     <table className="text-xs w-full max-w-3xl">
       <thead>
-        <tr className="text-left text-zinc-500 dark:text-zinc-400">
+        <tr className="text-left text-ink-muted">
           <th className="py-1 pr-4 font-medium">Campo</th><th className="py-1 pr-4 font-medium">Antes</th>
           <th className="py-1 font-medium">Después</th>
         </tr>
@@ -43,9 +43,9 @@ function Changes({ entry }: { entry: AuditEntry }) {
       <tbody>
         {rows.map(([field, [before, after]]) => (
           <tr key={field} className="align-top">
-            <td className="py-1 pr-4 font-mono text-zinc-600 dark:text-zinc-400">{field}</td>
-            <td className="py-1 pr-4 text-zinc-500 line-through decoration-zinc-300 break-all">{formatValue(before)}</td>
-            <td className="py-1 text-zinc-800 dark:text-zinc-200 break-all">{formatValue(after)}</td>
+            <td className="py-1 pr-4 font-mono text-ink-muted">{field}</td>
+            <td className="py-1 pr-4 text-ink-muted line-through decoration-line-strong break-all">{formatValue(before)}</td>
+            <td className="py-1 text-ink break-all">{formatValue(after)}</td>
           </tr>
         ))}
       </tbody>
@@ -70,7 +70,7 @@ export default function AuditPage() {
   const onFilter = (fn: () => void) => { fn(); setPage(1) }
 
   return (
-    <div className="p-5 md:p-8 space-y-6 max-w-6xl mx-auto">
+    <Page>
       <PageHeader title="Auditoría"
                   description="Registro inalterable de quién hizo qué y cuándo en tu empresa." />
 
@@ -82,46 +82,46 @@ export default function AuditPage() {
         <Input type="date" aria-label="Hasta" value={dateTo} onChange={(e) => onFilter(() => setDateTo(e.target.value))} />
       </div>
 
-      <section className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden">
+      <section className="bg-surface border border-line rounded-2xl overflow-hidden">
         {isLoading ? <SkeletonTable rows={8} /> : !data?.results.length ? (
           <EmptyState icon={<History size={24} />} title="Sin registros"
                       description="No hay acciones que coincidan con los filtros." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-zinc-50/80 dark:bg-zinc-800/40 border-b border-zinc-100 dark:border-zinc-800">
-                <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              <thead className="bg-surface-muted/60 border-b border-line">
+                <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
                   <th className="px-6 py-3 w-8" /><th className="px-2 py-3">Fecha</th>
                   <th className="px-6 py-3">Usuario</th><th className="px-6 py-3">Acción</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              <tbody className="divide-y divide-line">
                 {data.results.map((entry) => {
                   const open = expanded === entry.id
                   return (
                     <Fragment key={entry.id}>
-                      <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 cursor-pointer"
+                      <tr className="hover:bg-surface-muted/60 cursor-pointer"
                           onClick={() => setExpanded(open ? null : entry.id)}>
-                        <td className="pl-6 py-3 text-zinc-400">
+                        <td className="pl-6 py-3 text-ink-subtle">
                           <button aria-expanded={open} aria-label="Ver detalle" className="align-middle">
                             {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                           </button>
                         </td>
-                        <td className="px-2 py-3 whitespace-nowrap tabular-nums text-zinc-600 dark:text-zinc-400">
+                        <td className="px-2 py-3 whitespace-nowrap tabular-nums text-ink-muted">
                           {formatDateTime(entry.created_at)}
                         </td>
-                        <td className="px-6 py-3 text-zinc-700 dark:text-zinc-300">{entry.actor_label}</td>
+                        <td className="px-6 py-3 text-ink">{entry.actor_label}</td>
                         <td className="px-6 py-3">
-                          <p className="text-zinc-900 dark:text-zinc-100">{entry.summary}</p>
-                          <p className="text-[11px] font-mono text-zinc-400">{entry.action}</p>
+                          <p className="text-ink">{entry.summary}</p>
+                          <p className="text-[11px] font-mono text-ink-subtle">{entry.action}</p>
                         </td>
                       </tr>
                       {open && (
-                        <tr className="bg-zinc-50/60 dark:bg-zinc-800/20">
+                        <tr className="bg-surface-muted/40">
                           <td />
                           <td colSpan={3} className="px-2 py-3 space-y-2">
                             <Changes entry={entry} />
-                            {entry.ip && <p className="text-[11px] text-zinc-400">IP {entry.ip}</p>}
+                            {entry.ip && <p className="text-[11px] text-ink-subtle">IP {entry.ip}</p>}
                           </td>
                         </tr>
                       )}
@@ -134,6 +134,6 @@ export default function AuditPage() {
         )}
         <Pagination data={data} onPageChange={setPage} noun="registros" isFetching={isFetching} />
       </section>
-    </div>
+    </Page>
   )
 }

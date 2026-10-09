@@ -9,7 +9,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import EmptyState from '@/components/ui/EmptyState'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
-import PageHeader from '@/components/ui/PageHeader'
+import PageHeader, { Page } from '@/components/ui/PageHeader'
 import Pagination from '@/components/ui/Pagination'
 import Select from '@/components/ui/Select'
 import { SkeletonTable } from '@/components/ui/Skeleton'
@@ -59,8 +59,8 @@ function InviteModal({ roles, isOpen, onClose }: { roles: Role[]; isOpen: boolea
            subtitle={created ? undefined : 'La persona recibirá acceso a esta empresa con el rol que elijas.'}>
       {created ? (
         <div className="space-y-4">
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
-            Comparte este enlace con <strong className="text-zinc-900 dark:text-zinc-100">{created.email}</strong> por
+          <p className="text-sm text-ink-muted">
+            Comparte este enlace con <strong className="text-ink">{created.email}</strong> por
             el medio que prefieras. Vence el {formatDate(created.expires_at)}.
           </p>
           <div className="flex gap-2">
@@ -70,7 +70,7 @@ function InviteModal({ roles, isOpen, onClose }: { roles: Role[]; isOpen: boolea
               {copied ? 'Copiado' : 'Copiar'}
             </Button>
           </div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="text-xs text-ink-muted">
             Por seguridad, este enlace solo se muestra ahora. Si lo pierdes, revoca la invitación y crea otra.
           </p>
           <div className="flex justify-end"><Button onClick={close}>Listo</Button></div>
@@ -85,7 +85,7 @@ function InviteModal({ roles, isOpen, onClose }: { roles: Role[]; isOpen: boolea
             {assignable.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
           </Select>
           {mutation.isError && (
-            <p role="alert" className="text-sm text-red-700 bg-red-50 dark:bg-red-950/40 dark:text-red-300 px-3 py-2 rounded-lg">
+            <p role="alert" className="text-sm text-danger bg-danger-soft px-3 py-2 rounded-lg">
               {getErrorMessage(mutation.error)}
             </p>
           )}
@@ -141,7 +141,7 @@ export default function UsersPage() {
   const assignableRoles = (roles.data ?? []).filter((r) => !r.grants_all || amOwner)
 
   return (
-    <div className="p-5 md:p-8 space-y-6 max-w-6xl mx-auto">
+    <Page>
       <PageHeader
         title="Usuarios"
         description={seats ? `${seats.used} de ${seats.limit ?? '∞'} usuarios de tu plan` : 'Personas con acceso a la empresa'}
@@ -151,19 +151,19 @@ export default function UsersPage() {
       />
 
       {update.isError && (
-        <p role="alert" className="text-sm text-red-700 bg-red-50 dark:bg-red-950/40 dark:text-red-300 px-4 py-2.5 rounded-lg">
+        <p role="alert" className="text-sm text-danger bg-danger-soft px-4 py-2.5 rounded-lg">
           {getErrorMessage(update.error)}
         </p>
       )}
 
-      <section className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden">
+      <section className="bg-surface border border-line rounded-2xl overflow-hidden">
         {members.isLoading ? <SkeletonTable rows={4} /> : !members.data?.results.length ? (
           <EmptyState icon={<Users size={24} />} title="Sin usuarios" />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-zinc-50/80 dark:bg-zinc-800/40 border-b border-zinc-100 dark:border-zinc-800">
-                <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              <thead className="bg-surface-muted/60 border-b border-line">
+                <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
                   <th className="px-6 py-3">Usuario</th>
                   <th className="px-6 py-3">Rol</th>
                   <th className="px-6 py-3">Estado</th>
@@ -171,14 +171,14 @@ export default function UsersPage() {
                   <th className="px-6 py-3 sr-only">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              <tbody className="divide-y divide-line">
                 {members.data.results.map((m) => (
-                  <tr key={m.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
+                  <tr key={m.id} className="hover:bg-surface-muted/60">
                     <td className="px-6 py-3.5">
-                      <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                        {m.full_name || m.email}{m.email === me?.user.email && <span className="text-zinc-400"> (tú)</span>}
+                      <p className="font-medium text-ink">
+                        {m.full_name || m.email}{m.email === me?.user.email && <span className="text-ink-subtle"> (tú)</span>}
                       </p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">{m.email}</p>
+                      <p className="text-xs text-ink-muted">{m.email}</p>
                     </td>
                     <td className="px-6 py-3.5">
                       {canEdit(m) ? (
@@ -187,14 +187,14 @@ export default function UsersPage() {
                           value={m.role.id}
                           disabled={update.isPending}
                           onChange={(e) => update.mutate({ id: m.id, role: Number(e.target.value) })}
-                          className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 text-sm text-zinc-800 dark:text-zinc-100"
+                          className="h-8 rounded-lg border border-line bg-surface px-2 text-sm text-ink"
                         >
                           {assignableRoles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
                         </select>
-                      ) : <span className="text-zinc-700 dark:text-zinc-300">{m.role.name}</span>}
+                      ) : <span className="text-ink">{m.role.name}</span>}
                     </td>
                     <td className="px-6 py-3.5"><Badge variant={STATUS[m.status].variant} dot>{STATUS[m.status].label}</Badge></td>
-                    <td className="px-6 py-3.5 text-zinc-600 dark:text-zinc-400 tabular-nums">{formatDateTime(m.last_login)}</td>
+                    <td className="px-6 py-3.5 text-ink-muted tabular-nums">{formatDateTime(m.last_login)}</td>
                     <td className="px-6 py-3.5 text-right whitespace-nowrap">
                       {canEdit(m) && (
                         <div className="flex justify-end gap-1">
@@ -202,7 +202,7 @@ export default function UsersPage() {
                                   onClick={() => update.mutate({ id: m.id, status: m.status === 'active' ? 'suspended' : 'active' })}>
                             {m.status === 'active' ? 'Suspender' : 'Reactivar'}
                           </Button>
-                          <Button size="xs" variant="ghost" className="text-red-600 dark:text-red-400"
+                          <Button size="xs" variant="ghost" className="text-danger"
                                   onClick={() => setPending({ kind: 'remove', member: m })}>
                             Quitar
                           </Button>
@@ -219,16 +219,16 @@ export default function UsersPage() {
       </section>
 
       {(invitations.data?.length ?? 0) > 0 && (
-        <section className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden">
-          <h2 className="px-6 py-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-zinc-800">
+        <section className="bg-surface border border-line rounded-2xl overflow-hidden">
+          <h2 className="px-6 py-4 text-sm font-semibold text-ink border-b border-line">
             Invitaciones pendientes
           </h2>
-          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+          <ul className="divide-y divide-line">
             {invitations.data!.map((inv) => (
               <li key={inv.id} className="flex items-center justify-between gap-4 px-6 py-3 text-sm">
                 <div>
-                  <p className="font-medium text-zinc-900 dark:text-zinc-100">{inv.email}</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">{inv.role.name} · vence el {formatDate(inv.expires_at)}</p>
+                  <p className="font-medium text-ink">{inv.email}</p>
+                  <p className="text-xs text-ink-muted">{inv.role.name} · vence el {formatDate(inv.expires_at)}</p>
                 </div>
                 {canManage && (
                   <Button size="xs" variant="ghost" onClick={() => setPending({ kind: 'revoke', invitation: inv })}>Revocar</Button>
@@ -254,6 +254,6 @@ export default function UsersPage() {
         onConfirm={() => remove.mutate()}
         onClose={() => { setPending(null); remove.reset() }}
       />
-    </div>
+    </Page>
   )
 }

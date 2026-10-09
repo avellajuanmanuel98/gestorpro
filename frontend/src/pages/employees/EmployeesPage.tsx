@@ -1,191 +1,93 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, Plus, Mail, Phone, Briefcase, Pencil, Trash2 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Plus, UserCheck } from 'lucide-react'
 import { employeesApi } from '@/api/employees'
-import type { Employee } from '@/types'
-import Modal from '@/components/ui/Modal'
 import EmployeeForm from '@/components/employees/EmployeeForm'
-import Pagination from '@/components/ui/Pagination'
-
-const DEPARTMENT_LABELS: Record<Employee['department'], string> = {
-  admin:      'Administración',
-  sales:      'Ventas',
-  operations: 'Operaciones',
-  finance:    'Finanzas',
-  it:         'Tecnología',
-  hr:         'Recursos Humanos',
-  other:      'Otro',
-}
-
-function StatusBadge({ status }: { status: Employee['status'] }) {
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-      status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-    }`}>
-      {status === 'active' ? 'Activo' : 'Inactivo'}
-    </span>
-  )
-}
+import Badge from '@/components/ui/Badge'
+import Button from '@/components/ui/Button'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import DataTable, { type Column } from '@/components/ui/DataTable'
+import EmptyState from '@/components/ui/EmptyState'
+import Modal from '@/components/ui/Modal'
+import PageHeader, { Page } from '@/components/ui/PageHeader'
+import RowActions from '@/components/ui/RowActions'
+import SearchInput from '@/components/ui/SearchInput'
+import Select from '@/components/ui/Select'
+import { formatDate } from '@/lib/dates'
+import { DEPARTMENTS, label } from '@/lib/options'
+import { ACTIVE_STATUS } from '@/lib/status'
+import { useDeleteDialog } from '@/lib/useDeleteDialog'
+import { useCan } from '@/store/authStore'
+import type { Employee } from '@/types'
 
 export default function EmployeesPage() {
-  const queryClient = useQueryClient()
-  const [search,           setSearch]           = useState('')
-  const [page,             setPage]             = useState(1)
-  const [modalOpen,        setModalOpen]        = useState(false)
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | undefined>()
+  const can = useCan()
+  const [search, setSearch] = useState('')
+  const [department, setDepartment] = useState('')
+  const [page, setPage] = useState(1)
+  const [editing, setEditing] = useState<Employee | 'new' | null>(null)
+  const [loadingId, setLoadingId] = useState<number | null>(null)
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['employees', search, page],
-    queryFn:  () => employeesApi.list({ search, page }),
-    placeholderData: (previous) => previous,
-    enabled:  search.length !== 1,
+    queryKey: ['employees', search, department, page],
+    queryFn: () => employeesApi.list({ search: search || undefined, department: department || undefined, page }),
+    placeholderData: (prev) => prev,
   })
+  const del = useDeleteDialog<Employee>((e) => employeesApi.delete(e.id), 'employees', (e) => `${e.full_name} eliminado del personal`)
 
-  const deleteMutation = useMutation({
-    mutationFn: employeesApi.delete,
-    onSuccess:  () => queryClient.invalidateQueries({ queryKey: ['employees'] }),
-  })
-
-  const openCreate = () => {
-    setSelectedEmployee(undefined)
-    setModalOpen(true)
+  // La lista no trae todos los campos: al editar se carga el detalle completo
+  const openEdit = async (e: Employee) => {
+    setLoadingId(e.id)
+    try { setEditing(await employeesApi.get(e.id)) } finally { setLoadingId(null) }
   }
 
-  const openEdit = (employee: Employee) => {
-    setSelectedEmployee(employee)
-    setModalOpen(true)
-  }
-
-  const handleDelete = (employee: Employee) => {
-    if (confirm(`¿Eliminar a ${employee.full_name}? Esta acción no se puede deshacer.`)) {
-      deleteMutation.mutate(employee.id)
-    }
-  }
+  const columns: Column<Employee>[] = [
+    { key: 'name', header: 'Nombre', primary: true, cell: (e) => (
+      <div className="min-w-0"><p className="font-medium text-ink truncate">{e.full_name}</p>
+        <p className="text-xs text-ink-muted truncate">{e.position}</p></div>
+    ) },
+    { key: 'department', header: 'Área', cell: (e) => <span className="text-ink-muted">{label(DEPARTMENTS, e.department)}</span> },
+    { key: 'contact', header: 'Contacto', hideOnMobile: true, cell: (e) => <span className="text-ink-muted">{e.phone || e.email || '—'}</span> },
+    { key: 'hire', header: 'Ingreso', align: 'right', cell: (e) => formatDate(e.hire_date) },
+    { key: 'status', header: 'Estado', cell: (e) => <Badge variant={ACTIVE_STATUS[e.status].variant}>{ACTIVE_STATUS[e.status].label}</Badge> },
+  ]
 
   return (
-    <div className="p-4 md:p-8">
-      {/* Encabezado */}
-      <div className="flex items-center justify-between mb-6 md:mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Empleados</h1>
-          <p className="text-gray-500 mt-1">{data?.count ?? 0} empleados registrados</p>
+    <Page>
+      <PageHeader title="Personal" description="Fichas de las personas que trabajan en la empresa"
+                  actions={can('hr.manage') && <Button icon={<Plus size={15} />} onClick={() => setEditing('new')}>Nuevo empleado</Button>} />
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <SearchInput label="Buscar personal" placeholder="Nombre, cargo o documento" value={search}
+                     onChange={(v) => { setSearch(v); setPage(1) }} />
+        <div className="sm:w-56">
+          <Select aria-label="Área" value={department} onChange={(e) => { setDepartment(e.target.value); setPage(1) }}>
+            <option value="">Todas las áreas</option>
+            {DEPARTMENTS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+          </Select>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-        >
-          <Plus size={16} />
-          Nuevo empleado
-        </button>
       </div>
 
-      {/* Buscador */}
-      <div className="relative mb-6">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-          placeholder="Buscar por nombre, email o cargo..."
-          className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-      </div>
+      <DataTable caption="Personal" columns={columns} rows={data?.results} rowKey={(e) => e.id} isLoading={isLoading}
+        pagination={{ data, onPageChange: setPage, noun: 'empleados', isFetching }}
+        rowActions={(e) => can('hr.manage') && (
+          <RowActions name={e.full_name} onEdit={loadingId === e.id ? undefined : () => void openEdit(e)} onDelete={() => del.open(e)} />
+        )}
+        empty={search || department
+          ? <EmptyState icon={<UserCheck size={20} />} title="Sin resultados" description="Nadie coincide con los filtros." />
+          : <EmptyState icon={<UserCheck size={20} />} title="Aún no hay fichas de personal"
+                        description="Registra a tu equipo: panaderos, cajeros, domiciliarios…"
+                        action={can('hr.manage') ? { label: 'Registrar empleado', onClick: () => setEditing('new'), icon: <Plus size={14} /> } : undefined} />}
+      />
 
-      {/* Tabla */}
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto">
-          {data?.results.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">No se encontraron empleados</div>
-          ) : (
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Empleado</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Contacto</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Cargo / Área</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Ingreso</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Estado</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {data?.results.map((emp) => (
-                  <tr key={emp.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold text-sm shrink-0">
-                          {emp.first_name[0]}{emp.last_name[0]}
-                        </div>
-                        <p className="font-medium text-gray-900">{emp.full_name}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1 text-sm text-gray-600">
-                        <Mail size={13} />{emp.email}
-                      </div>
-                      {emp.phone && (
-                        <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
-                          <Phone size={13} />{emp.phone}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1 text-sm text-gray-700 font-medium">
-                        <Briefcase size={13} className="text-gray-400" />
-                        {emp.position}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-0.5">{DEPARTMENT_LABELS[emp.department]}</p>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {emp.hire_date
-                        ? new Date(emp.hire_date).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' })
-                        : '—'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={emp.status} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => openEdit(emp)}
-                          className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-500 hover:text-indigo-600 transition-colors"
-                          title="Editar"
-                        >
-                          <Pencil size={15} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(emp)}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors"
-                          title="Eliminar"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          <Pagination data={data} onPageChange={setPage} noun="empleados" isFetching={isFetching} />
-        </div>
-      )}
-
-      <Modal
-        title={selectedEmployee ? 'Editar empleado' : 'Nuevo empleado'}
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        size="lg"
-      >
-        <EmployeeForm
-          employee={selectedEmployee}
-          onSuccess={() => setModalOpen(false)}
-        />
+      <Modal title={editing === 'new' ? 'Nuevo empleado' : 'Editar empleado'} isOpen={editing !== null} onClose={() => setEditing(null)} size="lg">
+        {editing !== null && <EmployeeForm employee={editing === 'new' ? undefined : editing} onSuccess={() => setEditing(null)} onCancel={() => setEditing(null)} />}
       </Modal>
-    </div>
+
+      <ConfirmDialog isOpen={del.target !== null} title="Eliminar ficha" confirmLabel="Eliminar"
+                     description={<>Se eliminará la ficha de <strong className="text-ink">{del.target?.full_name}</strong>. Si solo dejó
+                       de trabajar contigo, mejor márcala como inactiva para conservar el historial.</>}
+                     loading={del.loading} error={del.error} onConfirm={del.confirm} onClose={del.close} />
+    </Page>
   )
 }

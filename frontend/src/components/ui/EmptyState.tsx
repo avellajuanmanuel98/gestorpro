@@ -1,66 +1,25 @@
 import Button from './Button'
 
 interface EmptyStateProps {
-  icon?:        React.ReactNode
-  title:        string
-  description?: string
-  action?:      {
-    label:   string
-    onClick: () => void
-    icon?:   React.ReactNode
-  }
-  size?: 'sm' | 'md' | 'lg'
+  icon?: React.ReactNode
+  title: string
+  description?: React.ReactNode
+  action?: { label: string; onClick: () => void; icon?: React.ReactNode }
+  compact?: boolean
 }
 
-export default function EmptyState({
-  icon,
-  title,
-  description,
-  action,
-  size = 'md',
-}: EmptyStateProps) {
-  const paddingMap = { sm: 'py-8', md: 'py-16', lg: 'py-24' }
-  const iconSizeMap = { sm: 'w-10 h-10', md: 'w-14 h-14', lg: 'w-16 h-16' }
-
+/** Estado vacío: explica por qué no hay datos y qué hacer a continuación. */
+export default function EmptyState({ icon, title, description, action, compact = false }: EmptyStateProps) {
   return (
-    <div
-      className={[
-        'flex flex-col items-center justify-center text-center px-6',
-        paddingMap[size],
-      ].join(' ')}
-    >
+    <div className={`flex flex-col items-center justify-center text-center px-6 ${compact ? 'py-8' : 'py-14'}`}>
       {icon && (
-        <div
-          className={[
-            'flex items-center justify-center rounded-2xl mb-4',
-            'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500',
-            iconSizeMap[size],
-          ].join(' ')}
-        >
-          {icon}
-        </div>
+        <div className="flex items-center justify-center w-11 h-11 rounded-xl mb-3 bg-surface-muted text-ink-subtle">{icon}</div>
       )}
-
-      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
-        {title}
-      </h3>
-
-      {description && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-xs leading-relaxed">
-          {description}
-        </p>
-      )}
-
+      <h3 className="text-sm font-semibold text-ink">{title}</h3>
+      {description && <p className="mt-1 text-sm text-ink-muted max-w-sm leading-relaxed">{description}</p>}
       {action && (
-        <div className="mt-5">
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={action.onClick}
-            icon={action.icon}
-          >
-            {action.label}
-          </Button>
+        <div className="mt-4">
+          <Button size="sm" onClick={action.onClick} icon={action.icon}>{action.label}</Button>
         </div>
       )}
     </div>

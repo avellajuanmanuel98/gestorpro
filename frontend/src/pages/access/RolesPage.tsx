@@ -6,7 +6,7 @@ import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import Input from '@/components/ui/Input'
-import PageHeader from '@/components/ui/PageHeader'
+import PageHeader, { Page } from '@/components/ui/PageHeader'
 import { SkeletonTable } from '@/components/ui/Skeleton'
 import { getErrorMessage } from '@/lib/errors'
 import { useAuthStore, useCan, useHasFeature } from '@/store/authStore'
@@ -62,8 +62,8 @@ function RoleEditor({ role, catalog, onDone }: { role: Role | null; catalog: Per
       <div className="flex items-start justify-between gap-4">
         {role?.is_system || readOnly ? (
           <div>
-            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{role?.name}</h2>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+            <h2 className="text-base font-semibold text-ink">{role?.name}</h2>
+            <p className="text-xs text-ink-muted mt-0.5">
               {role?.grants_all ? 'Tiene todos los permisos, incluidos los de módulos futuros. No se puede modificar.'
                 : 'Rol del sistema: puedes ajustar sus permisos, no su nombre.'}
             </p>
@@ -74,7 +74,7 @@ function RoleEditor({ role, catalog, onDone }: { role: Role | null; catalog: Per
           </div>
         )}
         {role && !role.is_system && canManage && (
-          <Button variant="ghost" size="sm" className="text-red-600 dark:text-red-400" onClick={() => setConfirmDelete(true)}>
+          <Button variant="ghost" size="sm" className="text-danger" onClick={() => setConfirmDelete(true)}>
             Eliminar rol
           </Button>
         )}
@@ -83,8 +83,8 @@ function RoleEditor({ role, catalog, onDone }: { role: Role | null; catalog: Per
       {role?.grants_all ? null : (
         <div className="grid gap-4 md:grid-cols-2">
           {groupByModule(catalog).map(([module, perms]) => (
-            <fieldset key={module} className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
-              <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            <fieldset key={module} className="rounded-xl border border-line p-4">
+              <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-ink-muted">
                 {MODULE_LABELS[module] ?? module}
                 {!perms[0].available && <span className="ml-2 normal-case tracking-normal font-normal">· no incluido en tu plan</span>}
               </legend>
@@ -93,12 +93,12 @@ function RoleEditor({ role, catalog, onDone }: { role: Role | null; catalog: Per
                   const disabled = readOnly || !p.available || (!canGrant(p.code) && !selected.has(p.code))
                   return (
                     <label key={p.code} className={`flex items-start gap-2.5 text-sm ${disabled ? 'opacity-50' : 'cursor-pointer'}`}>
-                      <input type="checkbox" className="mt-0.5 accent-indigo-600" checked={selected.has(p.code)}
+                      <input type="checkbox" className="mt-0.5 accent-[var(--primary)]" checked={selected.has(p.code)}
                              disabled={disabled} onChange={() => toggle(p.code)} />
-                      <span className="text-zinc-700 dark:text-zinc-300">
+                      <span className="text-ink">
                         {p.description}
                         {!canGrant(p.code) && p.available && !readOnly && (
-                          <span className="block text-[11px] text-zinc-400">Tú no tienes este permiso</span>
+                          <span className="block text-[11px] text-ink-subtle">Tú no tienes este permiso</span>
                         )}
                       </span>
                     </label>
@@ -111,11 +111,11 @@ function RoleEditor({ role, catalog, onDone }: { role: Role | null; catalog: Per
       )}
 
       {save.isError && (
-        <p role="alert" className="text-sm text-red-700 bg-red-50 dark:bg-red-950/40 dark:text-red-300 px-3 py-2 rounded-lg">
+        <p role="alert" className="text-sm text-danger bg-danger-soft px-3 py-2 rounded-lg">
           {getErrorMessage(save.error)}
         </p>
       )}
-      {save.isSuccess && role && <p className="text-sm text-emerald-700 dark:text-emerald-400">Cambios guardados.</p>}
+      {save.isSuccess && role && <p className="text-sm text-success">Cambios guardados.</p>}
 
       {!readOnly && (
         <div className="flex justify-end gap-2">
@@ -153,43 +153,43 @@ export default function RolesPage() {
   }, [roles.data, selectedId])
 
   return (
-    <div className="p-5 md:p-8 space-y-6 max-w-6xl mx-auto">
+    <Page>
       <PageHeader
         title="Roles y permisos"
         description="Qué puede hacer cada persona. El sistema valida cada permiso en el servidor."
         actions={canManage && (hasCustomRoles
           ? <Button icon={<Plus size={15} />} onClick={() => setSelectedId('new')}>Nuevo rol</Button>
-          : <span className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Lock size={13} />
+          : <span className="text-xs text-ink-muted flex items-center gap-1.5"><Lock size={13} />
               Los roles personalizados están disponibles en planes superiores</span>)}
       />
 
       {roles.isLoading || catalog.isLoading ? <SkeletonTable rows={5} /> : (
         <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-          <nav aria-label="Roles" className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-2 h-fit">
+          <nav aria-label="Roles" className="bg-surface border border-line rounded-2xl p-2 h-fit">
             {roles.data?.map((r) => {
               const active = selectedId !== 'new' && selected?.id === r.id
               return (
                 <button key={r.id} onClick={() => setSelectedId(r.id)}
                         className={`w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm text-left transition-colors ${
-                          active ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
-                                 : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'}`}>
+                          active ? 'bg-primary-soft text-primary-ink'
+                                 : 'text-ink-muted hover:bg-surface-muted'}`}>
                   <span className="flex items-center gap-2 truncate">
                     {r.grants_all && <ShieldCheck size={14} className="shrink-0" />}{r.name}
                   </span>
                   <span className="flex items-center gap-1.5 shrink-0">
                     {!r.is_system && <Badge size="sm">Personalizado</Badge>}
-                    <span className="text-xs text-zinc-400 tabular-nums" title="Usuarios activos">{r.members_count}</span>
+                    <span className="text-xs text-ink-subtle tabular-nums" title="Usuarios activos">{r.members_count}</span>
                   </span>
                 </button>
               )
             })}
           </nav>
-          <section className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6">
+          <section className="bg-surface border border-line rounded-2xl p-6">
             <RoleEditor key={selectedId === 'new' ? 'new' : selected?.id} role={selectedId === 'new' ? null : selected}
                         catalog={catalog.data ?? []} onDone={() => setSelectedId(null)} />
           </section>
         </div>
       )}
-    </div>
+    </Page>
   )
 }

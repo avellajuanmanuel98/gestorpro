@@ -1,36 +1,36 @@
 import { forwardRef, useId } from 'react'
+import { cn } from '@/lib/cn'
+import { controlClass, errorClass, hintClass, labelClass } from './field'
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string
   error?: string
+  hint?: string
 }
 
-const Select = forwardRef<HTMLSelectElement, SelectProps>(({ label, error, className = '', children, id, ...props }, ref) => {
+const Select = forwardRef<HTMLSelectElement, SelectProps>(({ label, error, hint, className = '', children, id, ...props }, ref) => {
   const generatedId = useId()
   const selectId = id ?? generatedId
   return (
-  <div className="space-y-1.5">
-    {label && (
-      <label htmlFor={selectId} className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">{label}</label>
-    )}
-    <select
-      ref={ref}
-      id={selectId}
-      aria-invalid={error ? true : undefined}
-      className={[
-        'w-full h-9 rounded-lg border bg-white dark:bg-zinc-900/50 px-3 text-sm',
-        'text-zinc-900 dark:text-zinc-100',
-        'focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500',
-        'disabled:opacity-50 disabled:cursor-not-allowed',
-        error ? 'border-red-400 dark:border-red-500' : 'border-zinc-200 dark:border-zinc-700',
-        className,
-      ].join(' ')}
-      {...props}
-    >
-      {children}
-    </select>
-    {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
-  </div>
+    <div className="space-y-1.5">
+      {label && (
+        <label htmlFor={selectId} className={labelClass}>
+          {label}
+          {props.required && <span className="text-danger ml-0.5" aria-hidden>*</span>}
+        </label>
+      )}
+      <select
+        ref={ref}
+        id={selectId}
+        aria-invalid={error ? true : undefined}
+        className={cn(controlClass, 'h-9 px-3', error ? 'border-danger' : 'border-line-strong', className)}
+        {...props}
+      >
+        {children}
+      </select>
+      {error && <p className={errorClass}>{error}</p>}
+      {!error && hint && <p className={hintClass}>{hint}</p>}
+    </div>
   )
 })
 

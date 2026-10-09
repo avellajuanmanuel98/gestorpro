@@ -1,381 +1,203 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend,
-} from 'recharts'
+import { AlertTriangle, BarChart2 } from 'lucide-react'
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { reportsApi } from '@/api/reports'
-import { AlertTriangle, Package, Users, Truck } from 'lucide-react'
-import { formatCOP, formatCompactNumber, toDisplayNumber, type MoneyValue } from '@/lib/money'
+import ChartTooltip from '@/components/charts/ChartTooltip'
+import { axisTick, CHART_COLORS } from '@/lib/charts'
+import { Card, CardHeader } from '@/components/ui/Card'
+import EmptyState from '@/components/ui/EmptyState'
+import KpiTile from '@/components/ui/KpiTile'
+import PageHeader, { Page } from '@/components/ui/PageHeader'
+import { Skeleton } from '@/components/ui/Skeleton'
+import Tabs from '@/components/ui/Tabs'
+import { formatCOP, formatCompactNumber, toDisplayNumber } from '@/lib/money'
+import { INVOICE_STATUS } from '@/lib/status'
+import { useCan, useHasFeature } from '@/store/authStore'
+import type { Invoice } from '@/types'
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const formatCurrency = (v: MoneyValue) => formatCOP(v)
-const formatCompact = (v: number) => formatCompactNumber(v)
-
-interface TooltipProps {
-  active?:  boolean
-  label?:   string
-  payload?: { value: number; name?: string }[]
-}
-
-const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899']
-
-function CustomTooltipCurrency({ active, payload, label }: TooltipProps) {
-  if (active && payload?.length) {
-    return (
-      <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-2 text-sm">
-        <p className="font-semibold text-gray-700">{label}</p>
-        <p className="text-indigo-600">{formatCurrency(payload[0].value)}</p>
-      </div>
-    )
-  }
-  return null
-}
-
-function CustomTooltipCount({ active, payload, label }: TooltipProps) {
-  if (active && payload?.length) {
-    return (
-      <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-2 text-sm">
-        <p className="font-semibold text-gray-700">{label}</p>
-        <p className="text-indigo-600">{payload[0].value} {payload[0].name}</p>
-      </div>
-    )
-  }
-  return null
-}
-
-function EmptyState({ text }: { text: string }) {
-  return <p className="text-sm text-gray-400 text-center py-10">{text}</p>
-}
-
-function Spinner() {
-  return (
-    <div className="flex justify-center py-16">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
-    </div>
-  )
-}
-
-// ── Tabs ─────────────────────────────────────────────────────────────────────
-
-const TABS = [
-  { id: 'billing',   label: 'Facturación' },
-  { id: 'inventory', label: 'Inventario'  },
-  { id: 'hr',        label: 'RRHH & Proveedores' },
-] as const
-
-type TabId = typeof TABS[number]['id']
-
-// ── Tab: Facturación ──────────────────────────────────────────────────────────
+const Loading = () => <div className="grid gap-4 md:grid-cols-2"><Skeleton height={280} /><Skeleton height={280} /></div>
+const NoData = ({ text }: { text: string }) => <EmptyState compact icon={<BarChart2 size={20} />} title={text} />
 
 function BillingTab() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['report-billing'],
-    queryFn: reportsApi.billing,
-  })
-
-  if (isLoading) return <Spinner />
-
-  // Recharts necesita números: conversión solo para dibujar
-  const monthlyTrend = (data?.monthly_trend ?? []).map((m) => ({ ...m, total: toDisplayNumber(m.total) }))
-  const hasSales = monthlyTrend.some((m) => m.total > 0)
-
-  const STATUS_COLORS: Record<string, string> = {
-    paid: '#22c55e', sent: '#6366f1', draft: '#9ca3af',
-    overdue: '#ef4444', cancelled: '#d1d5db',
-  }
+  const { data, isLoading } = useQuery({ queryKey: ['report-billing'], queryFn: reportsApi.billing })
+  if (isLoading || !data) return <Loading />
+  const trend = data.monthly_trend.map((m) => ({ ...m, total: toDisplayNumber(m.total) }))
+  const hasSales = trend.some((m) => m.total > 0)
+  const statusTotal = data.status_breakdown.reduce((s, r) => s + r.count, 0)
 
   return (
-    <div className="space-y-8">
-      {/* Tendencia mensual */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="font-semibold text-gray-900 mb-1">Ventas mensuales (últimos 12 meses)</h3>
-        <p className="text-sm text-gray-500 mb-6">Facturas con estado "Pagada"</p>
-        {!hasSales ? <EmptyState text="Sin ventas registradas aún" /> : (
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={monthlyTrend} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-              <YAxis tickFormatter={formatCompact} tick={{ fontSize: 12 }} width={64} />
-              <Tooltip content={<CustomTooltipCurrency />} />
-              <Bar dataKey="total" name="Total" fill="#6366f1" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Desglose por estado — Pie chart */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="font-semibold text-gray-900 mb-1">Estado de facturas</h3>
-          <p className="text-sm text-gray-500 mb-4">Distribución por estado actual</p>
-          {!data?.status_breakdown.length ? <EmptyState text="Sin facturas aún" /> : (
-            <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
-                <Pie
-                  data={data.status_breakdown}
-                  dataKey="count"
-                  nameKey="label"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  label={({ name, value }: { name?: string; value?: number }) => `${name} (${value})`}
-                  labelLine={false}
-                >
-                  {data.status_breakdown.map((entry) => (
-                    <Cell
-                      key={entry.status}
-                      fill={STATUS_COLORS[entry.status] ?? '#9ca3af'}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(v) => [`${v} facturas`]} />
-                <Legend />
-              </PieChart>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader title="Ventas facturadas por mes" description="Facturas pagadas · últimos 12 meses" />
+        <div className="px-2 pb-4">
+          {!hasSales ? <NoData text="Aún no hay ventas pagadas" /> : (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={trend} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
+                <XAxis dataKey="mes" tickLine={false} axisLine={false} tick={axisTick} />
+                <YAxis tickLine={false} axisLine={false} width={56} tick={{ ...axisTick, fontSize: 11 }} tickFormatter={formatCompactNumber} />
+                <Tooltip content={<ChartTooltip money />} cursor={{ fill: 'var(--surface-muted)' }} />
+                <Bar dataKey="total" fill="var(--chart-1)" radius={[4, 4, 0, 0]} maxBarSize={36} />
+              </BarChart>
             </ResponsiveContainer>
           )}
         </div>
+      </Card>
 
-        {/* Top 5 clientes */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="font-semibold text-gray-900 mb-1">Top clientes por ingreso</h3>
-          <p className="text-sm text-gray-500 mb-4">Facturas pagadas acumuladas</p>
-          {!data?.top_clients.length ? <EmptyState text="Sin datos de clientes aún" /> : (
-            <div className="space-y-3">
-              {data.top_clients.map((client, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-xs font-bold flex items-center justify-center shrink-0">
-                    {i + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{client.name}</p>
-                    <p className="text-xs text-gray-500">{client.count} factura{client.count !== 1 ? 's' : ''}</p>
-                  </div>
-                  <span className="text-sm font-semibold text-green-600 shrink-0">
-                    {formatCurrency(client.total)}
-                  </span>
-                </div>
-              ))}
-            </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader title="Facturas por estado" />
+          {!statusTotal ? <NoData text="Aún no hay facturas" /> : (
+            <ul className="px-5 pb-5 space-y-3">
+              {data.status_breakdown.map((r) => {
+                const meta = INVOICE_STATUS[r.status as Invoice['status']]
+                const pct = Math.round((r.count / statusTotal) * 100)
+                return (
+                  <li key={r.status}>
+                    <div className="flex justify-between text-sm"><span className="text-ink">{meta?.label ?? r.label}</span>
+                      <span className="text-ink-muted num">{r.count} · {formatCOP(r.total, { compact: true })}</span></div>
+                    <div className="mt-1 h-1.5 rounded-full bg-surface-muted overflow-hidden" aria-hidden>
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
           )}
-        </div>
+        </Card>
+        <Card>
+          <CardHeader title="Clientes con más compras" description="Por facturas pagadas" />
+          {!data.top_clients.length ? <NoData text="Aún no hay clientes con pagos" /> : (
+            <ol className="divide-y divide-line border-t border-line">
+              {data.top_clients.map((c, i) => (
+                <li key={`${c.name}-${i}`} className="flex items-center gap-3 px-5 py-2.5 text-sm">
+                  <span className="w-5 text-ink-subtle num">{i + 1}</span>
+                  <span className="flex-1 min-w-0 truncate text-ink">{c.name}</span>
+                  <span className="text-xs text-ink-muted num">{c.count} fact.</span>
+                  <span className="w-28 text-right font-medium text-ink num">{formatCOP(c.total)}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </Card>
       </div>
     </div>
   )
 }
-
-// ── Tab: Inventario ───────────────────────────────────────────────────────────
 
 function InventoryTab() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['report-inventory'],
-    queryFn: reportsApi.inventory,
-  })
-
-  if (isLoading) return <Spinner />
-
+  const { data, isLoading } = useQuery({ queryKey: ['report-inventory'], queryFn: reportsApi.inventory })
+  if (isLoading || !data) return <Loading />
   return (
-    <div className="space-y-8">
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[
-          { label: 'Productos activos',  value: data?.total_productos ?? 0,                    icon: Package,       color: 'bg-indigo-500' },
-          { label: 'Servicios activos',  value: data?.total_servicios ?? 0,                    icon: Users,         color: 'bg-purple-500' },
-          { label: 'Valor a precio de venta', value: formatCurrency(data?.valor_inventario ?? 0), icon: Package,    color: 'bg-green-500'  },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color}`}>
-              <Icon size={18} className="text-white" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">{label}</p>
-              <p className="text-xl font-bold text-gray-900">{value}</p>
-            </div>
-          </div>
-        ))}
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <KpiTile label="Productos activos" value={data.total_productos} />
+        <KpiTile label="Servicios activos" value={data.total_servicios} />
+        <KpiTile label="Valor a precio de venta" value={formatCOP(data.valor_inventario, { compact: true })}
+                 hint="Precio × stock. El valor a costo llegará con el inventario por movimientos." />
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Stock por categoría */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="font-semibold text-gray-900 mb-1">Stock por categoría</h3>
-          <p className="text-sm text-gray-500 mb-4">Unidades disponibles agrupadas</p>
-          {!data?.by_category.length ? <EmptyState text="Sin productos categorizados" /> : (
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={data.by_category} layout="vertical" margin={{ top: 4, right: 24, left: 0, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 12 }} />
-                <YAxis type="category" dataKey="categoria" tick={{ fontSize: 12 }} width={100} />
-                <Tooltip content={<CustomTooltipCount />} />
-                <Bar dataKey="stock" name="unidades" fill="#6366f1" radius={[0, 6, 6, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        {/* Productos con bajo stock */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-            <AlertTriangle size={16} className="text-amber-500" />
-            Bajo stock
-          </h3>
-          <p className="text-sm text-gray-500 mb-4">Productos en o por debajo del mínimo</p>
-          {!data?.low_stock.length ? (
-            <p className="text-sm text-green-600 text-center py-10">✓ Todo el stock está en niveles saludables</p>
-          ) : (
-            <div className="space-y-3">
-              {data.low_stock.map((p, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{p.name}</p>
-                    <p className="text-xs text-gray-400">{p.code}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-sm font-bold ${p.stock === 0 ? 'text-red-600' : 'text-amber-600'}`}>
-                      {p.stock} uds
-                    </p>
-                    <p className="text-xs text-gray-400">mín. {p.minimum_stock}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Tab: RRHH & Proveedores ───────────────────────────────────────────────────
-
-function HRTab() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['report-hr'],
-    queryFn: reportsApi.hr,
-  })
-
-  if (isLoading) return <Spinner />
-
-  const empTotal = (data?.employees_active ?? 0) + (data?.employees_inactive ?? 0)
-  const empPieData = [
-    { name: 'Activos',   value: data?.employees_active   ?? 0, fill: '#22c55e' },
-    { name: 'Inactivos', value: data?.employees_inactive ?? 0, fill: '#9ca3af' },
-  ].filter(d => d.value > 0)
-
-  return (
-    <div className="space-y-8">
-      {/* KPIs empleados */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[
-          { label: 'Total empleados', value: empTotal,                          color: 'bg-indigo-500', icon: Users },
-          { label: 'Activos',         value: data?.employees_active ?? 0,        color: 'bg-green-500', icon: Users },
-          { label: 'Proveedores',     value: (data?.suppliers_by_category ?? []).reduce((s, c) => s + c.total, 0), color: 'bg-amber-500', icon: Truck },
-        ].map(({ label, value, color, icon: Icon }) => (
-          <div key={label} className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color}`}>
-              <Icon size={18} className="text-white" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">{label}</p>
-              <p className="text-xl font-bold text-gray-900">{value}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Empleados por departamento */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="font-semibold text-gray-900 mb-1">Empleados por departamento</h3>
-          <p className="text-sm text-gray-500 mb-4">Distribución del equipo</p>
-          {!data?.by_department.length ? <EmptyState text="Sin empleados registrados" /> : (
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={data.by_department} layout="vertical" margin={{ top: 4, right: 24, left: 0, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
-                <YAxis type="category" dataKey="departamento" tick={{ fontSize: 12 }} width={110} />
-                <Tooltip content={<CustomTooltipCount />} />
-                <Bar dataKey="total" name="empleados" fill="#8b5cf6" radius={[0, 6, 6, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        {/* Estado activo / inactivo — Pie + Proveedores por categoría */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Estado de la plantilla</h3>
-            {!empPieData.length ? <EmptyState text="Sin empleados aún" /> : (
-              <ResponsiveContainer width="100%" height={160}>
-                <PieChart>
-                  <Pie data={empPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60}>
-                    {empPieData.map((entry, i) => (
-                      <Cell key={i} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader title="Unidades en stock por categoría" />
+          <div className="px-2 pb-4">
+            {!data.by_category.length ? <NoData text="Sin productos con stock" /> : (
+              <ResponsiveContainer width="100%" height={Math.max(160, data.by_category.length * 38)}>
+                <BarChart data={data.by_category} layout="vertical" margin={{ top: 4, right: 24, left: 8, bottom: 4 }}>
+                  <CartesianGrid horizontal={false} stroke="var(--chart-grid)" />
+                  <XAxis type="number" tickLine={false} axisLine={false} tick={{ ...axisTick, fontSize: 11 }} />
+                  <YAxis type="category" dataKey="categoria" width={120} tickLine={false} axisLine={false} tick={axisTick} />
+                  <Tooltip content={<ChartTooltip unit=" und." />} cursor={{ fill: 'var(--surface-muted)' }} />
+                  <Bar dataKey="stock" fill="var(--chart-1)" radius={[0, 4, 4, 0]} maxBarSize={22} />
+                </BarChart>
               </ResponsiveContainer>
             )}
           </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Proveedores por categoría</h3>
-            {!data?.suppliers_by_category.length ? <EmptyState text="Sin proveedores aún" /> : (
-              <div className="space-y-2">
-                {data.suppliers_by_category.map((s, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
-                      <span className="text-sm text-gray-700">{s.categoria}</span>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900">{s.total}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        </Card>
+        <Card>
+          <CardHeader title="Productos con stock bajo" description="En el mínimo o por debajo" />
+          {!data.low_stock.length ? <NoData text="Todo el stock está sobre el mínimo" /> : (
+            <ul className="divide-y divide-line border-t border-line">
+              {data.low_stock.map((p) => (
+                <li key={p.id} className="flex items-center gap-3 px-5 py-2.5 text-sm">
+                  <AlertTriangle size={14} className="text-warning shrink-0" />
+                  <span className="flex-1 min-w-0"><span className="block truncate text-ink">{p.name}</span>
+                    <span className="block text-xs text-ink-muted">{p.code}</span></span>
+                  <span className="text-right num"><span className={p.stock === 0 ? 'text-danger font-medium' : 'text-warning font-medium'}>{p.stock}</span>
+                    <span className="text-ink-subtle"> / mín. {p.minimum_stock}</span></span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
       </div>
     </div>
   )
 }
 
-// ── Página principal ──────────────────────────────────────────────────────────
+function TeamTab() {
+  const { data, isLoading } = useQuery({ queryKey: ['report-hr'], queryFn: reportsApi.hr })
+  if (isLoading || !data) return <Loading />
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <KpiTile label="Personal activo" value={data.employees_active} />
+        <KpiTile label="Personal inactivo" value={data.employees_inactive} />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader title="Personal por área" />
+          <div className="px-2 pb-4">
+            {!data.by_department.length ? <NoData text="Sin fichas de personal" /> : (
+              <ResponsiveContainer width="100%" height={Math.max(160, data.by_department.length * 38)}>
+                <BarChart data={data.by_department} layout="vertical" margin={{ top: 4, right: 24, left: 8, bottom: 4 }}>
+                  <CartesianGrid horizontal={false} stroke="var(--chart-grid)" />
+                  <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} tick={{ ...axisTick, fontSize: 11 }} />
+                  <YAxis type="category" dataKey="departamento" width={120} tickLine={false} axisLine={false} tick={axisTick} />
+                  <Tooltip content={<ChartTooltip unit=" personas" />} cursor={{ fill: 'var(--surface-muted)' }} />
+                  <Bar dataKey="total" radius={[0, 4, 4, 0]} maxBarSize={22}>
+                    {data.by_department.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </Card>
+        <Card>
+          <CardHeader title="Proveedores por categoría" />
+          {!data.suppliers_by_category.length ? <NoData text="Sin proveedores" /> : (
+            <ul className="divide-y divide-line border-t border-line">
+              {data.suppliers_by_category.map((s) => (
+                <li key={s.categoria} className="flex justify-between px-5 py-2.5 text-sm">
+                  <span className="text-ink">{s.categoria}</span><span className="text-ink-muted num">{s.total}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+type TabId = 'billing' | 'inventory' | 'team'
 
 export default function ReportsPage() {
-  const [activeTab, setActiveTab] = useState<TabId>('billing')
-
+  const can = useCan()
+  const hasHr = useHasFeature()('module.hr') && can('hr.view')
+  const [tab, setTab] = useState<TabId>('billing')
+  const tabs: { id: TabId; label: string }[] = [
+    { id: 'billing', label: 'Ventas y cartera' },
+    { id: 'inventory', label: 'Productos y stock' },
+    ...(hasHr ? [{ id: 'team' as const, label: 'Equipo y proveedores' }] : []),
+  ]
   return (
-    <div className="p-4 md:p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Reportes</h1>
-        <p className="text-gray-500 mt-1">Análisis y métricas del negocio</p>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg mb-8 w-fit">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === tab.id
-                ? 'bg-white text-indigo-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Contenido */}
-      {activeTab === 'billing'   && <BillingTab />}
-      {activeTab === 'inventory' && <InventoryTab />}
-      {activeTab === 'hr'        && <HRTab />}
-    </div>
+    <Page>
+      <PageHeader title="Reportes" description="Cifras calculadas con los datos reales de tu empresa" />
+      <Tabs label="Reportes" tabs={tabs} value={tab} onChange={setTab} />
+      {tab === 'billing' && <BillingTab />}
+      {tab === 'inventory' && <InventoryTab />}
+      {tab === 'team' && hasHr && <TeamTab />}
+    </Page>
   )
 }

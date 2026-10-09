@@ -16,6 +16,7 @@ import {
   RotateCcw, ChevronDown,
 } from 'lucide-react'
 import { streamAssistantMessage } from '@/api/assistant'
+import { inlineMarkdown } from '@/lib/markdown'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -90,13 +91,6 @@ function renderMarkdown(text: string): React.ReactNode {
   return <div className="space-y-1.5">{elements}</div>
 }
 
-function inlineMarkdown(text: string): string {
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g,   '<em>$1</em>')
-    .replace(/`(.*?)`/g,     '<code class="bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded text-xs font-mono">$1</code>')
-}
-
 // ── Message bubble ─────────────────────────────────────────────────────────────
 
 function MessageBubble({ message }: { message: Message }) {
@@ -104,11 +98,11 @@ function MessageBubble({ message }: { message: Message }) {
   const isStreaming  = message.streaming === true
 
   return (
-    <div className={['flex gap-3 animate-fade-up', isUser ? 'flex-row-reverse' : ''].join(' ')}>
+    <div className={['flex gap-3 animate-fade-in', isUser ? 'flex-row-reverse' : ''].join(' ')}>
       {/* Avatar */}
       {!isUser && (
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 mt-0.5 shadow-sm shadow-indigo-500/30">
-          <Sparkles size={12} className="text-white" />
+        <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary-ink flex items-center justify-center shrink-0 mt-0.5">
+          <Sparkles size={12} />
         </div>
       )}
 
@@ -117,10 +111,10 @@ function MessageBubble({ message }: { message: Message }) {
         className={[
           'max-w-[82%] px-3.5 py-2.5 rounded-2xl',
           isUser
-            ? 'bg-indigo-600 text-white rounded-tr-sm shadow-sm shadow-indigo-600/20'
+            ? 'bg-primary text-primary-fg rounded-tr-sm'
             : message.error
-            ? 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/30 dark:text-red-300 dark:border-red-800/50 rounded-tl-sm'
-            : 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100 rounded-tl-sm',
+            ? 'bg-danger-soft text-danger rounded-tl-sm'
+            : 'bg-surface-muted text-ink rounded-tl-sm',
         ].join(' ')}
       >
         {isUser ? (
@@ -133,7 +127,7 @@ function MessageBubble({ message }: { message: Message }) {
 
         {/* Typing cursor */}
         {isStreaming && !isUser && (
-          <span className="inline-block w-0.5 h-3.5 bg-indigo-500 dark:bg-indigo-400 ml-0.5 animate-pulse rounded-full" />
+          <span className="inline-block w-0.5 h-3.5 bg-primary ml-0.5 animate-pulse rounded-full" />
         )}
       </div>
     </div>
@@ -279,29 +273,30 @@ export default function AssistantPanel({ onClose }: AssistantPanelProps) {
   return (
     <div className={[
       'flex flex-col',
-      'bg-white dark:bg-zinc-900',
-      'border border-zinc-200 dark:border-zinc-800',
-      'rounded-2xl shadow-2xl shadow-black/20 dark:shadow-black/60',
+      'bg-surface',
+      'border border-line',
+      'rounded-2xl shadow-overlay',
       'overflow-hidden',
-      'animate-scale-in',
-      'w-[380px] h-[560px]',
+      'animate-pop-in',
+      'w-[min(92vw,380px)] h-[min(75vh,560px)]',
     ].join(' ')}>
 
       {/* ── Header ── */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 shrink-0 bg-gradient-to-r from-indigo-600 to-violet-600">
-        <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
-          <Sparkles size={14} className="text-white" />
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-line shrink-0">
+        <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary-ink flex items-center justify-center shrink-0">
+          <Sparkles size={14} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-white leading-none">Asistente GestorPro</p>
-          <p className="text-xs text-indigo-200 mt-0.5">Powered by Claude</p>
+          <p className="text-sm font-semibold text-ink leading-none">Asistente</p>
+          <p className="text-xs text-ink-muted mt-0.5">IA con los datos de tu empresa</p>
         </div>
         <div className="flex items-center gap-1">
           {messages.length > 0 && (
             <button
               onClick={handleClear}
               title="Limpiar conversación"
-              className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              aria-label="Limpiar conversación"
+              className="p-1.5 rounded-lg text-ink-subtle hover:text-ink hover:bg-surface-muted transition-colors"
             >
               <RotateCcw size={14} />
             </button>
@@ -309,7 +304,8 @@ export default function AssistantPanel({ onClose }: AssistantPanelProps) {
           <button
             onClick={onClose}
             title="Cerrar"
-            className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            aria-label="Cerrar asistente"
+            className="p-1.5 rounded-lg text-ink-subtle hover:text-ink hover:bg-surface-muted transition-colors"
           >
             <X size={14} />
           </button>
@@ -324,21 +320,21 @@ export default function AssistantPanel({ onClose }: AssistantPanelProps) {
       >
         {isEmpty ? (
           /* Welcome screen */
-          <div className="flex flex-col items-center justify-center h-full text-center space-y-5 animate-fade-up">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-              <Sparkles size={24} className="text-white" />
+          <div className="flex flex-col items-center justify-center h-full text-center space-y-5 animate-fade-in">
+            <div className="w-12 h-12 rounded-xl bg-primary-soft text-primary-ink flex items-center justify-center">
+              <Sparkles size={22} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              <p className="text-sm font-semibold text-ink">
                 Hola, soy tu asistente de negocio
               </p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-[240px] leading-relaxed">
-                Tengo acceso a los datos reales de tu empresa. Pregúntame lo que quieras.
+              <p className="text-xs text-ink-muted mt-1 max-w-[240px] leading-relaxed">
+                Respondo con los datos de tu empresa. Puedo equivocarme: verifica las cifras importantes.
               </p>
             </div>
             {/* Quick suggestions */}
             <div className="w-full space-y-2">
-              <p className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+              <p className="text-[11px] font-medium text-ink-subtle uppercase tracking-wider">
                 Sugerencias
               </p>
               <div className="grid grid-cols-1 gap-1.5">
@@ -348,9 +344,9 @@ export default function AssistantPanel({ onClose }: AssistantPanelProps) {
                     onClick={() => sendMessage(s)}
                     className={[
                       'text-left text-xs px-3 py-2 rounded-lg',
-                      'bg-zinc-50 hover:bg-indigo-50 dark:bg-zinc-800/60 dark:hover:bg-indigo-950/40',
-                      'text-zinc-700 hover:text-indigo-700 dark:text-zinc-300 dark:hover:text-indigo-300',
-                      'border border-zinc-200 hover:border-indigo-200 dark:border-zinc-700 dark:hover:border-indigo-800',
+                      'bg-surface-muted hover:bg-primary-soft',
+                      'text-ink-muted hover:text-primary-ink',
+                      'border border-line',
                       'transition-all duration-150',
                     ].join(' ')}
                   >
@@ -371,7 +367,8 @@ export default function AssistantPanel({ onClose }: AssistantPanelProps) {
         <div className="absolute bottom-[76px] right-6">
           <button
             onClick={() => scrollToBottom()}
-            className="p-1.5 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-md text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-all animate-fade-up"
+            aria-label="Ir al último mensaje"
+            className="p-1.5 rounded-full bg-surface border border-line shadow-overlay text-ink-muted hover:text-ink transition-colors"
           >
             <ChevronDown size={14} />
           </button>
@@ -379,12 +376,12 @@ export default function AssistantPanel({ onClose }: AssistantPanelProps) {
       )}
 
       {/* ── Input area ── */}
-      <div className="shrink-0 px-3 pb-3 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+      <div className="shrink-0 px-3 pb-3 pt-2 border-t border-line">
         <div className={[
           'flex items-end gap-2 rounded-xl border px-3 py-2',
-          'bg-zinc-50 dark:bg-zinc-800/60',
-          'border-zinc-200 dark:border-zinc-700',
-          'focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/15',
+          'bg-surface-muted',
+          'border-line',
+          'focus-within:border-focus focus-within:ring-2 focus-within:ring-focus/20',
           'transition-all duration-150',
         ].join(' ')}>
           <textarea
@@ -393,11 +390,12 @@ export default function AssistantPanel({ onClose }: AssistantPanelProps) {
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             disabled={streaming}
+            aria-label="Pregunta para el asistente"
             placeholder="Escribe tu pregunta…"
             rows={1}
             className={[
               'flex-1 bg-transparent text-sm resize-none outline-none',
-              'text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500',
+              'text-ink placeholder:text-ink-subtle',
               'leading-relaxed max-h-[120px] overflow-y-auto',
               'disabled:opacity-50',
             ].join(' ')}
@@ -406,7 +404,8 @@ export default function AssistantPanel({ onClose }: AssistantPanelProps) {
             <button
               onClick={handleStop}
               title="Detener"
-              className="shrink-0 p-1.5 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-950/50 dark:text-red-400 dark:hover:bg-red-950 transition-colors"
+              aria-label="Detener respuesta"
+              className="shrink-0 p-1.5 rounded-lg bg-danger-soft text-danger transition-colors"
             >
               <StopCircle size={16} />
             </button>
@@ -415,18 +414,17 @@ export default function AssistantPanel({ onClose }: AssistantPanelProps) {
               onClick={() => sendMessage(input)}
               disabled={!input.trim()}
               title="Enviar (Enter)"
+              aria-label="Enviar pregunta"
               className={[
-                'shrink-0 p-1.5 rounded-lg transition-all duration-150',
-                input.trim()
-                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm shadow-indigo-600/20'
-                  : 'bg-zinc-200 text-zinc-400 dark:bg-zinc-700 dark:text-zinc-500 cursor-not-allowed',
+                'shrink-0 p-1.5 rounded-lg transition-colors duration-150',
+                input.trim() ? 'bg-primary text-primary-fg hover:bg-primary-hover' : 'bg-line text-ink-subtle cursor-not-allowed',
               ].join(' ')}
             >
               <SendHorizonal size={15} />
             </button>
           )}
         </div>
-        <p className="text-[10px] text-zinc-400 dark:text-zinc-600 text-center mt-1.5">
+        <p className="text-[10px] text-ink-subtle text-center mt-1.5">
           Enter para enviar · Shift+Enter para nueva línea
         </p>
       </div>

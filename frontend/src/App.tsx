@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore, useCan, useHasFeature } from '@/store/authStore'
 import AssistantButton from '@/components/ai/AssistantButton'
+import Toaster from '@/components/ui/Toaster'
 
 // Páginas
 import LoginPage       from '@/pages/auth/LoginPage'
@@ -78,6 +79,7 @@ function App() {
 
       {/* Asistente IA — solo si el rol lo incluye (el backend también lo exige) */}
       {isAuthenticated && canUseAssistant && <AssistantButton />}
+      <Toaster />
     </>
   )
 }

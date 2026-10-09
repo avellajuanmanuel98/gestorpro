@@ -1,133 +1,84 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Search } from 'lucide-react'
+import { FileText, Plus } from 'lucide-react'
 import { billingApi } from '@/api/billing'
-import type { Invoice } from '@/types'
-import Modal from '@/components/ui/Modal'
+import InvoiceDetail from '@/components/billing/InvoiceDetail'
 import InvoiceForm from '@/components/billing/InvoiceForm'
-import Pagination from '@/components/ui/Pagination'
+import Badge from '@/components/ui/Badge'
+import Button from '@/components/ui/Button'
+import DataTable, { type Column } from '@/components/ui/DataTable'
+import EmptyState from '@/components/ui/EmptyState'
+import Modal from '@/components/ui/Modal'
+import PageHeader, { Page } from '@/components/ui/PageHeader'
+import SearchInput from '@/components/ui/SearchInput'
+import Select from '@/components/ui/Select'
+import { formatDate } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
-
-const STATUS_LABELS: Record<Invoice['status'], { label: string; color: string }> = {
-  draft:     { label: 'Borrador',  color: 'bg-gray-100 text-gray-600'     },
-  sent:      { label: 'Enviada',   color: 'bg-blue-100 text-blue-700'     },
-  paid:      { label: 'Pagada',    color: 'bg-green-100 text-green-700'   },
-  overdue:   { label: 'Vencida',   color: 'bg-red-100 text-red-700'       },
-  cancelled: { label: 'Cancelada', color: 'bg-orange-100 text-orange-700' },
-}
+import { INVOICE_STATUS } from '@/lib/status'
+import { useCan } from '@/store/authStore'
+import type { Invoice } from '@/types'
 
 export default function InvoicesPage() {
-  const [search,       setSearch]       = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [modalOpen,    setModalOpen]    = useState(false)
-  const [page,         setPage]         = useState(1)
+  const can = useCan()
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('')
+  const [type, setType] = useState('')
+  const [page, setPage] = useState(1)
+  const [creating, setCreating] = useState(false)
+  const [viewing, setViewing] = useState<number | null>(null)
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['invoices', search, statusFilter, page],
-    queryFn:  () => billingApi.list({ search: search || undefined, status: statusFilter || undefined, page }),
-    enabled:  search.length !== 1,
-    placeholderData: (previous) => previous,
+    queryKey: ['invoices', search, status, type, page],
+    queryFn: () => billingApi.list({ search: search || undefined, status: status || undefined, invoice_type: type || undefined, page }),
+    placeholderData: (prev) => prev,
   })
 
+  const columns: Column<Invoice>[] = [
+    { key: 'number', header: 'Número', primary: true, cell: (i) => (
+      <div><p className="font-medium text-ink">{i.number}</p>{i.invoice_type === 'quote' && <p className="text-xs text-ink-muted">Cotización</p>}</div>
+    ) },
+    { key: 'customer', header: 'Cliente', cell: (i) => <span className="truncate">{i.customer_name}</span> },
+    { key: 'issue', header: 'Emisión', hideOnMobile: true, cell: (i) => <span className="text-ink-muted">{formatDate(i.issue_date)}</span> },
+    { key: 'due', header: 'Vence', cell: (i) => <span className="text-ink-muted">{formatDate(i.due_date)}</span> },
+    { key: 'total', header: 'Total', align: 'right', cell: (i) => <span className="font-medium">{formatCOP(i.total)}</span> },
+    { key: 'status', header: 'Estado', cell: (i) => <Badge variant={INVOICE_STATUS[i.status].variant}>{INVOICE_STATUS[i.status].label}</Badge> },
+  ]
+  const filtered = Boolean(search || status || type)
+
   return (
-    <div className="p-4 md:p-8">
-      <div className="flex items-center justify-between mb-6 md:mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Facturas</h1>
-          <p className="text-gray-500 mt-1">{data?.count ?? 0} documentos</p>
+    <Page>
+      <PageHeader title="Facturación" description="Facturas a crédito y cotizaciones"
+                  actions={can('billing.create') && <Button icon={<Plus size={15} />} onClick={() => setCreating(true)}>Nuevo documento</Button>} />
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <SearchInput label="Buscar documentos" placeholder="Número o cliente" value={search} onChange={(v) => { setSearch(v); setPage(1) }} />
+        <div className="grid grid-cols-2 gap-3 sm:w-[26rem]">
+          <Select aria-label="Tipo" value={type} onChange={(e) => { setType(e.target.value); setPage(1) }}>
+            <option value="">Todos los tipos</option><option value="invoice">Facturas</option><option value="quote">Cotizaciones</option>
+          </Select>
+          <Select aria-label="Estado" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }}>
+            <option value="">Todos los estados</option>
+            {Object.entries(INVOICE_STATUS).map(([value, s]) => <option key={value} value={value}>{s.label}</option>)}
+          </Select>
         </div>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-        >
-          <Plus size={16} />
-          Nueva factura
-        </button>
       </div>
 
-      {/* Filtros */}
-      <div className="flex gap-3 mb-6">
-        <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            placeholder="Buscar por número o cliente..."
-            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
-          <option value="">Todos los estados</option>
-          <option value="draft">Borrador</option>
-          <option value="sent">Enviada</option>
-          <option value="paid">Pagada</option>
-          <option value="overdue">Vencida</option>
-          <option value="cancelled">Cancelada</option>
-        </select>
-      </div>
+      <DataTable caption="Documentos" columns={columns} rows={data?.results} rowKey={(i) => i.id} isLoading={isLoading}
+        onRowClick={(i) => setViewing(i.id)}
+        pagination={{ data, onPageChange: setPage, noun: 'documentos', isFetching }}
+        empty={filtered
+          ? <EmptyState icon={<FileText size={20} />} title="Sin resultados" description="Ningún documento coincide con los filtros." />
+          : <EmptyState icon={<FileText size={20} />} title="Aún no hay documentos"
+                        description="Crea facturas a crédito o cotizaciones para clientes empresariales."
+                        action={can('billing.create') ? { label: 'Crear documento', onClick: () => setCreating(true), icon: <Plus size={14} /> } : undefined} />}
+      />
 
-      {/* Tabla */}
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto">
-          {data?.results.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">No hay facturas</div>
-          ) : (
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Número</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Cliente</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Fecha</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Vence</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Total</th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {data?.results.map((invoice) => {
-                  const status = STATUS_LABELS[invoice.status]
-                  return (
-                    <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 font-medium text-indigo-600">{invoice.number}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{invoice.customer_name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{invoice.issue_date}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{invoice.due_date}</td>
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                        {formatCOP(invoice.total)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
-                          {status.label}
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          )}
-          <Pagination data={data} onPageChange={setPage} noun="documentos" isFetching={isFetching} />
-        </div>
-      )}
-
-      {/* Modal nueva factura */}
-      <Modal
-        title="Nueva factura"
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        size="lg"
-      >
-        <InvoiceForm onSuccess={() => setModalOpen(false)} />
+      <Modal title="Nuevo documento" isOpen={creating} onClose={() => setCreating(false)} size="xl">
+        {creating && <InvoiceForm onSuccess={() => setCreating(false)} onCancel={() => setCreating(false)} />}
       </Modal>
-    </div>
+      <Modal title="Detalle del documento" isOpen={viewing !== null} onClose={() => setViewing(null)} size="lg">
+        {viewing !== null && <InvoiceDetail id={viewing} onClose={() => setViewing(null)} />}
+      </Modal>
+    </Page>
   )
 }

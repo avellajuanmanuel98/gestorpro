@@ -3,203 +3,99 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { inventoryApi } from '@/api/inventory'
-import type { Product } from '@/types'
+import FormActions from '@/components/ui/FormActions'
 import Input from '@/components/ui/Input'
+import Select from '@/components/ui/Select'
+import Textarea from '@/components/ui/Textarea'
 import { getErrorMessage } from '@/lib/errors'
+import { toast } from '@/store/toastStore'
+import type { Product } from '@/types'
 
-const productSchema = z.object({
-  name:          z.string().min(2, 'Mínimo 2 caracteres'),
-  code:          z.string().min(1, 'Requerido'),
-  description:   z.string().optional(),
-  product_type:  z.enum(['product', 'service']),
-  category:      z.number().nullable().optional(),
-  price:         z.string().min(1, 'Requerido'),
-  tax_rate:      z.string(),
-  stock:         z.number().min(0).optional(),
-  minimum_stock: z.number().min(0).optional(),
-  is_active:     z.boolean(),
+const money = z.string().trim().regex(/^\d+(\.\d{1,2})?$/, 'Usa solo números (ej. 1800 o 1800.50)')
+const schema = z.object({
+  name: z.string().trim().min(2, 'Mínimo 2 caracteres'),
+  code: z.string().trim().min(1, 'Indica un código'),
+  description: z.string().optional(),
+  product_type: z.enum(['product', 'service']),
+  category: z.string(),
+  price: money,
+  tax_rate: z.string(),
+  stock: z.coerce.number().int('Solo unidades enteras').min(0, 'No puede ser negativo'),
+  minimum_stock: z.coerce.number().int('Solo unidades enteras').min(0, 'No puede ser negativo'),
+  is_active: z.enum(['true', 'false']),
 })
+type FormInput = z.input<typeof schema>
+type FormData = z.output<typeof schema>
 
-type ProductFormData = z.infer<typeof productSchema>
+// Tarifas habituales en Colombia. El backend valida el rango (0–100).
+const TAX_RATES = ['0', '5', '8', '19']
 
-interface ProductFormProps {
-  product?: Product
-  onSuccess: () => void
-}
-
-export default function ProductForm({ product, onSuccess }: ProductFormProps) {
+export default function ProductForm({ product, onSuccess, onCancel }: {
+  product?: Product; onSuccess: () => void; onCancel?: () => void
+}) {
   const queryClient = useQueryClient()
-  const isEditing   = !!product
-
-  const { data: categories } = useQuery({
-    queryKey: ['categories', 'select'],
-    queryFn:  () => inventoryApi.listCategories({ page_size: 100 }),
-  })
-
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors, isSubmitting },
-  } = useForm<ProductFormData>({
-    resolver: zodResolver(productSchema),
+  const categories = useQuery({ queryKey: ['categories', 'select'], queryFn: () => inventoryApi.listCategories({ page_size: 100 }) })
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormInput, unknown, FormData>({
+    resolver: zodResolver(schema),
     defaultValues: {
-      name:          product?.name          ?? '',
-      code:          product?.code          ?? '',
-      description:   product?.description   ?? '',
-      product_type:  product?.product_type  ?? 'product',
-      category:      product?.category      ?? null,
-      price:         product?.price         ?? '',
-      tax_rate:      product?.tax_rate      ?? '19.00',
-      stock:         product?.stock         ?? 0,
-      minimum_stock: product?.minimum_stock ?? 5,
-      is_active:     product?.is_active     ?? true,
+      name: product?.name ?? '', code: product?.code ?? '', description: product?.description ?? '',
+      product_type: product?.product_type ?? 'product', category: product?.category ? String(product.category) : '',
+      price: product ? String(Number(product.price)) : '', tax_rate: product ? String(Number(product.tax_rate)) : '19',
+      stock: product?.stock ?? 0, minimum_stock: product?.minimum_stock ?? 5,
+      is_active: product?.is_active === false ? 'false' : 'true',
     },
   })
-
-  const productType = watch('product_type')
+  const isService = watch('product_type') === 'service'
 
   const mutation = useMutation({
-    mutationFn: (data: ProductFormData) => {
-      const payload = {
-        ...data,
-        category: data.category || null,
-        stock:    productType === 'service' ? 0 : data.stock,
-      }
-      return isEditing
-        ? inventoryApi.updateProduct(product!.id, payload)
-        : inventoryApi.createProduct(payload)
+    mutationFn: (data: FormData) => {
+      const payload = { ...data, category: data.category ? Number(data.category) : null, is_active: data.is_active === 'true' }
+      return product ? inventoryApi.updateProduct(product.id, payload) : inventoryApi.createProduct(payload)
     },
-    onSuccess: () => {
+    onSuccess: (saved) => {
       queryClient.invalidateQueries({ queryKey: ['products'] })
+      queryClient.invalidateQueries({ queryKey: ['low-stock'] })
+      toast.success(product ? `«${saved.name}» actualizado` : `«${saved.name}» agregado al catálogo`)
       onSuccess()
     },
   })
 
-  const onSubmit = (data: ProductFormData) => mutation.mutate(data)
-
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {/* Nombre y código */}
-      <div className="grid grid-cols-2 gap-3">
-        <Input
-          label="Nombre"
-          {...register('name')}
-          error={errors.name?.message}
-          placeholder="Camiseta básica"
-        />
-        <Input
-          label="Código / SKU"
-          {...register('code')}
-          error={errors.code?.message}
-          placeholder="CAM-001"
-        />
+    <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4" noValidate>
+      <div className="grid sm:grid-cols-[1fr_160px] gap-4">
+        <Input label="Nombre" required autoFocus {...register('name')} error={errors.name?.message} />
+        <Input label="Código" required placeholder="PAN-001" {...register('code')} error={errors.code?.message} />
       </div>
-
-      {/* Tipo y categoría */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-          <select
-            {...register('product_type')}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="product">Producto físico</option>
-            <option value="service">Servicio</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Categoría (opcional)</label>
-          <select
-            {...register('category', { setValueAs: v => v === '' ? null : Number(v) })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="">Sin categoría</option>
-            {categories?.results.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Select label="Categoría" {...register('category')}>
+          <option value="">Sin categoría</option>
+          {categories.data?.results.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </Select>
+        <Select label="Tipo" {...register('product_type')}>
+          <option value="product">Producto (maneja stock)</option>
+          <option value="service">Servicio</option>
+        </Select>
+        <Input label="Precio de venta (COP)" required inputMode="decimal" {...register('price')} error={errors.price?.message}
+               hint="Sin IVA. El total con impuestos lo calcula el sistema." />
+        <Select label="IVA / impuesto" {...register('tax_rate')}>
+          {TAX_RATES.map((r) => <option key={r} value={r}>{r} %</option>)}
+        </Select>
+        {!isService && (
+          <>
+            <Input label="Stock actual" type="number" min={0} {...register('stock')} error={errors.stock?.message}
+                   hint="Se reemplazará por movimientos de inventario en la fase de inventario." />
+            <Input label="Stock mínimo" type="number" min={0} {...register('minimum_stock')} error={errors.minimum_stock?.message}
+                   hint="Por debajo de este número verás una alerta." />
+          </>
+        )}
       </div>
-
-      {/* Descripción */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Descripción (opcional)</label>
-        <textarea
-          {...register('description')}
-          rows={2}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-          placeholder="Descripción del producto..."
-        />
-      </div>
-
-      {/* Precio e IVA */}
-      <div className="grid grid-cols-2 gap-3">
-        <Input
-          label="Precio (sin IVA)"
-          type="number"
-          step="0.01"
-          {...register('price')}
-          error={errors.price?.message}
-          placeholder="50000"
-        />
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">IVA (%)</label>
-          <select
-            {...register('tax_rate')}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="0.00">0% — Exento</option>
-            <option value="5.00">5%</option>
-            <option value="19.00">19% — General</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Stock (solo para productos físicos) */}
-      {productType === 'product' && (
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            label="Stock actual"
-            type="number"
-            {...register('stock', { valueAsNumber: true })}
-            placeholder="0"
-          />
-          <Input
-            label="Stock mínimo"
-            type="number"
-            {...register('minimum_stock', { valueAsNumber: true })}
-            placeholder="5"
-          />
-        </div>
-      )}
-
-      {/* Estado */}
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="is_active"
-          {...register('is_active')}
-          className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
-        />
-        <label htmlFor="is_active" className="text-sm text-gray-700">Producto activo</label>
-      </div>
-
-      {mutation.isError && (
-        <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
-          {getErrorMessage(mutation.error)}
-        </p>
-      )}
-
-      <div className="flex justify-end pt-2">
-        <button
-          type="submit"
-          disabled={isSubmitting || mutation.isPending}
-          className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
-        >
-          {mutation.isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear producto'}
-        </button>
-      </div>
+      <Textarea label="Descripción" rows={2} {...register('description')} />
+      <Select label="Estado" {...register('is_active')}>
+        <option value="true">Activo (disponible para vender)</option>
+        <option value="false">Inactivo</option>
+      </Select>
+      <FormActions error={mutation.isError ? getErrorMessage(mutation.error) : null} submitting={mutation.isPending}
+                   submitLabel={product ? 'Guardar cambios' : 'Crear producto'} onCancel={onCancel} />
     </form>
   )
 }

@@ -1,112 +1,77 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
+import { cn } from '@/lib/cn'
 
 interface ModalProps {
-  title:     string
-  isOpen:    boolean
-  onClose:   () => void
-  children:  React.ReactNode
-  size?:     'sm' | 'md' | 'lg' | 'xl'
+  title: string
+  isOpen: boolean
+  onClose: () => void
+  children: React.ReactNode
+  size?: 'sm' | 'md' | 'lg' | 'xl'
   subtitle?: string
 }
 
-const sizes = {
-  sm: 'max-w-md',
-  md: 'max-w-xl',
-  lg: 'max-w-2xl',
-  xl: 'max-w-4xl',
-}
+const sizes = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-2xl', xl: 'max-w-4xl' }
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
-export default function Modal({
-  title,
-  isOpen,
-  onClose,
-  children,
-  size = 'md',
-  subtitle,
-}: ModalProps) {
-  const contentRef = useRef<HTMLDivElement>(null)
+/**
+ * Diálogo modal accesible: se renderiza en <body> (portal), atrapa el foco
+ * con Tab, se cierra con Escape y devuelve el foco al elemento que lo abrió.
+ */
+export default function Modal({ title, isOpen, onClose, children, size = 'md', subtitle }: ModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose })
 
   useEffect(() => {
     if (!isOpen) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [isOpen, onClose])
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    const panel = panelRef.current
+    // Si un campo ya tomó el foco (autoFocus de React), se respeta; si no, va al primer control.
+    if (!panel?.contains(document.activeElement)) panel?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
+    document.body.style.overflow = 'hidden'
 
-  // Lock body scroll when open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); onCloseRef.current() }
+      if (e.key !== 'Tab' || !panel) return
+      const items = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.offsetParent !== null)
+      if (!items.length) return
+      const [firstItem, lastItem] = [items[0], items[items.length - 1]]
+      if (e.shiftKey && document.activeElement === firstItem) { e.preventDefault(); lastItem.focus() }
+      else if (!e.shiftKey && document.activeElement === lastItem) { e.preventDefault(); firstItem.focus() }
     }
-    return () => { document.body.style.overflow = '' }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+      previouslyFocused?.focus?.()
+    }
   }, [isOpen])
 
   if (!isOpen) return null
 
-  // Portal a <body>: si el modal se renderiza dentro de un ancestro con
-  // `transform` (p. ej. la animación de entrada de página), `position: fixed`
-  // se posiciona respecto a ese ancestro y el modal queda recortado.
   return createPortal(
-    <div
-      className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="modal-title"
-    >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
-
-      {/* Panel */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={onClose} />
       <div
-        ref={contentRef}
-        onClick={(e) => e.stopPropagation()}
-        className={[
-          'modal-content relative bg-white dark:bg-zinc-900',
-          'border border-zinc-200 dark:border-zinc-800',
-          'rounded-2xl shadow-2xl shadow-black/20 dark:shadow-black/60',
-          'w-full max-h-[90vh] flex flex-col',
+        ref={panelRef}
+        className={cn(
+          'relative w-full max-h-[90vh] flex flex-col bg-surface border border-line rounded-2xl shadow-overlay animate-pop-in',
           sizes[size],
-        ].join(' ')}
+        )}
       >
-        {/* Header */}
-        <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
+        <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-4 border-b border-line shrink-0">
           <div>
-            <h2
-              id="modal-title"
-              className="text-base font-semibold text-zinc-900 dark:text-zinc-100"
-            >
-              {title}
-            </h2>
-            {subtitle && (
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                {subtitle}
-              </p>
-            )}
+            <h2 id="modal-title" className="text-base font-semibold text-ink">{title}</h2>
+            {subtitle && <p className="text-sm text-ink-muted mt-0.5">{subtitle}</p>}
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Cerrar modal"
-            className={[
-              'p-1.5 rounded-lg transition-colors shrink-0 ml-4',
-              'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100',
-              'dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:bg-zinc-800',
-            ].join(' ')}
-          >
+          <button type="button" onClick={onClose} aria-label="Cerrar"
+                  className="p-1.5 -mr-1.5 rounded-lg text-ink-subtle hover:text-ink hover:bg-surface-muted transition-colors">
             <X size={16} />
           </button>
         </div>
-
-        {/* Body */}
-        <div className="overflow-y-auto flex-1 px-6 py-5">
-          {children}
-        </div>
+        <div className="overflow-y-auto flex-1 px-6 py-5">{children}</div>
       </div>
     </div>,
     document.body,

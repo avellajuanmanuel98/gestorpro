@@ -1,59 +1,30 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuthStore } from '@/store/authStore'
 import { authApi } from '@/api/auth'
+import Alert from '@/components/ui/Alert'
+import Button from '@/components/ui/Button'
+import Input from '@/components/ui/Input'
+import AuthLayout from '@/layouts/AuthLayout'
 import { getErrorMessage } from '@/lib/errors'
+import { useAuthStore } from '@/store/authStore'
 
-// Estructura del formulario
-interface FormData {
-  company_name: string
-  first_name:   string
-  last_name:    string
-  email:        string
-  password:     string
-  password2:    string
-}
-
-const EMPTY_FORM: FormData = {
-  company_name: '',
-  first_name:   '',
-  last_name:    '',
-  email:        '',
-  password:     '',
-  password2:    '',
-}
+const EMPTY = { company_name: '', first_name: '', last_name: '', email: '', password: '', password2: '' }
 
 export default function RegisterPage() {
   const navigate = useNavigate()
   const startSession = useAuthStore((s) => s.startSession)
-
-  const [form,    setForm]    = useState<FormData>(EMPTY_FORM)
-  const [error,   setError]   = useState<string>('')
+  const [form, setForm] = useState(EMPTY)
+  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const set = (key: keyof typeof EMPTY) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
-  // Actualizamos un campo del formulario de forma genérica
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-
-    // Validación básica en el cliente antes de llamar a la API
-    if (form.password !== form.password2) {
-      setError('Las contraseñas no coinciden.')
-      return
-    }
-    if (form.password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres.')
-      return
-    }
-    // La validación definitiva (contraseñas comunes, similitud, etc.) la hace el backend
-
+    if (form.password !== form.password2) { setError('Las contraseñas no coinciden.'); return }
     setLoading(true)
     try {
-      // El backend crea cuenta + empresa (como propietario) y devuelve tokens
+      // El backend crea la cuenta y la empresa (con la persona como propietaria) y valida la contraseña
       await startSession(await authApi.register(form))
       navigate('/dashboard')
     } catch (err) {
@@ -64,139 +35,24 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-
-        {/* Encabezado */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-indigo-600">GestorPro</h1>
-          <p className="text-gray-500 mt-2">Crea tu empresa y empieza gratis</p>
+    <AuthLayout title="Crea tu cuenta" subtitle="Empieza con 14 días de prueba. No necesitas tarjeta.">
+      <form onSubmit={submit} className="space-y-4">
+        <Input label="Nombre de tu empresa" required autoFocus value={form.company_name} onChange={set('company_name')}
+               placeholder="Panadería La Favorita" />
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Nombre" required autoComplete="given-name" value={form.first_name} onChange={set('first_name')} />
+          <Input label="Apellido" required autoComplete="family-name" value={form.last_name} onChange={set('last_name')} />
         </div>
-
-        {/* Tarjeta */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Crear cuenta</h2>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-
-            {/* Nombre de empresa — va primero porque es lo más importante */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nombre de tu empresa
-              </label>
-              <input
-                type="text"
-                name="company_name"
-                value={form.company_name}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Ej: Ferretería El Tornillo"
-              />
-            </div>
-
-            {/* Nombre y apellido en fila */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre
-                </label>
-                <input
-                  type="text"
-                  name="first_name"
-                  value={form.first_name}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Juan"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Apellido
-                </label>
-                <input
-                  type="text"
-                  name="last_name"
-                  value={form.last_name}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="García"
-                />
-              </div>
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Correo electrónico
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={form.email}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="correo@empresa.com"
-              />
-            </div>
-
-            {/* Contraseñas */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Contraseña
-              </label>
-              <input
-                type="password"
-                name="password"
-                value={form.password}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Mínimo 8 caracteres"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Confirmar contraseña
-              </label>
-              <input
-                type="password"
-                name="password2"
-                value={form.password2}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Repite la contraseña"
-              />
-            </div>
-
-            {/* Errores */}
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Creando cuenta...' : 'Crear cuenta gratis'}
-            </button>
-          </form>
-
-          {/* Link al login */}
-          <p className="text-center text-sm text-gray-500 mt-6">
-            ¿Ya tienes cuenta?{' '}
-            <Link to="/login" className="text-indigo-600 hover:underline font-medium">
-              Inicia sesión
-            </Link>
-          </p>
-        </div>
-      </div>
-    </div>
+        <Input label="Email" type="email" required autoComplete="email" value={form.email} onChange={set('email')} />
+        <Input label="Contraseña" type="password" required minLength={8} autoComplete="new-password" value={form.password}
+               onChange={set('password')} hint="Mínimo 8 caracteres; evita contraseñas comunes." />
+        <Input label="Confirmar contraseña" type="password" required autoComplete="new-password" value={form.password2} onChange={set('password2')} />
+        {error && <Alert>{error}</Alert>}
+        <Button type="submit" fullWidth loading={loading} size="lg">Crear cuenta</Button>
+      </form>
+      <p className="text-sm text-ink-muted text-center">
+        ¿Ya tienes cuenta? <Link to="/login" className="font-medium text-primary-ink hover:underline">Inicia sesión</Link>
+      </p>
+    </AuthLayout>
   )
 }
