@@ -29,8 +29,11 @@ export default function LoginPage() {
         setError('No se puede conectar con el servidor. Verifica tu conexión.')
       } else if (isAxiosError(err) && err.response?.status === 429) {
         setError('Demasiados intentos. Espera un minuto e inténtalo de nuevo.')
-      } else {
+      } else if (isAxiosError(err) && err.response?.status === 400) {
         setError('Email o contraseña incorrectos. Intenta de nuevo.')
+      } else {
+        // 5xx o proxy de Vite sin backend: no es un problema de credenciales
+        setError('El servidor no está disponible. Verifica que el backend esté en ejecución.')
       }
     } finally {
       setLoading(false)
