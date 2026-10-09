@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Building2, Save, Loader2 } from 'lucide-react'
 import { tenantApi } from '@/api/auth'
+import { formatDate } from '@/lib/dates'
 import { useAuthStore, useCan } from '@/store/authStore'
 import type { Tenant } from '@/types'
 import { getErrorMessage } from '@/lib/errors'
@@ -17,6 +18,7 @@ export default function CompanyPage() {
     queryKey: ['tenant'],
     queryFn:  tenantApi.current,
   })
+  const { data: plan } = useQuery({ queryKey: ['tenant-plan'], queryFn: tenantApi.plan })
 
   // Estado local del formulario — se inicializa cuando llegan los datos
   const [form, setForm] = useState<Partial<Tenant>>({})
@@ -71,6 +73,42 @@ export default function CompanyPage() {
           <p className="text-sm text-gray-500">Información y configuración de tu empresa</p>
         </div>
       </div>
+
+      {/* Plan (solo lectura: lo administra GestorPro) */}
+      {plan?.plan.name && (
+        <section className="bg-white rounded-xl border border-gray-200 p-5 mb-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Plan actual</p>
+              <p className="text-base font-semibold text-gray-900">{plan.plan.name}</p>
+            </div>
+            {plan.plan.status === 'trialing' && (
+              <span className="text-xs font-medium bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full">
+                En prueba hasta el {formatDate(plan.plan.trial_ends_at)}
+              </span>
+            )}
+          </div>
+          <dl className="grid grid-cols-2 gap-4">
+            {plan.limits.map((l) => {
+              const pct = l.limit ? Math.min(100, Math.round((l.used / l.limit) * 100)) : 0
+              return (
+                <div key={l.key}>
+                  <dt className="text-xs text-gray-500">{l.label}</dt>
+                  <dd className="text-sm font-medium text-gray-900 tabular-nums">
+                    {l.used} de {l.limit === null ? 'ilimitado' : l.limit}
+                  </dd>
+                  {l.limit !== null && l.limit > 0 && (
+                    <div className="mt-1 h-1.5 rounded-full bg-gray-100 overflow-hidden" aria-hidden>
+                      <div className={`h-full rounded-full ${pct >= 100 ? 'bg-amber-500' : 'bg-indigo-500'}`}
+                           style={{ width: `${pct}%` }} />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </dl>
+        </section>
+      )}
 
       {!canEdit && (
         <p className="mb-4 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">

@@ -24,6 +24,84 @@ export interface Session {
   /** Solo para adaptar la UI. El backend valida cada permiso. */
   permissions: string[]
   memberships: { tenant_id: number; tenant_name: string; role: string }[]
+  /** Plan y funcionalidades: solo para la UI; el backend las valida. */
+  plan: PlanInfo | null
+  features: string[]
+}
+
+export interface PlanInfo {
+  code: string | null
+  name: string | null
+  status: 'trialing' | 'active' | 'past_due' | 'canceled' | null
+  trial_ends_at: string | null
+}
+
+export interface PlanSummary {
+  plan: PlanInfo
+  features: string[]
+  limits: { key: string; label: string; used: number; limit: number | null }[]
+}
+
+// ── Usuarios, roles y auditoría ──────────────────
+export interface RoleSummary {
+  id: number
+  code: string
+  name: string
+}
+
+export interface Member {
+  id: number
+  email: string
+  full_name: string
+  role: RoleSummary
+  is_owner: boolean
+  status: 'active' | 'invited' | 'suspended'
+  last_login: string | null
+  created_at: string
+}
+
+export interface Invitation {
+  id: number
+  email: string
+  role: RoleSummary
+  status: 'pending' | 'accepted' | 'expired' | 'revoked'
+  expires_at: string
+  invited_by: string | null
+  created_at: string
+  /** Solo en la respuesta de creación: el enlace no se puede volver a consultar */
+  invite_url?: string
+}
+
+export interface Role {
+  id: number
+  code: string
+  name: string
+  is_system: boolean
+  grants_all: boolean
+  /** ['*'] para el propietario */
+  permissions: string[]
+  members_count: number
+}
+
+export interface PermissionDef {
+  code: string
+  module: string
+  description: string
+  /** false si el módulo no está incluido en el plan */
+  available: boolean
+}
+
+export interface AuditEntry {
+  id: number
+  created_at: string
+  actor: number | null
+  actor_label: string
+  action: string
+  entity_type: string
+  entity_id: string
+  summary: string
+  changes: Record<string, [unknown, unknown]>
+  ip: string | null
 }
 
 export interface AuthTokens {

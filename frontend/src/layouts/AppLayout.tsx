@@ -3,10 +3,10 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Users, FileText, Building2, LogOut,
   Menu, X, UserCheck, Truck, BarChart2, Boxes,
-  Moon, Sun, ChevronRight, ArrowLeftRight,
+  Moon, Sun, ChevronRight, ArrowLeftRight, KeyRound, History, UserCog,
 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useAuthStore, useCan } from '@/store/authStore'
+import { useAuthStore, useCan, useHasFeature } from '@/store/authStore'
 import { useThemeStore } from '@/store/themeStore'
 
 // ── Navigation config ─────────────────────────────────────────────────────────
@@ -18,6 +18,8 @@ interface NavItem {
   icon:        React.ElementType
   label:       string
   permission?: string
+  /** Funcionalidad del plan requerida (el backend también la exige) */
+  feature?:    string
 }
 
 const navGroups: { label: string; items: NavItem[] }[] = [
@@ -33,7 +35,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: 'Recursos',
     items: [
-      { to: '/employees', icon: UserCheck, label: 'Empleados',   permission: 'hr.view'        },
+      { to: '/employees', icon: UserCheck, label: 'Empleados',   permission: 'hr.view', feature: 'module.hr' },
       { to: '/suppliers', icon: Truck,     label: 'Proveedores', permission: 'suppliers.view' },
       { to: '/reports',   icon: BarChart2, label: 'Reportes',    permission: 'reports.view'   },
     ],
@@ -42,6 +44,9 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     label: 'Configuración',
     items: [
       { to: '/company', icon: Building2, label: 'Mi Empresa', permission: 'tenant.view' },
+      { to: '/users',   icon: UserCog,   label: 'Usuarios',   permission: 'access.view' },
+      { to: '/roles',   icon: KeyRound,  label: 'Roles',      permission: 'access.view' },
+      { to: '/audit',   icon: History,   label: 'Auditoría',  permission: 'audit.view'  },
     ],
   },
 ]
@@ -56,6 +61,9 @@ const routeLabels: Record<string, string> = {
   '/suppliers': 'Proveedores',
   '/reports':   'Reportes',
   '/company':   'Mi Empresa',
+  '/users':     'Usuarios',
+  '/roles':     'Roles y permisos',
+  '/audit':     'Auditoría',
 }
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
@@ -136,6 +144,7 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
   const user   = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const can    = useCan()
+  const hasFeature = useHasFeature()
   const { theme, toggleTheme } = useThemeStore()
   const navigate    = useNavigate()
   const queryClient = useQueryClient()
@@ -147,7 +156,10 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
   }
 
   const visibleGroups = navGroups
-    .map((g) => ({ ...g, items: g.items.filter((i) => !i.permission || can(i.permission)) }))
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((i) => (!i.permission || can(i.permission)) && (!i.feature || hasFeature(i.feature))),
+    }))
     .filter((g) => g.items.length > 0)
 
   return (

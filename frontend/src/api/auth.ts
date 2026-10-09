@@ -1,5 +1,5 @@
 import apiClient, { tokenStorage } from './client'
-import type { AuthTokens, Session, Tenant } from '@/types'
+import type { AuthTokens, PlanSummary, Session, Tenant } from '@/types'
 
 export interface RegisterPayload {
   email: string
@@ -36,4 +36,5 @@ export const tenantApi = {
   current: async (): Promise<Tenant> => (await apiClient.get<Tenant>('/tenant/')).data,
   update: async (payload: Partial<Tenant>): Promise<Tenant> =>
     (await apiClient.patch<Tenant>('/tenant/', payload)).data,
+  plan: async (): Promise<PlanSummary> => (await apiClient.get<PlanSummary>('/tenant/plan/')).data,
 }

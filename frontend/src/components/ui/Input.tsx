@@ -1,4 +1,4 @@
-import { forwardRef } from 'react'
+import { forwardRef, useId } from 'react'
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?:      string
@@ -9,11 +9,14 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, leftIcon, rightIcon, className = '', ...props }, ref) => {
+  ({ label, error, hint, leftIcon, rightIcon, className = '', id, ...props }, ref) => {
+    const generatedId = useId()
+    const inputId = id ?? generatedId
+    const describedBy = error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined
     return (
       <div className="space-y-1.5">
         {label && (
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          <label htmlFor={inputId} className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
             {label}
             {props.required && (
               <span className="text-red-500 ml-1" aria-hidden>*</span>
@@ -30,6 +33,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 
           <input
             ref={ref}
+            id={inputId}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy}
             className={[
               'input-field w-full rounded-lg border bg-white dark:bg-zinc-900/50 text-sm',
               'text-zinc-900 dark:text-zinc-100',
@@ -59,14 +65,14 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         </div>
 
         {error && (
-          <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
+          <p id={`${inputId}-error`} className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
             <span className="w-3.5 h-3.5 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center font-bold shrink-0">!</span>
             {error}
           </p>
         )}
 
         {!error && hint && (
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">{hint}</p>
+          <p id={`${inputId}-hint`} className="text-xs text-zinc-500 dark:text-zinc-400">{hint}</p>
         )}
       </div>
     )

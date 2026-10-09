@@ -71,3 +71,9 @@ export function useCan() {
   const permissions = useAuthStore((s) => s.session?.permissions)
   return (permission: string) => Boolean(permissions?.includes(permission))
 }
+
+/** Funcionalidades del plan, solo para adaptar la interfaz (el backend las exige). */
+export function useHasFeature() {
+  const features = useAuthStore((s) => s.session?.features)
+  return (feature: string) => Boolean(features?.includes(feature))
+}

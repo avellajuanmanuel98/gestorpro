@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useAuthStore, useCan } from '@/store/authStore'
+import { useAuthStore, useCan, useHasFeature } from '@/store/authStore'
 import AssistantButton from '@/components/ai/AssistantButton'
 
 // Páginas
@@ -14,6 +14,10 @@ import EmployeesPage   from '@/pages/employees/EmployeesPage'
 import SuppliersPage   from '@/pages/suppliers/SuppliersPage'
 import ReportsPage     from '@/pages/reports/ReportsPage'
 import InventoryPage   from '@/pages/inventory/InventoryPage'
+import UsersPage       from '@/pages/access/UsersPage'
+import RolesPage       from '@/pages/access/RolesPage'
+import AuditPage       from '@/pages/access/AuditPage'
+import AcceptInvitationPage from '@/pages/auth/AcceptInvitationPage'
 
 // Layout principal con sidebar
 import AppLayout from '@/layouts/AppLayout'
@@ -27,7 +31,9 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const refreshSession  = useAuthStore((s) => s.refreshSession)
-  const canUseAssistant = useCan()('assistant.use')
+  const can = useCan()
+  const hasFeature = useHasFeature()
+  const canUseAssistant = can('assistant.use') && hasFeature('module.assistant')
 
   // Al abrir la app, la sesión (empresa activa, rol y permisos) se vuelve a
   // pedir al servidor: lo guardado en el navegador puede estar desactualizado.
@@ -41,6 +47,7 @@ function App() {
         {/* Rutas públicas */}
         <Route path="/login"    element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/invitation/:token" element={<AcceptInvitationPage />} />
 
         {/* Rutas protegidas — todas dentro del AppLayout (sidebar + header) */}
         <Route
@@ -60,6 +67,9 @@ function App() {
           <Route path="suppliers" element={<SuppliersPage />} />
           <Route path="reports"   element={<ReportsPage />} />
           <Route path="company"   element={<CompanyPage />} />
+          <Route path="users"     element={<UsersPage />} />
+          <Route path="roles"     element={<RolesPage />} />
+          <Route path="audit"     element={<AuditPage />} />
         </Route>
 
         {/* Cualquier ruta desconocida → dashboard */}
