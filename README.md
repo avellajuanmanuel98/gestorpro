@@ -148,7 +148,7 @@ lint-imports                                   # contratos de capas
 python manage.py makemigrations --check --dry-run
 pytest -m isolation                            # aislamiento entre empresas (obligatorio)
 pytest                                         # suite completa
-cd frontend && npm run lint && npm run build
+cd frontend && npm run lint && npm test && npm run build
 ```
 
 ### Variables de entorno
@@ -177,7 +177,7 @@ GestorPro está evolucionando hacia una plataforma SaaS para PYMES con verticale
 - [x] Fase 0 — Contención de seguridad del despliegue
 - [x] Fases 2–3 — Arquitectura por capas, multi-tenancy fail-closed, roles y permisos, CI
 - [x] Fase 4 — Auditoría, gestión de usuarios y roles, planes ([detalle](docs/miga/03-fase-4-acceso-auditoria-planes.md))
-- [ ] Fase 5 — Sistema de diseño y unificación visual
+- [x] Fase 5 — Sistema de diseño y unificación visual ([detalle](docs/miga/04-fase-5-sistema-de-diseno.md))
 - [ ] Fases 6–9 — Miga: catálogo e ingredientes, POS y caja, inventario y producción, analítica
 
 ## Autor
