@@ -59,18 +59,22 @@ def create_system_roles(tenant) -> dict[str, Role]:
 
 
 @transaction.atomic
-def provision_tenant(*, name: str, owner, vertical: str = Tenant.Vertical.GENERIC,
+def provision_tenant(*, name: str, owner=None, vertical: str = Tenant.Vertical.GENERIC,
                      plan_code: str | None = None, **tenant_fields) -> Tenant:
     """
     Alta completa de una empresa: tenant + sucursal principal + roles + OWNER.
     Luego emite `tenant_provisioned` (suscripción, configuración del vertical)
     dentro de la misma transacción: si algo falla, no queda una empresa a medias.
+
+    `owner=None` solo lo usa la plataforma al dar de alta un cliente: en ese
+    caso el propietario entra aceptando una invitación (ver invite_owner).
     """
     tenant = Tenant.objects.create(name=name, slug=_unique_slug(name), vertical=vertical, **tenant_fields)
     with tenant_context(tenant):
         location = Location.objects.create(name='Principal', is_default=True)
         roles = create_system_roles(tenant)
-        Membership.objects.create(user=owner, role=roles['OWNER'], default_location=location)
+        if owner is not None:
+            Membership.objects.create(user=owner, role=roles['OWNER'], default_location=location)
         tenant_provisioned.send(sender=Tenant, tenant=tenant, plan_code=plan_code)
     return tenant
 
@@ -218,6 +222,28 @@ def invite(*, actor: Membership, email: str, role: Role) -> tuple[Invitation, st
     )
     audit.record('access.invitation.created', target=invitation,
                  summary=f'Invitó a {email} con el rol {role.name}')
+    return invitation, token
+
+
+@transaction.atomic
+def invite_owner(*, email: str) -> tuple[Invitation, str]:
+    """
+    Invitación de PROPIETARIO creada por la plataforma (alta de un cliente).
+    No pasa por las reglas de actor porque no hay un miembro que invite;
+    solo la usan comandos de plataforma. Requiere el tenant activo.
+    """
+    email = email.strip().lower()
+    role = Role.objects.get(code='OWNER')
+    now = timezone.now()
+    Invitation.objects.filter(email__iexact=email, accepted_at__isnull=True, revoked_at__isnull=True) \
+        .update(revoked_at=now)
+    token = secrets.token_urlsafe(32)
+    invitation = Invitation.objects.create(
+        email=email, role=role, token_hash=_hash(token), invited_by=None,
+        expires_at=now + datetime.timedelta(days=INVITATION_DAYS),
+    )
+    audit.record('access.invitation.created', target=invitation,
+                 summary=f'La plataforma invitó a {email} como {role.name}')
     return invitation, token
 
 
