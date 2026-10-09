@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeftRight, BarChart2, Boxes, Building2, FileText, History, KeyRound, LayoutDashboard,
-  LogOut, Menu, Moon, Sun, Truck, UserCheck, UserCog, Users, X,
+  LogOut, Menu, Moon, Sun, Truck, UserCheck, UserCog, Users, Wheat, X,
 } from 'lucide-react'
 import Brand from '@/components/brand/Brand'
 import { cn } from '@/lib/cn'
@@ -29,6 +29,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
       { to: '/clients', icon: Users, label: 'Clientes', permission: 'customers.view' },
       { to: '/invoices', icon: FileText, label: 'Facturación', permission: 'billing.view' },
       { to: '/inventory', icon: Boxes, label: 'Productos', permission: 'catalog.view' },
+      { to: '/ingredients', icon: Wheat, label: 'Ingredientes', permission: 'catalog.view' },
     ],
   },
   {

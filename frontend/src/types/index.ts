@@ -149,31 +149,55 @@ export interface Customer {
 }
 
 // ── Inventario ───────────────────────────────────
+export type CategoryKind = 'product' | 'ingredient'
+
 export interface Category {
   id: number
   name: string
   description: string
-  products_count: number
+  kind: CategoryKind
+  items_count: number
   created_at: string
 }
 
-export interface Product {
+/** Unidad de medida global (g, kg, l, und…). */
+export interface Unit {
+  code: string
+  name: string
+  symbol: string
+  dimension: 'mass' | 'volume' | 'count'
+}
+
+/**
+ * Producto elaborado, reventa, servicio o ingrediente. Cantidades y dinero
+ * llegan como string (Decimal exacto). Los campos de costo solo llegan si el
+ * usuario tiene `catalog.view_costs`.
+ */
+export type ItemKind = 'finished_good' | 'resale' | 'raw_material' | 'service'
+
+export interface Item {
   id: number
   name: string
   code: string
-  description: string
-  product_type: 'product' | 'service'
+  description?: string
+  kind: ItemKind
   category: number | null
   category_name: string | null
+  unit: string
+  unit_symbol: string
+  is_sellable: boolean
   price: string
   tax_rate: string
-  stock: number
-  minimum_stock: number
+  avg_cost?: string
+  margin_pct?: string | null
+  stock: string
+  minimum_stock: string
   is_low_stock: boolean
+  stock_value?: string
   is_active: boolean
-  created_by: string
-  created_at: string
-  updated_at: string
+  created_by?: string
+  created_at?: string
+  updated_at?: string
 }
 
 // ── Facturación ──────────────────────────────────

@@ -18,7 +18,7 @@ SYSTEM_ROLES = {
     'SUPERVISOR': {
         'name': 'Supervisor',
         'permissions': [
-            'tenant.view', 'customers.*', 'suppliers.view', 'catalog.view',
+            'tenant.view', 'customers.*', 'suppliers.view', 'catalog.view', 'catalog.view_costs',
             'billing.view', 'billing.create', 'billing.update', 'billing.apply_discount',
             'reports.view', 'hr.view', 'assistant.use',
         ],

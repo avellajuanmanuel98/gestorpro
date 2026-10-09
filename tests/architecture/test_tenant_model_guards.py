@@ -67,9 +67,10 @@ def test_queryset_update_and_delete_are_scoped(two):
     s.make_customer(a)
     s.make_customer(b)
     with tenant_context(a):
-        assert Customer.objects.update(notes='tocado') == 1
+        own = Customer.objects.count()  # incluye el "Consumidor final" creado en el alta
+        assert Customer.objects.update(notes='tocado') == own
     with tenant_context(b):
-        assert Customer.objects.get().notes == ''
+        assert not Customer.objects.filter(notes='tocado').exists()
 
 
 def test_context_is_cleared_after_each_request(two):

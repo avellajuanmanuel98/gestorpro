@@ -5,7 +5,7 @@ Nota: estos reportes heredados se reconstruirán en la fase de analítica
 (períodos configurables, comparaciones). En esta fase se garantiza que estén
 aislados por empresa, protegidos por permiso y con importes exactos.
 """
-from django.db.models import Count, DecimalField, ExpressionWrapper, F, Q, Sum
+from django.db.models import Case, Count, DecimalField, ExpressionWrapper, F, Q, Sum, Value, When
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from rest_framework.response import Response
@@ -14,7 +14,7 @@ from rest_framework.views import APIView
 from gestorpro.core.access.permissions import HasTenantPermission
 from gestorpro.core.billing.models import Invoice
 from gestorpro.core.billing.views import MONTHS, month_starts
-from gestorpro.core.catalog.models import Product
+from gestorpro.core.catalog.models import Item
 from gestorpro.kernel.money import ZERO, money_str
 
 
@@ -66,37 +66,53 @@ class InventoryReportView(ReportView):
     """
     GET /api/reports/inventory/
 
-    `valor_inventario` = Σ(precio de venta × stock) de productos físicos activos.
-    Es valor a PRECIO DE VENTA; el valor a costo llegará con el libro de
-    inventario y el costo promedio ponderado.
+    El valor del inventario es a COSTO: Σ(existencia × costo por unidad) de los
+    ítems activos con existencias. No se suman cantidades entre ítems porque
+    pueden estar en unidades distintas (kg, l, und). Los valores solo se
+    incluyen si el usuario tiene `catalog.view_costs`; si no, van en null.
     """
 
     def get(self, request):
-        products = Product.objects.filter(is_active=True)
-        physical = products.filter(product_type=Product.ProductType.PRODUCT)
+        items = Item.objects.filter(is_active=True)
+        stocked = items.exclude(kind=Item.Kind.SERVICE)
+        is_ingredient = Q(kind=Item.Kind.RAW_MATERIAL)
+        value = ExpressionWrapper(F('stock') * F('avg_cost'),
+                                  output_field=DecimalField(max_digits=28, decimal_places=8))
+        show_costs = request.membership.has_perm('catalog.view_costs')
+
         by_category = [
-            {'categoria': r['category__name'] or 'Sin categoría', 'stock': r['stock'] or 0, 'productos': r['count']}
+            {'categoria': r['category__name'] or 'Sin categoría',
+             'grupo': 'ingredientes' if r['group_kind'] == Item.Kind.RAW_MATERIAL else 'productos',
+             'items': r['count'],
+             'valor': money_str(r['valor'] or ZERO) if show_costs else None}
             for r in (
-                physical.values('category__name').annotate(stock=Sum('stock'), count=Count('id')).order_by('-stock')
+                stocked.annotate(group_kind=Case(When(is_ingredient, then=Value(Item.Kind.RAW_MATERIAL)),
+                                                 default=Value('product')))
+                .values('category__name', 'group_kind')
+                .annotate(count=Count('id'), valor=Sum(value))
+                .order_by('-valor' if show_costs else '-count')
             )
         ]
-        low_stock = list(
-            physical.filter(stock__lte=F('minimum_stock')).order_by('stock')
-            .values('id', 'name', 'code', 'stock', 'minimum_stock')[:10]
+        low_stock = [
+            {'id': r['id'], 'name': r['name'], 'code': r['code'], 'stock': str(r['stock'].normalize()),
+             'minimum_stock': str(r['minimum_stock'].normalize()), 'unit': r['unit__symbol']}
+            for r in stocked.filter(minimum_stock__gt=0, stock__lte=F('minimum_stock')).order_by('stock')
+            .values('id', 'name', 'code', 'stock', 'minimum_stock', 'unit__symbol')[:10]
+        ]
+        totals = items.aggregate(
+            total_productos=Count('id', filter=Q(kind__in=Item.PRODUCT_KINDS)),
+            total_ingredientes=Count('id', filter=is_ingredient),
+            valor_productos=Sum(value, filter=~is_ingredient & ~Q(kind=Item.Kind.SERVICE)),
+            valor_ingredientes=Sum(value, filter=is_ingredient),
         )
-        line_value = ExpressionWrapper(
-            F('price') * F('stock'), output_field=DecimalField(max_digits=20, decimal_places=2),
-        )
-        totals = products.aggregate(
-            total_productos=Count('id', filter=Q(product_type=Product.ProductType.PRODUCT)),
-            total_servicios=Count('id', filter=Q(product_type=Product.ProductType.SERVICE)),
-            valor=Sum(line_value, filter=Q(product_type=Product.ProductType.PRODUCT)),
-        )
+        costs = (lambda v: money_str(v or ZERO)) if show_costs else (lambda v: None)
         return Response({
             'by_category': by_category,
             'low_stock': low_stock,
             'total_productos': totals['total_productos'],
-            'total_servicios': totals['total_servicios'],
-            'valor_inventario': money_str(totals['valor'] or ZERO),
-            'valor_inventario_base': 'sale_price',
+            'total_ingredientes': totals['total_ingredientes'],
+            'valor_productos': costs(totals['valor_productos']),
+            'valor_ingredientes': costs(totals['valor_ingredientes']),
+            'valor_inventario': costs((totals['valor_productos'] or ZERO) + (totals['valor_ingredientes'] or ZERO)),
+            'valor_inventario_base': 'cost',
         })

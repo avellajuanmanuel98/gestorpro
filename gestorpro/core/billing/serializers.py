@@ -3,14 +3,14 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from gestorpro.core.api.serializers import TenantModelSerializer
-from gestorpro.core.catalog.models import Product
+from gestorpro.core.catalog.models import Item
 
 from .models import Invoice, InvoiceLine
 
 
 class InvoiceLineInputSerializer(serializers.Serializer):
     """Lo que el cliente PUEDE pedir. Importes e impuestos los calcula el servidor."""
-    product = serializers.PrimaryKeyRelatedField(queryset=Product.objects)  # filtrado por tenant
+    product = serializers.PrimaryKeyRelatedField(queryset=Item.objects)  # filtrado por tenant
     quantity = serializers.DecimalField(max_digits=12, decimal_places=3, min_value=Decimal('0.001'))
     unit_price = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal('0'), required=False)
     description = serializers.CharField(max_length=300, required=False, allow_blank=True)

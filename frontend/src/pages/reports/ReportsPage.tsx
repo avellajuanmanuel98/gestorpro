@@ -11,6 +11,7 @@ import KpiTile from '@/components/ui/KpiTile'
 import PageHeader, { Page } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import Tabs from '@/components/ui/Tabs'
+import { formatQty } from '@/lib/catalog'
 import { formatCOP, formatCompactNumber, toDisplayNumber } from '@/lib/money'
 import { INVOICE_STATUS } from '@/lib/status'
 import { useCan, useHasFeature } from '@/store/authStore'
@@ -90,42 +91,56 @@ function BillingTab() {
 function InventoryTab() {
   const { data, isLoading } = useQuery({ queryKey: ['report-inventory'], queryFn: reportsApi.inventory })
   if (isLoading || !data) return <Loading />
+  const showCosts = data.valor_inventario !== null
+  const chart = data.by_category.map((r) => ({ ...r, valor: toDisplayNumber(r.valor) }))
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiTile label="Productos activos" value={data.total_productos} />
-        <KpiTile label="Servicios activos" value={data.total_servicios} />
-        <KpiTile label="Valor a precio de venta" value={formatCOP(data.valor_inventario, { compact: true })}
-                 hint="Precio × stock. El valor a costo llegará con el inventario por movimientos." />
+        <KpiTile label="Ingredientes activos" value={data.total_ingredientes} />
+        <KpiTile label="Inventario de ingredientes" unavailable={showCosts ? undefined : 'No incluido en tu rol'}
+                 value={formatCOP(data.valor_ingredientes, { compact: true })} hint="A costo: existencia × costo por unidad." />
+        <KpiTile label="Inventario de productos" unavailable={showCosts ? undefined : 'No incluido en tu rol'}
+                 value={formatCOP(data.valor_productos, { compact: true })} hint="A costo, no a precio de venta." />
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <CardHeader title="Unidades en stock por categoría" />
+          <CardHeader title={showCosts ? 'Valor del inventario por categoría' : 'Ítems por categoría'}
+                      description={<span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+                        {showCosts && <span>A costo.</span>}
+                        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'var(--chart-2)' }} />Ingredientes</span>
+                        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'var(--chart-1)' }} />Productos</span>
+                      </span>} />
           <div className="px-2 pb-4">
-            {!data.by_category.length ? <NoData text="Sin productos con stock" /> : (
-              <ResponsiveContainer width="100%" height={Math.max(160, data.by_category.length * 38)}>
-                <BarChart data={data.by_category} layout="vertical" margin={{ top: 4, right: 24, left: 8, bottom: 4 }}>
+            {!chart.length ? <NoData text="Aún no hay productos ni ingredientes" /> : (
+              <ResponsiveContainer width="100%" height={Math.max(160, chart.length * 38)}>
+                <BarChart data={chart} layout="vertical" margin={{ top: 4, right: 24, left: 8, bottom: 4 }}>
                   <CartesianGrid horizontal={false} stroke="var(--chart-grid)" />
-                  <XAxis type="number" tickLine={false} axisLine={false} tick={{ ...axisTick, fontSize: 11 }} />
-                  <YAxis type="category" dataKey="categoria" width={120} tickLine={false} axisLine={false} tick={axisTick} />
-                  <Tooltip content={<ChartTooltip unit=" und." />} cursor={{ fill: 'var(--surface-muted)' }} />
-                  <Bar dataKey="stock" fill="var(--chart-1)" radius={[0, 4, 4, 0]} maxBarSize={22} />
+                  <XAxis type="number" tickLine={false} axisLine={false} tick={{ ...axisTick, fontSize: 11 }}
+                         tickFormatter={showCosts ? (v: number) => formatCOP(v, { compact: true }) : undefined} />
+                  <YAxis type="category" dataKey="categoria" width={140} tickLine={false} axisLine={false} tick={axisTick} />
+                  <Tooltip content={<ChartTooltip money={showCosts} unit={showCosts ? undefined : ' ítems'} />}
+                           cursor={{ fill: 'var(--surface-muted)' }} />
+                  <Bar dataKey={showCosts ? 'valor' : 'items'} name={showCosts ? 'Valor' : 'Ítems'} radius={[0, 4, 4, 0]} maxBarSize={22}>
+                    {chart.map((r) => <Cell key={`${r.grupo}-${r.categoria}`} fill={r.grupo === 'ingredientes' ? 'var(--chart-2)' : 'var(--chart-1)'} />)}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}
           </div>
         </Card>
         <Card>
-          <CardHeader title="Productos con stock bajo" description="En el mínimo o por debajo" />
-          {!data.low_stock.length ? <NoData text="Todo el stock está sobre el mínimo" /> : (
+          <CardHeader title="Bajo el mínimo" description="Productos e ingredientes en su mínimo o por debajo" />
+          {!data.low_stock.length ? <NoData text="Todo está sobre el mínimo" /> : (
             <ul className="divide-y divide-line border-t border-line">
               {data.low_stock.map((p) => (
                 <li key={p.id} className="flex items-center gap-3 px-5 py-2.5 text-sm">
                   <AlertTriangle size={14} className="text-warning shrink-0" />
                   <span className="flex-1 min-w-0"><span className="block truncate text-ink">{p.name}</span>
                     <span className="block text-xs text-ink-muted">{p.code}</span></span>
-                  <span className="text-right num"><span className={p.stock === 0 ? 'text-danger font-medium' : 'text-warning font-medium'}>{p.stock}</span>
-                    <span className="text-ink-subtle"> / mín. {p.minimum_stock}</span></span>
+                  <span className="text-right num"><span className={Number(p.stock) === 0 ? 'text-danger font-medium' : 'text-warning font-medium'}>
+                    {formatQty(p.stock, p.unit)}</span>
+                    <span className="text-ink-subtle"> / mín. {formatQty(p.minimum_stock)}</span></span>
                 </li>
               ))}
             </ul>
@@ -189,7 +204,7 @@ export default function ReportsPage() {
   const [tab, setTab] = useState<TabId>('billing')
   const tabs: { id: TabId; label: string }[] = [
     { id: 'billing', label: 'Ventas y cartera' },
-    { id: 'inventory', label: 'Productos y stock' },
+    { id: 'inventory', label: 'Inventario' },
     ...(hasHr ? [{ id: 'team' as const, label: 'Equipo y proveedores' }] : []),
   ]
   return (

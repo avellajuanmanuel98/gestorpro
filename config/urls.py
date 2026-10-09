@@ -22,6 +22,8 @@ api = [
     path('employees/', include('gestorpro.capabilities.hr.urls')),
     path('reports/hr/', HRReportView.as_view(), name='report-hr'),
     path('assistant/', include('gestorpro.capabilities.assistant.urls')),
+    # Verticals
+    path('bakery/', include('gestorpro.verticals.bakery.urls')),
     # Documentación
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),

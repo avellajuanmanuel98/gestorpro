@@ -15,6 +15,7 @@ import EmployeesPage   from '@/pages/employees/EmployeesPage'
 import SuppliersPage   from '@/pages/suppliers/SuppliersPage'
 import ReportsPage     from '@/pages/reports/ReportsPage'
 import InventoryPage   from '@/pages/inventory/InventoryPage'
+import IngredientsPage from '@/pages/inventory/IngredientsPage'
 import UsersPage       from '@/pages/access/UsersPage'
 import RolesPage       from '@/pages/access/RolesPage'
 import AuditPage       from '@/pages/access/AuditPage'
@@ -64,6 +65,7 @@ function App() {
           <Route path="clients"   element={<ClientsPage />} />
           <Route path="invoices"  element={<InvoicesPage />} />
           <Route path="inventory" element={<InventoryPage />} />
+          <Route path="ingredients" element={<IngredientsPage />} />
           <Route path="employees" element={<EmployeesPage />} />
           <Route path="suppliers" element={<SuppliersPage />} />
           <Route path="reports"   element={<ReportsPage />} />

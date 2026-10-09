@@ -22,7 +22,8 @@ def setup():
 
 
 def names(api):
-    return {c['full_name'].split()[0] for c in s.results(api.get(s.ENDPOINTS['customers']))}
+    # El "Consumidor final" lo crea el alta de cada empresa; no distingue entre ellas
+    return {c['full_name'].split()[0] for c in s.results(api.get(s.ENDPOINTS['customers']))} - {'Consumidor'}
 
 
 def test_multi_company_user_only_sees_active_company(setup):

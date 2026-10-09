@@ -4,7 +4,8 @@ import { AlertTriangle, ArrowRight, BarChart2, CircleDollarSign, PackageX } from
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { billingApi } from '@/api/billing'
 import { customersApi } from '@/api/customers'
-import { inventoryApi } from '@/api/inventory'
+import { catalogApi } from '@/api/catalog'
+import { formatQty } from '@/lib/catalog'
 import { Card, CardHeader } from '@/components/ui/Card'
 import EmptyState from '@/components/ui/EmptyState'
 import KpiTile from '@/components/ui/KpiTile'
@@ -61,7 +62,7 @@ export default function DashboardPage() {
     queryKey: ['customers', 'active-count'], queryFn: () => customersApi.list({ status: 'active', page_size: 1 }),
     enabled: canCustomers,
   })
-  const lowStock = useQuery({ queryKey: ['low-stock'], queryFn: () => inventoryApi.lowStock({ page_size: 5 }), enabled: canCatalog })
+  const lowStock = useQuery({ queryKey: ['low-stock'], queryFn: () => catalogApi.lowStock({ page_size: 5 }), enabled: canCatalog })
 
   const chartData = (monthly.data ?? []).map((m) => ({ ...m, total: toDisplayNumber(m.total) }))
   const hasRevenue = chartData.some((m) => m.total > 0)
@@ -72,9 +73,10 @@ export default function DashboardPage() {
   const attention = [
     canReports && overdue > 0 && { icon: AlertTriangle, tone: 'danger' as const, to: '/invoices',
       title: `${overdue} factura${overdue === 1 ? '' : 's'} vencida${overdue === 1 ? '' : 's'}`, detail: 'Gestiona el cobro o actualiza su estado' },
-    canCatalog && low > 0 && { icon: PackageX, tone: 'warning' as const, to: '/inventory',
-      title: `${low} producto${low === 1 ? '' : 's'} con stock bajo`,
-      detail: lowStock.data?.results.slice(0, 3).map((p) => p.name).join(', ') ?? '' },
+    canCatalog && low > 0 && { icon: PackageX, tone: 'warning' as const,
+      to: lowStock.data?.results.every((i) => i.kind === 'raw_material') ? '/ingredients' : '/inventory',
+      title: `${low} ${low === 1 ? 'ítem' : 'ítems'} bajo el mínimo`,
+      detail: lowStock.data?.results.slice(0, 3).map((i) => `${i.name} (${formatQty(i.stock, i.unit_symbol)})`).join(', ') ?? '' },
     canReports && pending > 0 && { icon: CircleDollarSign, tone: 'info' as const, to: '/invoices',
       title: `${formatCOP(pending, { compact: true })} por cobrar`, detail: 'Facturas en borrador, enviadas o vencidas' },
   ].filter(Boolean) as Parameters<typeof AttentionItem>[0][]

@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2 } from 'lucide-react'
 import { billingApi } from '@/api/billing'
 import { customersApi } from '@/api/customers'
-import { inventoryApi } from '@/api/inventory'
+import { catalogApi } from '@/api/catalog'
 import Combobox, { type ComboOption } from '@/components/ui/Combobox'
 import FormActions from '@/components/ui/FormActions'
 import Input from '@/components/ui/Input'
@@ -13,11 +13,11 @@ import { getErrorMessage } from '@/lib/errors'
 import { formatCOP, toDisplayNumber } from '@/lib/money'
 import { useCan } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
-import type { InvoiceInput, Product } from '@/types'
+import type { InvoiceInput, Item } from '@/types'
 
 interface Line {
   key: number
-  product: (ComboOption & { product: Product }) | null
+  product: (ComboOption & { product: Item }) | null
   quantity: string
   unitPrice: string
 }
@@ -32,8 +32,8 @@ async function searchCustomers(term: string): Promise<ComboOption[]> {
 }
 
 async function searchProducts(term: string) {
-  const res = await inventoryApi.listProducts({ search: term || undefined, is_active: true, page_size: 20 })
-  return res.results.map((p) => ({ id: p.id, label: p.name, description: `${p.code} · ${formatCOP(p.price)}`, product: p }))
+  const res = await catalogApi.listItems({ search: term || undefined, is_active: true, is_sellable: true, page_size: 20 })
+  return res.results.map((p) => ({ id: p.id, label: p.name, description: `${p.code} · ${formatCOP(p.price)}${p.unit === 'und' ? '' : ` / ${p.unit_symbol}`}`, product: p }))
 }
 
 /**

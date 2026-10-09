@@ -29,7 +29,7 @@ def test_onboarding_creates_bakery_with_owner_invitation_and_no_demo_data():
     with tenant_context(tenant):
         assert not Membership.objects.exists()  # el dueño aún no aceptó
         assert Category.objects.filter(name='Panes').exists()  # configuración del vertical, sin productos demo
-        from gestorpro.core.catalog.models import Product
+        from gestorpro.core.catalog.models import Item as Product
         assert not Product.objects.exists()
 
     res = APIClient().post('/api/auth/accept-invitation/', {

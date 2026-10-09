@@ -24,7 +24,7 @@ def test_pagination_exposes_real_totals():
     from gestorpro.core.customers.models import Customer
     t = s.make_tenant('Muchos')
     with tenant_context(t):
-        Customer.objects.bulk_create([Customer(first_name=f'C{i:03}') for i in range(45)])
+        Customer.objects.bulk_create([Customer(first_name=f'C{i:03}') for i in range(44)])  # + Consumidor final = 45
     api = s.api_for(s.make_user(t, 'p@m.co'))
     page = api.get(s.ENDPOINTS['customers']).data
     assert page['count'] == 45 and page['total_pages'] == 3 and len(page['results']) == 20

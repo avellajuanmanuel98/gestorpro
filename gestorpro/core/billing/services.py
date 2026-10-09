@@ -26,6 +26,8 @@ def _build_line(position, data, membership):
     product = data['product']
     if not product.is_active:
         raise ValidationError({'items': f'El producto "{product.name}" está inactivo.'})
+    if not product.is_sellable:
+        raise ValidationError({'items': f'"{product.name}" es un ingrediente que no se vende.'})
     unit_price = money(product.price)
     requested = data.get('unit_price')
     if requested is not None and money(requested) != unit_price:

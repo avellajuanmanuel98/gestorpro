@@ -21,6 +21,7 @@ GLOBAL_MODELS = {
     'access.Permission': 'Catálogo de permisos definido en código.',
     'access.Role_permissions': 'Tabla intermedia M2M de Role (que sí es TenantModel).',
     'audit.SecurityEvent': 'Eventos de autenticación globales (p. ej. login fallido sin empresa); solo plataforma.',
+    'catalog.UnitOfMeasure': 'Unidades de medida globales (g, kg, l, und…), sembradas por migración.',
     'subscriptions.Plan': 'Catálogo de planes de la plataforma.',
     'subscriptions.PlanFeature': 'Funcionalidades de un plan (plataforma).',
     'subscriptions.PlanLimit': 'Límites de un plan (plataforma).',

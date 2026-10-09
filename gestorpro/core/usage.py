@@ -7,13 +7,13 @@ def current_usage() -> dict[str, int]:
     # Imports diferidos: este módulo agrega datos de varias apps del Core.
     from gestorpro.core.access.models import Role
     from gestorpro.core.access.services import seats_in_use
-    from gestorpro.core.catalog.models import Product
+    from gestorpro.core.catalog.services import products_count
     from gestorpro.core.tenancy.models import Location
 
     return {
         'users': seats_in_use(),
         'locations': Location.objects.filter(is_active=True).count(),
-        'products': Product.objects.count(),
+        'products': products_count(),
         'custom_roles': Role.objects.filter(is_system=False).count(),
     }
 

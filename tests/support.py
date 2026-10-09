@@ -20,7 +20,7 @@ PASSWORD = 'Test-pass-1234!'
 
 ENDPOINTS = {
     'customers': '/api/customers/',
-    'products': '/api/catalog/products/',
+    'products': '/api/catalog/items/',
     'categories': '/api/catalog/categories/',
     'invoices': '/api/billing/invoices/',
     'suppliers': '/api/suppliers/',
@@ -75,10 +75,10 @@ def make_category(tenant, name='Panes'):
 
 
 def make_product(tenant, code='PAN-001', price='1000', **kw):
-    from gestorpro.core.catalog.models import Product
+    from gestorpro.core.catalog.models import Item, UnitOfMeasure
     with tenant_context(tenant):
-        return Product.objects.create(name=f'Producto {tenant.name}', code=code, price=Decimal(price),
-                                      tax_rate=Decimal('0'), stock=10, **kw)
+        return Item.objects.create(name=f'Producto {tenant.name}', code=code, price=Decimal(price),
+                                   tax_rate=Decimal('0'), stock=10, unit=UnitOfMeasure.objects.get(code='und'), **kw)
 
 
 def make_supplier(tenant):

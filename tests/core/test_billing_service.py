@@ -15,10 +15,12 @@ def ctx():
     t = s.make_tenant('Facturas')
     customer = s.make_customer(t)
     with tenant_context(t):
-        from gestorpro.core.catalog.models import Product
-        pan = Product.objects.create(name='Pan', code='P1', price=Decimal('1234.55'), tax_rate=Decimal('19'))
-        cafe = Product.objects.create(name='Café', code='C1', price=Decimal('3333.33'), tax_rate=Decimal('5'))
-        off = Product.objects.create(name='Viejo', code='V1', price=Decimal('10'), is_active=False)
+        from gestorpro.core.catalog.models import Item as Product
+        from gestorpro.core.catalog.models import UnitOfMeasure
+        und = UnitOfMeasure.objects.get(code='und')
+        pan = Product.objects.create(name='Pan', code='P1', price=Decimal('1234.55'), tax_rate=Decimal('19'), unit=und)
+        cafe = Product.objects.create(name='Café', code='C1', price=Decimal('3333.33'), tax_rate=Decimal('5'), unit=und)
+        off = Product.objects.create(name='Viejo', code='V1', price=Decimal('10'), is_active=False, unit=und)
     return {
         't': t, 'customer': customer, 'pan': pan, 'cafe': cafe, 'off': off,
         'admin': s.api_for(s.make_user(t, 'adm@f.co', 'ADMIN')),

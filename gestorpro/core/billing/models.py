@@ -81,7 +81,7 @@ class Invoice(AuthoredTenantModel):
 class InvoiceLine(TenantModel):
     """Línea con snapshot de precio, impuesto e importes al momento de facturar."""
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='lines')
-    product = models.ForeignKey('catalog.Product', on_delete=models.PROTECT, related_name='invoice_lines')
+    product = models.ForeignKey('catalog.Item', on_delete=models.PROTECT, related_name='invoice_lines')
     description = models.CharField(verbose_name='descripción', max_length=300, blank=True, default='')
     quantity = models.DecimalField(max_digits=12, decimal_places=3, validators=[MinValueValidator(Decimal('0.001'))])
     unit_price = models.DecimalField(max_digits=14, decimal_places=2)

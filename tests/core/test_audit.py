@@ -50,7 +50,7 @@ def test_crud_is_audited_with_field_changes(ctx):
 def test_price_change_emits_dedicated_event(ctx):
     product = s.make_product(ctx['t'], code='P-1', price='1800')
     ctx['api'].patch(f"{s.ENDPOINTS['products']}{product.id}/", {'price': '2000'}, format='json')
-    event = logs(ctx['t'], action='catalog.product.price_changed')[0]
+    event = logs(ctx['t'], action='catalog.item.price_changed')[0]
     assert event.changes == {'price': ['1800.00', '2000.00']}
     assert '1800.00 → 2000.00' in event.summary
 
