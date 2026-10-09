@@ -6,7 +6,9 @@ Reglas que el backend garantiza, sin importar lo que envíe el frontend:
   `billing.override_price`; el impuesto nunca lo define el cliente.
 - Descuentos exigen `billing.apply_discount` y no pueden superar el total.
 - Los totales se calculan en servidor con Decimal y redondeo comercial.
-- Un documento pagado o cancelado no puede cambiar su contenido económico.
+- Un documento pagado o cancelado no puede cambiar su contenido económico,
+  y las transiciones de estado siguen Invoice.ALLOWED_TRANSITIONS (pagada y
+  cancelada son estados finales).
 - Todo ocurre en una transacción con bloqueo de la factura: o se guarda
   completo o no se guarda nada.
 """
@@ -56,6 +58,11 @@ def save_invoice(*, membership, user, header: dict, lines: list[dict] | None, in
         economic_change = lines is not None or ('discount' in header and money(header['discount']) != invoice.discount)
         if invoice.status in Invoice.LOCKED_STATUSES and economic_change:
             raise ValidationError('Un documento pagado o cancelado no puede modificarse.')
+        new_status = header.get('status', invoice.status)
+        if new_status != invoice.status and new_status not in Invoice.ALLOWED_TRANSITIONS[invoice.status]:
+            labels = dict(Invoice.Status.choices)
+            raise ValidationError(
+                {'status': f'No se puede pasar de «{labels[invoice.status]}» a «{labels[new_status]}».'})
 
     for field, value in header.items():
         setattr(invoice, field, value)

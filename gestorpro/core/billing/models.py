@@ -32,6 +32,16 @@ class Invoice(AuthoredTenantModel):
     # Estados en los que el contenido económico ya no se puede modificar
     LOCKED_STATUSES = {Status.PAID, Status.CANCELLED}
 
+    # Transiciones de estado permitidas. Pagada y cancelada son finales:
+    # una factura pagada no vuelve a borrador ni se "des-cancela".
+    ALLOWED_TRANSITIONS = {
+        Status.DRAFT: {Status.SENT, Status.PAID, Status.OVERDUE, Status.CANCELLED},
+        Status.SENT: {Status.DRAFT, Status.PAID, Status.OVERDUE, Status.CANCELLED},
+        Status.OVERDUE: {Status.SENT, Status.PAID, Status.CANCELLED},
+        Status.PAID: set(),
+        Status.CANCELLED: set(),
+    }
+
     number = models.CharField(verbose_name='número', max_length=30)
     invoice_type = models.CharField(
         verbose_name='tipo de documento', max_length=10, choices=InvoiceType.choices, default=InvoiceType.INVOICE,

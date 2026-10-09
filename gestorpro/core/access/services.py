@@ -16,6 +16,7 @@ import secrets
 import uuid
 
 from django.contrib.auth import authenticate, get_user_model, password_validation
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
@@ -285,7 +286,10 @@ def accept_invitation(*, token: str, password: str, first_name: str = '', last_n
         if not first_name.strip():
             raise ValidationError({'first_name': 'Indica tu nombre.'})
         candidate = User(email=invitation.email, first_name=first_name, last_name=last_name)
-        password_validation.validate_password(password, candidate)
+        try:
+            password_validation.validate_password(password, candidate)
+        except DjangoValidationError as exc:  # fuera de un serializer DRF no la traduce: sería un 500
+            raise ValidationError({'password': list(exc.messages)})
         user = User.objects.create_user(email=invitation.email, password=password,
                                         first_name=first_name.strip(), last_name=last_name.strip())
 

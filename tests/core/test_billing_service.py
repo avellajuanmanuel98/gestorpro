@@ -102,3 +102,17 @@ def test_summary_reports_exact_money_strings(ctx):
                                                       status='paid'), format='json')
     data = ctx['admin'].get(s.ENDPOINTS['billing_summary']).data
     assert data['paid_total'] == '1469.11'
+
+
+def test_paid_and_cancelled_are_final_states(ctx):
+    res = ctx['admin'].post(s.ENDPOINTS['invoices'],
+                            payload(ctx, [{'product': ctx['pan'].id, 'quantity': '1'}], number='F-9'), format='json')
+    url = f"{s.ENDPOINTS['invoices']}{res.data['id']}/"
+    assert ctx['admin'].patch(url, {'status': 'paid'}, format='json').status_code == 200
+    for status in ('draft', 'sent', 'cancelled'):
+        assert ctx['admin'].patch(url, {'status': status}, format='json').status_code == 400
+    res = ctx['admin'].post(s.ENDPOINTS['invoices'],
+                            payload(ctx, [{'product': ctx['pan'].id, 'quantity': '1'}], number='F-10'), format='json')
+    url = f"{s.ENDPOINTS['invoices']}{res.data['id']}/"
+    assert ctx['admin'].patch(url, {'status': 'cancelled'}, format='json').status_code == 200
+    assert ctx['admin'].patch(url, {'status': 'paid'}, format='json').status_code == 400

@@ -230,3 +230,13 @@ def test_set_plan_command_changes_plan():
     from gestorpro.core.entitlements import for_tenant
     ent = for_tenant(t.id)
     assert ent.plan_code == 'business' and ent.status == 'active' and ent.has('module.hr')
+
+
+def test_weak_password_on_invitation_is_a_clear_400(org):
+    token = invite(org['admin'], 'debil@eq.co', org['roles']['CASHIER']).data['invite_url'].rsplit('/', 1)[1]
+    res = APIClient().post('/api/auth/accept-invitation/', {'token': token, 'password': 'debil@eq.co1',
+                                                             'first_name': 'D'}, format='json')
+    assert res.status_code == 400
+    assert 'password' in res.data
+    # La invitación sigue vigente para reintentar
+    assert APIClient().get(f'/api/auth/invitation/{token}/').status_code == 200
