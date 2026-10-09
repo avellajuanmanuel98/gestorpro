@@ -76,10 +76,10 @@ gestorpro/
 ├── config/settings/        base · dev · test · prod
 ├── gestorpro/
 │   ├── kernel/             dinero, paginación, errores
-│   ├── core/               tenancy · identity · access · customers · suppliers · catalog · billing · reporting
+│   ├── core/               tenancy · identity · access · audit · customers · suppliers · catalog · billing · reporting
 │   ├── capabilities/       hr · assistant (IA)
 │   ├── verticals/bakery/   Miga — panaderías
-│   └── platform/           consola interna de GestorPro (/admin/)
+│   └── platform/           subscriptions (planes) · admin_panel (/admin/)
 ├── tests/                  isolation · architecture · core
 ├── frontend/src/           api · components · pages · store · lib · types
 └── docs/miga/              auditoría y decisiones de arquitectura
@@ -162,7 +162,9 @@ Documentación interactiva en `/api/docs/`. Todos los endpoints de negocio opera
 | Grupo | Endpoints |
 |---|---|
 | Sesión | `auth/register` · `auth/login` · `auth/token/refresh` · `auth/logout` · `auth/me` · `auth/switch-tenant` · `auth/change-password` |
-| Empresa | `tenant/` · `tenant/locations/` |
+| Empresa | `tenant/` · `tenant/locations/` · `tenant/plan/` |
+| Usuarios y roles | `access/members/` · `access/invitations/` · `access/roles/` · `access/permissions/` · `auth/invitation/{token}` · `auth/accept-invitation/` |
+| Auditoría | `audit/` |
 | Core | `customers/` · `suppliers/` · `catalog/products/` · `catalog/categories/` · `catalog/low-stock/` · `billing/invoices/` · `billing/summary/` · `reports/billing/` · `reports/inventory/` |
 | Capabilities | `employees/` · `reports/hr/` · `assistant/chat/` |
 
@@ -174,7 +176,7 @@ GestorPro está evolucionando hacia una plataforma SaaS para PYMES con verticale
 
 - [x] Fase 0 — Contención de seguridad del despliegue
 - [x] Fases 2–3 — Arquitectura por capas, multi-tenancy fail-closed, roles y permisos, CI
-- [ ] Fase 4 — Auditoría, gestión de usuarios y roles, planes
+- [x] Fase 4 — Auditoría, gestión de usuarios y roles, planes ([detalle](docs/miga/03-fase-4-acceso-auditoria-planes.md))
 - [ ] Fase 5 — Sistema de diseño y unificación visual
 - [ ] Fases 6–9 — Miga: catálogo e ingredientes, POS y caja, inventario y producción, analítica
 
