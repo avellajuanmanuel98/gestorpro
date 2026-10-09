@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 interface ModalProps {
@@ -28,12 +29,13 @@ export default function Modal({
   const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (!isOpen) return
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [onClose])
+  }, [isOpen, onClose])
 
   // Lock body scroll when open
   useEffect(() => {
@@ -47,7 +49,10 @@ export default function Modal({
 
   if (!isOpen) return null
 
-  return (
+  // Portal a <body>: si el modal se renderiza dentro de un ancestro con
+  // `transform` (p. ej. la animación de entrada de página), `position: fixed`
+  // se posiciona respecto a ese ancestro y el modal queda recortado.
+  return createPortal(
     <div
       className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={onClose}
@@ -103,6 +108,7 @@ export default function Modal({
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
