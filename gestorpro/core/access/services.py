@@ -23,6 +23,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from gestorpro.core import entitlements
 from gestorpro.core.audit import services as audit
+from gestorpro.core.audit.context import bind_actor
 from gestorpro.core.tenancy.context import get_active_tenant_id, tenant_context
 from gestorpro.core.tenancy.models import Location, Tenant
 from gestorpro.core.tenancy.signals import tenant_provisioned
@@ -262,6 +263,7 @@ def accept_invitation(*, token: str, password: str, first_name: str = '', last_n
         user = User.objects.create_user(email=invitation.email, password=password,
                                         first_name=first_name.strip(), last_name=last_name.strip())
 
+    bind_actor(user)  # la acción la realiza la persona invitada
     with tenant_context(invitation.tenant_id):
         if Membership.objects.filter(user=user).exists():
             raise ValidationError('Ya perteneces a esta empresa.')

@@ -11,8 +11,6 @@ from gestorpro.core import entitlements
 from gestorpro.core.tenancy.context import get_active_tenant_id
 
 PERMISSIONS = {
-    'tenant.view': 'Ver los datos de la empresa',
-    'tenant.manage': 'Editar los datos de la empresa',
     'access.view': 'Ver usuarios y roles de la empresa',
     'access.manage_users': 'Invitar usuarios, cambiar su rol y suspenderlos',
     'access.manage_roles': 'Crear y editar roles personalizados',

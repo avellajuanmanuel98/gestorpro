@@ -1,3 +1,4 @@
+from django.contrib.auth.models import update_last_login
 from django.db import transaction
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -65,6 +66,7 @@ def _login_response(user, http_status=status.HTTP_200_OK, event=SecurityEvent.Ki
     if tenant_id is not None and user.last_tenant_id != tenant_id:
         user.last_tenant_id = tenant_id
         user.save(update_fields=['last_tenant'])
+    update_last_login(None, user)
     bind_actor(user)
     audit.security_event(event, user=user, tenant_id=tenant_id)
     _audit_in_tenant(tenant_id, 'auth.login', f'{user.email} inició sesión')

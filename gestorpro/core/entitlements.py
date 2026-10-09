@@ -28,10 +28,11 @@ MODULE_FEATURES = {
     'hr': 'module.hr',
     'assistant': 'module.assistant',
 }
+# 'users' cuenta miembros activos + invitaciones pendientes.
 LIMITS = {
-    'users': 'Usuarios (miembros activos + invitaciones pendientes)',
-    'locations': 'Sucursales activas',
-    'products': 'Productos en el catálogo',
+    'users': 'Usuarios',
+    'locations': 'Sucursales',
+    'products': 'Productos',
     'custom_roles': 'Roles personalizados',
 }
 

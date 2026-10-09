@@ -103,3 +103,21 @@ def test_audit_endpoint_requires_permission_and_filters(ctx):
     assert res.status_code == 200
     assert res.data['count'] >= 1
     assert all(row['action'].startswith('auth.') for row in res.data['results'])
+
+
+def test_invitation_acceptance_is_attributed_to_the_invited_person(ctx):
+    from rest_framework.test import APIClient
+    with tenant_context(ctx['t']):
+        from gestorpro.core.access.models import Role
+        role = Role.objects.get(code='CASHIER')
+    url = ctx['api'].post('/api/access/invitations/', {'email': 'nueva@aud.co', 'role': role.id},
+                          format='json').data['invite_url']
+    APIClient().post('/api/auth/accept-invitation/', {'token': url.rsplit('/', 1)[1], 'password': 'Pan-de-yuca-2026',
+                                                       'first_name': 'Nueva'}, format='json')
+    entry = logs(ctx['t'], action='access.invitation.accepted')[0]
+    assert entry.actor_label == 'nueva@aud.co'
+
+
+def test_login_updates_last_login(ctx):
+    ctx['admin'].refresh_from_db()
+    assert ctx['admin'].last_login is not None
