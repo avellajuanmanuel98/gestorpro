@@ -71,7 +71,7 @@ class InvoiceDetailView(TenantDetailView):
 class InvoiceSummaryView(APIView):
     """GET /api/billing/summary/ — cartera de la empresa activa (importes como string)."""
     permission_classes = [HasTenantPermission]
-    required_permissions = {'GET': 'billing.view'}
+    required_permissions = {'GET': 'reports.view'}  # métricas financieras: no basta con ver facturas
 
     def get(self, request):
         invoices = Invoice.objects.filter(invoice_type=Invoice.InvoiceType.INVOICE)
@@ -104,7 +104,7 @@ class MonthlyRevenueView(APIView):
     incluidos los meses en cero, para que la gráfica no oculte meses sin ventas.
     """
     permission_classes = [HasTenantPermission]
-    required_permissions = {'GET': 'billing.view'}
+    required_permissions = {'GET': 'reports.view'}
 
     def get(self, request):
         months = month_starts(6, timezone.localdate())

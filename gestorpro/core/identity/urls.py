@@ -1,6 +1,8 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from gestorpro.core.access.views import AcceptInvitationView, InvitationPreviewView
+
 from .views import ChangePasswordView, LoginView, LogoutView, MeView, RegisterView, SwitchTenantView
 
 # Endpoints de API con JWT en cabecera Authorization: no usan cookies de sesión,
@@ -13,4 +15,6 @@ urlpatterns = [
     path('me/', MeView.as_view(), name='auth-me'),
     path('switch-tenant/', SwitchTenantView.as_view(), name='auth-switch-tenant'),
     path('change-password/', ChangePasswordView.as_view(), name='auth-change-password'),
+    path('invitation/<str:token>/', InvitationPreviewView.as_view(), name='auth-invitation-preview'),
+    path('accept-invitation/', AcceptInvitationView.as_view(), name='auth-accept-invitation'),
 ]

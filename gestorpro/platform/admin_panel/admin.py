@@ -1,8 +1,10 @@
 from django.contrib import admin
 
 from gestorpro.core.access.models import Membership, Role
+from gestorpro.core.audit.models import SecurityEvent
 from gestorpro.core.identity.models import User
 from gestorpro.core.tenancy.models import Location, Tenant
+from gestorpro.platform.subscriptions.models import Plan, PlanFeature, PlanLimit, Subscription
 
 from .site import UnscopedReadOnlyAdmin, platform_admin_site
 
@@ -50,3 +52,57 @@ class RoleAdmin(UnscopedReadOnlyAdmin):
 class LocationAdmin(UnscopedReadOnlyAdmin):
     list_display = ['name', 'tenant', 'is_default', 'is_active']
     search_fields = ['tenant__name', 'name']
+
+
+# ── Planes y suscripciones ────────────────────────────────────────────────────
+
+class PlanFeatureInline(admin.TabularInline):
+    model = PlanFeature
+    extra = 0
+
+
+class PlanLimitInline(admin.TabularInline):
+    model = PlanLimit
+    extra = 0
+
+
+@admin.register(Plan, site=platform_admin_site)
+class PlanAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code', 'price_monthly', 'currency', 'is_public', 'is_active', 'sort']
+    list_editable = ['sort']
+    inlines = [PlanFeatureInline, PlanLimitInline]
+
+    def has_delete_permission(self, request, obj=None):
+        return False  # se desactivan, no se borran (hay suscripciones que los referencian)
+
+
+@admin.register(Subscription, site=platform_admin_site)
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = ['tenant', 'plan', 'status', 'trial_ends_at', 'current_period_end']
+    list_filter = ['status', 'plan']
+    search_fields = ['tenant__name', 'tenant__slug']
+    readonly_fields = ['tenant', 'updated_at']
+
+    def has_add_permission(self, request):
+        return False  # se crean al dar de alta la empresa
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+# ── Seguridad ────────────────────────────────────────────────────────────────
+
+@admin.register(SecurityEvent, site=platform_admin_site)
+class SecurityEventAdmin(admin.ModelAdmin):
+    list_display = ['created_at', 'kind', 'email', 'tenant_id_snapshot', 'ip']
+    list_filter = ['kind']
+    search_fields = ['email', 'ip']
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

@@ -11,6 +11,8 @@ api = [
     # Core
     path('auth/', include('gestorpro.core.identity.urls')),
     path('tenant/', include('gestorpro.core.tenancy.urls')),
+    path('access/', include('gestorpro.core.access.urls')),
+    path('audit/', include('gestorpro.core.audit.urls')),
     path('customers/', include('gestorpro.core.customers.urls')),
     path('suppliers/', include('gestorpro.core.suppliers.urls')),
     path('catalog/', include('gestorpro.core.catalog.urls')),

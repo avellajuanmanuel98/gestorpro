@@ -32,21 +32,25 @@ class Invoice(AuthoredTenantModel):
     # Estados en los que el contenido económico ya no se puede modificar
     LOCKED_STATUSES = {Status.PAID, Status.CANCELLED}
 
-    number = models.CharField(max_length=30)
-    invoice_type = models.CharField(max_length=10, choices=InvoiceType.choices, default=InvoiceType.INVOICE)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
-    customer = models.ForeignKey('customers.Customer', on_delete=models.PROTECT, related_name='invoices')
+    number = models.CharField(verbose_name='número', max_length=30)
+    invoice_type = models.CharField(
+        verbose_name='tipo de documento', max_length=10, choices=InvoiceType.choices, default=InvoiceType.INVOICE,
+    )
+    status = models.CharField(verbose_name='estado', max_length=10, choices=Status.choices, default=Status.DRAFT)
+    customer = models.ForeignKey(
+        'customers.Customer', verbose_name='cliente', on_delete=models.PROTECT, related_name='invoices',
+    )
 
-    issue_date = models.DateField()
-    due_date = models.DateField()
+    issue_date = models.DateField(verbose_name='fecha de emisión', )
+    due_date = models.DateField(verbose_name='vencimiento', )
 
-    subtotal = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
-    tax_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
-    discount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'),
+    subtotal = models.DecimalField(verbose_name='subtotal', max_digits=14, decimal_places=2, default=Decimal('0.00'))
+    tax_amount = models.DecimalField(verbose_name='impuestos', max_digits=14, decimal_places=2, default=Decimal('0.00'))
+    discount = models.DecimalField(verbose_name='descuento', max_digits=14, decimal_places=2, default=Decimal('0.00'),
                                    validators=[MinValueValidator(Decimal('0'))])
-    total = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
+    total = models.DecimalField(verbose_name='total', max_digits=14, decimal_places=2, default=Decimal('0.00'))
 
-    notes = models.TextField(blank=True, default='')
+    notes = models.TextField(verbose_name='notas', blank=True, default='')
 
     class Meta(AuthoredTenantModel.Meta):
         verbose_name = 'Factura'
@@ -68,14 +72,14 @@ class InvoiceLine(TenantModel):
     """Línea con snapshot de precio, impuesto e importes al momento de facturar."""
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='lines')
     product = models.ForeignKey('catalog.Product', on_delete=models.PROTECT, related_name='invoice_lines')
-    description = models.CharField(max_length=300, blank=True, default='')
+    description = models.CharField(verbose_name='descripción', max_length=300, blank=True, default='')
     quantity = models.DecimalField(max_digits=12, decimal_places=3, validators=[MinValueValidator(Decimal('0.001'))])
     unit_price = models.DecimalField(max_digits=14, decimal_places=2)
-    tax_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    tax_rate = models.DecimalField(verbose_name='IVA %', max_digits=5, decimal_places=2)
     line_subtotal = models.DecimalField(max_digits=14, decimal_places=2)
-    tax_amount = models.DecimalField(max_digits=14, decimal_places=2)
+    tax_amount = models.DecimalField(verbose_name='impuestos', max_digits=14, decimal_places=2)
     line_total = models.DecimalField(max_digits=14, decimal_places=2)
-    position = models.PositiveSmallIntegerField(default=0)
+    position = models.PositiveSmallIntegerField(verbose_name='cargo', default=0)
 
     class Meta(TenantModel.Meta):
         verbose_name = 'Línea de factura'

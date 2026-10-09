@@ -10,6 +10,7 @@ if len(SECRET_KEY) < 50 or SECRET_KEY.startswith('django-insecure'):
 
 # Railway termina TLS en su proxy
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+AUDIT_TRUSTED_PROXY_COUNT = 1
 SECURE_SSL_REDIRECT = True
 SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True

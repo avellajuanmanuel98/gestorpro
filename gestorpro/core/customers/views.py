@@ -32,6 +32,6 @@ class CustomerDetailView(TenantDetailView):
 
     def perform_destroy(self, instance):
         try:
-            instance.delete()
+            super().perform_destroy(instance)
         except ProtectedError:
             raise ValidationError('El cliente tiene documentos asociados; márcalo como inactivo.')

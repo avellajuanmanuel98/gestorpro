@@ -59,12 +59,13 @@ class Command(BaseCommand):
             owner = User.objects.create_user(email='propietaria@demo.miga.co', password=password,
                                              first_name='Lucía', last_name='Gómez')
             tenant = provision_tenant(name='Panadería La Espiga (demo)', owner=owner,
-                                      vertical=Tenant.Vertical.BAKERY, city='Bogotá')
+                                      vertical=Tenant.Vertical.BAKERY, plan_code='pro', city='Bogotá')
             cashier = User.objects.create_user(email='cajero@demo.miga.co', password=password,
                                                first_name='Andrés', last_name='Rojas')
             with tenant_context(tenant):
                 add_member(user=cashier, role_code='CASHIER')
-                categories = {name: Category.objects.create(name=name) for name in DEFAULT_CATEGORIES}
+                # Las categorías por defecto las crea el vertical al dar de alta la empresa
+                categories = {c.name: c for c in Category.objects.filter(name__in=DEFAULT_CATEGORIES)}
                 for code, name, category, price, tax in PRODUCTS:
                     Product.objects.create(code=code, name=name, category=categories[category],
                                            price=Decimal(price), tax_rate=Decimal(tax), stock=40, minimum_stock=10)

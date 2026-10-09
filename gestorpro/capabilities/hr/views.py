@@ -12,6 +12,7 @@ from .serializers import EmployeeListSerializer, EmployeeSerializer
 
 class EmployeeListCreateView(TenantListCreateView):
     model = Employee
+    required_feature = 'module.hr'
     required_permissions = {'GET': 'hr.view', 'POST': 'hr.manage'}
     search_fields = ['first_name', 'last_name', 'email', 'position', 'document_number']
     ordering_fields = ['first_name', 'hire_date', 'department']
@@ -32,6 +33,7 @@ class EmployeeListCreateView(TenantListCreateView):
 
 class EmployeeDetailView(TenantDetailView):
     model = Employee
+    required_feature = 'module.hr'
     serializer_class = EmployeeSerializer
     required_permissions = {'GET': 'hr.view', 'PUT': 'hr.manage', 'PATCH': 'hr.manage', 'DELETE': 'hr.manage'}
 
@@ -40,6 +42,7 @@ class HRReportView(APIView):
     """GET /api/reports/hr/ — empleados por área/estado y proveedores por categoría."""
     permission_classes = [HasTenantPermission]
     required_permissions = {'GET': 'hr.view'}
+    required_feature = 'module.hr'
 
     def get(self, request):
         departments = dict(Employee.Department.choices)

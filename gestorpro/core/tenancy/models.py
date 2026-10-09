@@ -18,21 +18,23 @@ class Tenant(models.Model):
         GENERIC = 'generic', 'GestorPro (general)'
         BAKERY = 'bakery', 'Miga (panaderías)'
 
-    name = models.CharField(max_length=200)
-    legal_name = models.CharField(max_length=200, blank=True, default='')
+    name = models.CharField(verbose_name='nombre', max_length=200)
+    legal_name = models.CharField(verbose_name='razón social', max_length=200, blank=True, default='')
     slug = models.SlugField(unique=True)
     tax_id = models.CharField('NIT / identificación tributaria', max_length=30, blank=True, default='')
-    vertical = models.CharField(max_length=20, choices=Vertical.choices, default=Vertical.GENERIC)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    vertical = models.CharField(
+        verbose_name='vertical', max_length=20, choices=Vertical.choices, default=Vertical.GENERIC,
+    )
+    status = models.CharField(verbose_name='estado', max_length=20, choices=Status.choices, default=Status.ACTIVE)
 
-    email = models.EmailField(blank=True, default='')
-    phone = models.CharField(max_length=30, blank=True, default='')
-    address = models.TextField(blank=True, default='')
-    city = models.CharField(max_length=100, blank=True, default='')
-    logo = models.ImageField(upload_to='logos/', null=True, blank=True)
+    email = models.EmailField(verbose_name='email', blank=True, default='')
+    phone = models.CharField(verbose_name='teléfono', max_length=30, blank=True, default='')
+    address = models.TextField(verbose_name='dirección', blank=True, default='')
+    city = models.CharField(verbose_name='ciudad', max_length=100, blank=True, default='')
+    logo = models.ImageField(verbose_name='logo', upload_to='logos/', null=True, blank=True)
 
-    timezone = models.CharField(max_length=64, default='America/Bogota')
-    currency = models.CharField(max_length=3, default='COP')
+    timezone = models.CharField(verbose_name='zona horaria', max_length=64, default='America/Bogota')
+    currency = models.CharField(verbose_name='moneda', max_length=3, default='COP')
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -56,11 +58,11 @@ class Location(TenantModel):
     una sola sede: caja, inventario y ventas se registran por sucursal, y
     añadir esta dimensión después obligaría a migrar todos los documentos.
     """
-    name = models.CharField(max_length=120)
-    address = models.TextField(blank=True, default='')
-    phone = models.CharField(max_length=30, blank=True, default='')
-    is_default = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
+    name = models.CharField(verbose_name='nombre', max_length=120)
+    address = models.TextField(verbose_name='dirección', blank=True, default='')
+    phone = models.CharField(verbose_name='teléfono', max_length=30, blank=True, default='')
+    is_default = models.BooleanField(verbose_name='principal', default=False)
+    is_active = models.BooleanField(verbose_name='activo', default=True)
 
     class Meta(TenantModel.Meta):
         verbose_name = 'Sucursal'

@@ -70,3 +70,39 @@ class Membership(TenantModel):
 
     def has_perm(self, code: str) -> bool:
         return code in self.permission_codes
+
+
+class Invitation(TenantModel):
+    """
+    Invitación a unirse a la empresa con un rol. El enlace contiene un token
+    aleatorio; en BD solo se guarda su hash (SHA-256), así que una filtración
+    de la base de datos no permite aceptar invitaciones.
+    """
+    email = models.EmailField()
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='invitations')
+    token_hash = models.CharField(max_length=64, unique=True, editable=False)
+    expires_at = models.DateTimeField()
+    invited_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+                                   related_name='+')
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    accepted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='+')
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta(TenantModel.Meta):
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['tenant', 'email'])]
+
+    def __str__(self):
+        return f'{self.email} → {self.role}'
+
+    @property
+    def status(self) -> str:
+        from django.utils import timezone
+        if self.accepted_at:
+            return 'accepted'
+        if self.revoked_at:
+            return 'revoked'
+        if self.expires_at <= timezone.now():
+            return 'expired'
+        return 'pending'

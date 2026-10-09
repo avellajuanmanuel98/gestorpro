@@ -14,6 +14,7 @@ from django.db import transaction
 from django.db.models import Sum
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
+from gestorpro.core.audit import services as audit
 from gestorpro.kernel.money import ZERO, money, percentage_of, to_decimal
 
 from .models import Invoice, InvoiceLine
@@ -47,9 +48,11 @@ def save_invoice(*, membership, user, header: dict, lines: list[dict] | None, in
             raise ValidationError({'items': 'El documento necesita al menos una línea.'})
         invoice = Invoice(created_by=user)
         previous_discount = ZERO
+        before = None
     else:
         invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
         previous_discount = invoice.discount
+        before = audit.snapshot(invoice)
         economic_change = lines is not None or ('discount' in header and money(header['discount']) != invoice.discount)
         if invoice.status in Invoice.LOCKED_STATUSES and economic_change:
             raise ValidationError('Un documento pagado o cancelado no puede modificarse.')
@@ -78,7 +81,28 @@ def save_invoice(*, membership, user, header: dict, lines: list[dict] | None, in
         raise ValidationError({'discount': 'El descuento no puede superar el total del documento.'})
     invoice.total = invoice.subtotal + invoice.tax_amount - invoice.discount
     invoice.save(update_fields=['subtotal', 'tax_amount', 'total', 'updated_at'])
+    _audit_save(invoice, before, lines_replaced=lines is not None)
     return invoice
+
+
+def _audit_save(invoice, before, lines_replaced):
+    label = f'{invoice.get_invoice_type_display().lower()} {invoice.number}'
+    if before is None:
+        audit.record('billing.invoice.created', target=invoice,
+                     summary=f'Creó la {label} por {invoice.total}',
+                     changes=audit.diff({}, audit.snapshot(invoice)))
+        return
+    changes = audit.diff(before, audit.snapshot(invoice))
+    if lines_replaced:
+        changes['lines'] = ['reemplazadas', 'reemplazadas']
+    if not changes:
+        return
+    audit.record('billing.invoice.updated', target=invoice, summary=f'Modificó la {label}', changes=changes)
+    if 'status' in changes:
+        old, new = changes['status']
+        labels = dict(Invoice.Status.choices)
+        audit.record('billing.invoice.status_changed', target=invoice, changes={'status': [old, new]},
+                     summary=f'Cambió el estado de la {label}: {labels.get(old, old)} → {labels.get(new, new)}')
 
 
 @transaction.atomic
@@ -86,4 +110,6 @@ def delete_invoice(invoice: Invoice):
     invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
     if invoice.invoice_type == Invoice.InvoiceType.INVOICE and invoice.status != Invoice.Status.DRAFT:
         raise ValidationError('Solo se pueden eliminar borradores. Cancela la factura en su lugar.')
+    before, pk = audit.snapshot(invoice), invoice.pk
     invoice.delete()
+    audit.record_deleted(invoice, before, pk)

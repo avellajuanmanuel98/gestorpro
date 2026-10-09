@@ -10,6 +10,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from gestorpro.core.access.services import active_memberships_for
+from gestorpro.core.audit.context import bind_actor
 from gestorpro.core.tenancy.context import activate
 
 TENANT_CLAIM = 'tid'
@@ -21,6 +22,7 @@ class TenantJWTAuthentication(JWTAuthentication):
         if result is None:
             return None
         user, token = result
+        bind_actor(user)
         membership = None
         tenant_id = token.get(TENANT_CLAIM)
         if tenant_id is not None:

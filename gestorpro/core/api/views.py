@@ -1,12 +1,15 @@
+from django.db import transaction
 from rest_framework import filters, generics
 
 from gestorpro.core.access.permissions import HasTenantPermission
+from gestorpro.core.audit import services as audit
 
 
 class TenantScopedMixin:
     """
-    Queryset por petición desde `model.objects` (filtrado por tenant) y
-    permisos por método HTTP mediante `required_permissions`.
+    Queryset por petición desde `model.objects` (filtrado por tenant),
+    permisos por método HTTP mediante `required_permissions` y auditoría
+    automática de altas, cambios y bajas.
 
         class CustomerList(TenantListCreateView):
             model = Customer
@@ -19,11 +22,25 @@ class TenantScopedMixin:
     def get_queryset(self):
         return self.model.objects.all()
 
+    # El cambio y su registro de auditoría se confirman juntos o no se confirma ninguno.
+
+    @transaction.atomic
     def perform_create(self, serializer):
         extra = {}
         if any(f.name == 'created_by' for f in self.model._meta.fields):
             extra['created_by'] = self.request.user
-        serializer.save(**extra)
+        audit.record_created(serializer.save(**extra))
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        before = audit.snapshot(serializer.instance)
+        audit.record_updated(serializer.save(), before)
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        before, pk = audit.snapshot(instance), instance.pk
+        instance.delete()
+        audit.record_deleted(instance, before, pk)
 
 
 class TenantListCreateView(TenantScopedMixin, generics.ListCreateAPIView):

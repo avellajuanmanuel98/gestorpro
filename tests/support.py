@@ -40,10 +40,11 @@ def _user(email, **extra):
     return User.objects.create_user(email=email, password=PASSWORD, first_name='Test', last_name=email, **extra)
 
 
-def make_tenant(name):
+def make_tenant(name, plan_code='pro'):
+    """Por defecto plan PRO (todos los módulos) para que los tests de aislamiento no dependan del plan."""
     from gestorpro.core.access.services import provision_tenant
     owner = _user(f"owner@{name.lower().replace(' ', '-')}.co")
-    return provision_tenant(name=name, owner=owner)
+    return provision_tenant(name=name, owner=owner, plan_code=plan_code)
 
 
 def make_user(tenant, email, role=ADMIN_ROLE):

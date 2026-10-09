@@ -11,7 +11,7 @@ SYSTEM_ROLES = {
     'ADMIN': {
         'name': 'Administrador',
         'permissions': [
-            'tenant.*', 'access.*', 'customers.*', 'suppliers.*', 'catalog.*',
+            'tenant.*', 'access.*', 'audit.*', 'customers.*', 'suppliers.*', 'catalog.*',
             'billing.*', 'reports.*', 'hr.*', 'assistant.*',
         ],
     },

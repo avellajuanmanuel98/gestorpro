@@ -142,6 +142,7 @@ class AssistantChatView(APIView):
     """
     permission_classes = [HasTenantPermission]
     required_permissions = {'POST': 'assistant.use'}
+    required_feature = 'module.assistant'
 
     def post(self, request):
         message = (request.data.get('message') or '').strip()

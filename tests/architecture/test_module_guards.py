@@ -20,6 +20,11 @@ GLOBAL_MODELS = {
     'identity.User': 'Identidad global; el vínculo con empresas es access.Membership.',
     'access.Permission': 'Catálogo de permisos definido en código.',
     'access.Role_permissions': 'Tabla intermedia M2M de Role (que sí es TenantModel).',
+    'audit.SecurityEvent': 'Eventos de autenticación globales (p. ej. login fallido sin empresa); solo plataforma.',
+    'subscriptions.Plan': 'Catálogo de planes de la plataforma.',
+    'subscriptions.PlanFeature': 'Funcionalidades de un plan (plataforma).',
+    'subscriptions.PlanLimit': 'Límites de un plan (plataforma).',
+    'subscriptions.Subscription': 'La administra la plataforma; la empresa solo la lee vía entitlements.',
     'identity.User_groups': 'M2M de Django auth sobre el usuario global (solo admin de plataforma).',
     'identity.User_user_permissions': 'M2M de Django auth sobre el usuario global (solo admin de plataforma).',
 }

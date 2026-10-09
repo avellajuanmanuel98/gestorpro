@@ -1,6 +1,7 @@
 from django.db.models import Count, F, ProtectedError
 from rest_framework.exceptions import ValidationError
 
+from gestorpro.core import entitlements
 from gestorpro.core.api.views import TenantDetailView, TenantListCreateView
 
 from .models import Category, Product
@@ -54,6 +55,10 @@ class ProductListCreateView(TenantListCreateView):
     def get_serializer_class(self):
         return ProductListSerializer if self.request.method == 'GET' else ProductSerializer
 
+    def perform_create(self, serializer):
+        entitlements.check_limit(self.request.membership.tenant_id, 'products', Product.objects.count())
+        super().perform_create(serializer)
+
 
 class ProductDetailView(TenantDetailView):
     model = Product
@@ -62,7 +67,7 @@ class ProductDetailView(TenantDetailView):
 
     def perform_destroy(self, instance):
         try:
-            instance.delete()
+            super().perform_destroy(instance)
         except ProtectedError:
             raise ValidationError('El producto aparece en documentos; desactívalo en lugar de eliminarlo.')
 

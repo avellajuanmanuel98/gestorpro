@@ -53,6 +53,7 @@ LOCAL_APPS = [
     'gestorpro.core.tenancy',
     'gestorpro.core.identity',
     'gestorpro.core.access',
+    'gestorpro.core.audit',
     'gestorpro.core.customers',
     'gestorpro.core.suppliers',
     'gestorpro.core.catalog',
@@ -64,6 +65,7 @@ LOCAL_APPS = [
     # verticals
     'gestorpro.verticals.bakery',
     # platform
+    'gestorpro.platform.subscriptions',
     'gestorpro.platform.admin_panel',
 ]
 
@@ -76,6 +78,7 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
     # Garantiza que el contexto de tenant nunca sobreviva entre peticiones
     'gestorpro.core.tenancy.middleware.TenantContextMiddleware',
+    'gestorpro.core.audit.context.AuditContextMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -117,6 +120,15 @@ DATABASES = {'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)}
 
 
 AUTH_USER_MODEL = 'identity.User'
+
+# URL pública del frontend (enlaces de invitación)
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
+
+# Plan con el que arranca (en prueba) toda empresa nueva
+DEFAULT_PLAN_CODE = config('DEFAULT_PLAN_CODE', default='starter')
+
+# Proxies de confianza delante de la app (para la IP real en auditoría). 0 en local.
+AUDIT_TRUSTED_PROXY_COUNT = config('AUDIT_TRUSTED_PROXY_COUNT', default=0, cast=int)
 
 
 # ─────────────────────────────────────────────

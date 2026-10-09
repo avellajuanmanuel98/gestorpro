@@ -23,19 +23,21 @@ class Customer(AuthoredTenantModel):
         ACTIVE = 'active', 'Activo'
         INACTIVE = 'inactive', 'Inactivo'
 
-    document_type = models.CharField(max_length=5, choices=DocumentType.choices, default=DocumentType.CC)
-    document_number = models.CharField(max_length=20, blank=True, default='')
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100, blank=True, default='')
-    company_name = models.CharField(max_length=200, blank=True, default='')
+    document_type = models.CharField(
+        verbose_name='tipo de documento', max_length=5, choices=DocumentType.choices, default=DocumentType.CC,
+    )
+    document_number = models.CharField(verbose_name='número de documento', max_length=20, blank=True, default='')
+    first_name = models.CharField(verbose_name='nombre', max_length=100)
+    last_name = models.CharField(verbose_name='apellido', max_length=100, blank=True, default='')
+    company_name = models.CharField(verbose_name='razón social', max_length=200, blank=True, default='')
 
-    email = models.EmailField(blank=True, default='')
-    phone = models.CharField(max_length=30, blank=True, default='')
-    address = models.TextField(blank=True, default='')
-    city = models.CharField(max_length=100, blank=True, default='')
+    email = models.EmailField(verbose_name='email', blank=True, default='')
+    phone = models.CharField(verbose_name='teléfono', max_length=30, blank=True, default='')
+    address = models.TextField(verbose_name='dirección', blank=True, default='')
+    city = models.CharField(verbose_name='ciudad', max_length=100, blank=True, default='')
 
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
-    notes = models.TextField(blank=True, default='')
+    status = models.CharField(verbose_name='estado', max_length=10, choices=Status.choices, default=Status.ACTIVE)
+    notes = models.TextField(verbose_name='notas', blank=True, default='')
 
     class Meta(AuthoredTenantModel.Meta):
         verbose_name = 'Cliente'

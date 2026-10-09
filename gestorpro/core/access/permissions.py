@@ -7,12 +7,15 @@ permiso nunca abre un endpoint.
 """
 from rest_framework.permissions import BasePermission
 
+from gestorpro.core import entitlements
 from gestorpro.core.tenancy.context import get_active_tenant_id
 
 PERMISSIONS = {
     'tenant.view': 'Ver los datos de la empresa',
     'tenant.manage': 'Editar los datos de la empresa',
-    'access.manage_users': 'Invitar usuarios y asignar roles',
+    'access.view': 'Ver usuarios y roles de la empresa',
+    'access.manage_users': 'Invitar usuarios, cambiar su rol y suspenderlos',
+    'access.manage_roles': 'Crear y editar roles personalizados',
 }
 
 
@@ -33,6 +36,9 @@ class HasTenantPermission(IsTenantMember):
     """
     Requiere el permiso declarado en `view.required_permissions[METHOD]`.
     HEAD/OPTIONS heredan el permiso de GET.
+
+    Si la vista declara `required_feature`, además exige que el plan de la
+    empresa incluya esa funcionalidad (403 `feature_not_in_plan`).
     """
     message = 'No tienes permiso para realizar esta acción.'
 
@@ -41,9 +47,12 @@ class HasTenantPermission(IsTenantMember):
             return False
         method = 'GET' if request.method in ('HEAD', 'OPTIONS') else request.method
         code = getattr(view, 'required_permissions', {}).get(method)
-        if code is None:
+        if code is None or not request.membership.has_perm(code):
             return False
-        return request.membership.has_perm(code)
+        feature = getattr(view, 'required_feature', None)
+        if feature:
+            entitlements.require_feature(request.membership.tenant_id, feature)
+        return True
 
 
 class IsPlatformAdmin(BasePermission):

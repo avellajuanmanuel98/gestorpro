@@ -16,8 +16,8 @@ from gestorpro.core.tenancy.db import AuthoredTenantModel, TenantModel
 
 
 class Category(TenantModel):
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True, default='')
+    name = models.CharField(verbose_name='nombre', max_length=100)
+    description = models.TextField(verbose_name='descripción', blank=True, default='')
 
     class Meta(TenantModel.Meta):
         verbose_name = 'Categoría'
@@ -38,22 +38,35 @@ class Product(AuthoredTenantModel):
         PRODUCT = 'product', 'Producto'
         SERVICE = 'service', 'Servicio'
 
-    name = models.CharField(max_length=200)
-    code = models.CharField(max_length=50)  # SKU interno, único por empresa
-    description = models.TextField(blank=True, default='')
-    product_type = models.CharField(max_length=10, choices=ProductType.choices, default=ProductType.PRODUCT)
-    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
-    image = models.ImageField(upload_to='products/', null=True, blank=True)
+    name = models.CharField(verbose_name='nombre', max_length=200)
+    code = models.CharField(verbose_name='código', max_length=50)  # SKU interno, único por empresa
+    description = models.TextField(verbose_name='descripción', blank=True, default='')
+    product_type = models.CharField(
+        verbose_name='tipo', max_length=10, choices=ProductType.choices, default=ProductType.PRODUCT,
+    )
+    category = models.ForeignKey(
+        Category, verbose_name='categoría', on_delete=models.SET_NULL, null=True, blank=True, related_name='products',
+    )
+    image = models.ImageField(verbose_name='imagen', upload_to='products/', null=True, blank=True)
 
-    price = models.DecimalField(max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
+    price = models.DecimalField(
+        verbose_name='precio', max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal('0'))],
+    )
     tax_rate = models.DecimalField(
+        verbose_name='IVA %',
         max_digits=5, decimal_places=2, default=Decimal('19.00'),
         validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))],
     )
 
-    stock = models.IntegerField(default=0, validators=[MinValueValidator(0)])
-    minimum_stock = models.IntegerField(default=5, validators=[MinValueValidator(0)])
-    is_active = models.BooleanField(default=True)
+    stock = models.IntegerField(verbose_name='stock', default=0, validators=[MinValueValidator(0)])
+    minimum_stock = models.IntegerField(verbose_name='stock mínimo', default=5, validators=[MinValueValidator(0)])
+    is_active = models.BooleanField(verbose_name='activo', default=True)
+
+    # Auditoría: un cambio de precio o de impuesto genera un evento propio
+    audit_field_events = {
+        'price': 'catalog.product.price_changed',
+        'tax_rate': 'catalog.product.tax_changed',
+    }
 
     class Meta(AuthoredTenantModel.Meta):
         verbose_name = 'Producto'
