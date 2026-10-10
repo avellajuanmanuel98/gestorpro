@@ -2,7 +2,7 @@
 Entorno local de desarrollo en Windows (lo usan instalar.bat e iniciar.bat).
 
     python scripts/dev_local.py setup   # primera vez o tras actualizar: deja todo listo
-    python scripts/dev_local.py start   # arranca base de datos, backend y frontend
+    python scripts/dev_local.py start   # trae los cambios (git pull) y arranca base de datos, backend y frontend
 
 Qué hace `setup` (es seguro repetirlo):
   1. Trae los últimos cambios de la rama actual (git pull), si no hay cambios locales.
@@ -283,6 +283,8 @@ def wait_for(port: int, seconds: int) -> bool:
 
 
 def start():
+    step('Código')
+    git_pull()
     step('Base de datos')
     require_postgres()
     # Por si se actualizó el código sin ejecutar instalar.bat
@@ -293,6 +295,7 @@ def start():
             fail(f'El puerto {port} ya está en uso (¿otro proyecto o una ventana anterior abierta?).\n'
                  f'  Ciérralo y vuelve a intentar: {what} de GestorPro necesita ese puerto.')
     npm = require_npm()
+    install_frontend(npm)  # no hace nada si package-lock.json no cambió
     new_console = {'creationflags': subprocess.CREATE_NEW_CONSOLE} if IS_WINDOWS else {}
     step('Backend  → http://localhost:8000  (se abre en otra ventana)')
     subprocess.Popen([venv_python(), 'manage.py', 'runserver', '8000'], cwd=ROOT, **new_console)
