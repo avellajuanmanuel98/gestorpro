@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Factory } from 'lucide-react'
+import { AlertTriangle, Factory, Sparkles } from 'lucide-react'
+import { analyticsApi } from '@/api/analytics'
 import { productionApi, type Batch } from '@/api/inventory'
 import Alert from '@/components/ui/Alert'
 import Button from '@/components/ui/Button'
@@ -11,24 +12,25 @@ import EmptyState from '@/components/ui/EmptyState'
 import Input from '@/components/ui/Input'
 import PageHeader, { Page } from '@/components/ui/PageHeader'
 import Select from '@/components/ui/Select'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { formatQty, formatUnitCost } from '@/lib/catalog'
 import { cn } from '@/lib/cn'
 import { formatDateTime } from '@/lib/dates'
 import { getErrorMessage } from '@/lib/errors'
 import { formatCOP } from '@/lib/money'
 import { useDebounced } from '@/lib/useDebounced'
-import { useCan } from '@/store/authStore'
+import { useAuthStore, useCan } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
 
 const num = (v: string) => v.replace(',', '.')
 
-function ProduceForm() {
+function ProduceForm({ initial }: { initial?: { recipe: string; quantity: string } }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const recipes = useQuery({ queryKey: ['recipes', 'all'], queryFn: () => productionApi.recipes({ page_size: 200 }) })
   const producible = recipes.data?.results.filter((r) => !r.consume_on_sale) ?? []
-  const [recipeId, setRecipeId] = useState('')
-  const [quantity, setQuantity] = useState('')
+  const [recipeId, setRecipeId] = useState(initial?.recipe ?? '')
+  const [quantity, setQuantity] = useState(initial?.quantity ?? '')
   const [actual, setActual] = useState<Record<string, string>>({})
   const recipe = producible.find((r) => String(r.id) === recipeId)
   const qty = useDebounced(num(quantity), 300)
@@ -107,8 +109,85 @@ function ProduceForm() {
   )
 }
 
+const WEEKDAY = new Intl.DateTimeFormat('es-CO', { weekday: 'long' })
+const DAY = new Intl.DateTimeFormat('es-CO', { weekday: 'long', day: 'numeric', month: 'short' })
+const parseISO = (iso: string) => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d) }
+const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+/** Miga: cuánto producir según lo vendido el mismo día de la semana en las últimas 4 semanas. */
+function SuggestionCard({ onProduce, canRegister }: { onProduce: (recipe: number, quantity: string) => void; canRegister: boolean }) {
+  const today = new Date()
+  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
+  const [target, setTarget] = useState(isoOf(tomorrow))
+  const { data, isLoading } = useQuery({ queryKey: ['production-suggestion', target], queryFn: () => analyticsApi.suggestion(target) })
+  const weekday = WEEKDAY.format(parseISO(target))
+  const rows = data?.rows.filter((r) => Number(r.average_sold) > 0) ?? []
+  const options: [string, string][] = [[isoOf(today), 'Hoy'], [isoOf(tomorrow), 'Mañana']]
+  return (
+    <Card>
+      <CardHeader title="Producción sugerida"
+                  description={`Para el ${DAY.format(parseISO(target))}: promedio vendido los ${weekday}s de las últimas 4 semanas, menos lo que ya hay.`}
+                  actions={<div role="radiogroup" aria-label="Día" className="inline-flex gap-1 rounded-xl bg-surface-muted p-1">
+                    {options.map(([iso, label]) => (
+                      <button key={iso} type="button" role="radio" aria-checked={target === iso} onClick={() => setTarget(iso)}
+                              className={cn('h-7 px-3 rounded-lg text-sm', target === iso ? 'bg-surface text-ink font-medium shadow-sm' : 'text-ink-muted hover:text-ink')}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>} />
+      {isLoading ? <div className="px-5 pb-5"><Skeleton height={120} /></div> : !data || data.weeks_with_data < 2 ? (
+        <EmptyState compact icon={<Sparkles size={20} />} title="Aún no hay suficiente historia"
+                    description={`Se necesitan ventas de al menos 2 ${weekday}s para sugerir cantidades (hay ${data?.weeks_with_data ?? 0}). No inventamos números.`} />
+      ) : !rows.length ? (
+        <EmptyState compact icon={<Sparkles size={20} />} title={`Sin ventas de productos elaborados los ${weekday}s`} />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-xs text-ink-muted bg-surface-muted/60"><tr>
+              <th className="text-left font-medium py-2 px-5">Producto</th>
+              <th className="text-left font-medium py-2 px-3">Últimos {weekday}s</th>
+              <th className="text-right font-medium py-2 px-3">Promedio</th>
+              <th className="text-right font-medium py-2 px-3">Merma prom.</th>
+              <th className="text-right font-medium py-2 px-3">Hay</th>
+              <th className="text-right font-medium py-2 px-3">Sugerido</th>
+              {canRegister && <th className="py-2 px-5" />}
+            </tr></thead>
+            <tbody className="divide-y divide-line">
+              {rows.map((r) => (
+                <tr key={r.item} className={Number(r.suggested) ? '' : 'text-ink-muted'}>
+                  <td className="py-2 px-5 text-ink">{r.name}</td>
+                  <td className="py-2 px-3"><span className="inline-flex gap-1">
+                    {r.history.map((h, i) => <span key={i} className="min-w-7 px-1 rounded bg-surface-muted text-xs text-center num">{formatQty(h)}</span>)}
+                  </span></td>
+                  <td className="py-2 px-3 text-right num">{formatQty(r.average_sold, r.unit)}</td>
+                  <td className="py-2 px-3 text-right num">{Number(r.average_wasted) ? formatQty(r.average_wasted, r.unit) : '—'}</td>
+                  <td className="py-2 px-3 text-right num">{formatQty(r.stock, r.unit)}</td>
+                  <td className="py-2 px-3 text-right">
+                    <span className="font-semibold text-ink num">{Number(r.suggested) ? formatQty(r.suggested, r.unit) : 'Alcanza'}</span>
+                    {r.batches && r.batch_size && <span className="block text-xs text-ink-muted">{r.batches} tanda{r.batches === 1 ? '' : 's'} de {formatQty(r.batch_size)}</span>}
+                  </td>
+                  {canRegister && (
+                    <td className="py-2 px-5 text-right">
+                      {r.recipe && Number(r.suggested) > 0 && (
+                        <Button size="sm" variant="outline" onClick={() => onProduce(r.recipe!, r.suggested)}>Producir</Button>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="px-5 py-2 text-xs text-ink-muted border-t border-line">Basado en {data.weeks_with_data} {weekday}s con ventas. Es una guía: ajústala si hay un pedido o un festivo.</p>
+        </div>
+      )}
+    </Card>
+  )
+}
+
 export default function ProductionPage() {
   const can = useCan()
+  const isBakery = useAuthStore((s) => s.session?.tenant?.vertical) === 'bakery'
+  const [preset, setPreset] = useState<{ key: number; recipe: string; quantity: string } | undefined>()
   const [page, setPage] = useState(1)
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['batches', page], queryFn: () => productionApi.batches({ page }), placeholderData: (prev) => prev,
@@ -130,7 +209,15 @@ export default function ProductionPage() {
       <PageHeader title="Producción" description="Registra lo que sale del horno: descuenta ingredientes y suma producto"
                   actions={<Link to="/recipes" className="text-sm text-primary-ink hover:underline">Ver recetas</Link>} />
       {can('production.register') && (
-        <Card><CardHeader title="Registrar producción" /><div className="px-5 pb-5"><ProduceForm /></div></Card>
+        <Card><CardHeader title="Registrar producción" /><div id="produce-form" className="px-5 pb-5">
+          <ProduceForm key={preset?.key} initial={preset} />
+        </div></Card>
+      )}
+      {isBakery && can('production.view') && (
+        <SuggestionCard canRegister={can('production.register')} onProduce={(recipe, quantity) => {
+          setPreset({ key: Date.now(), recipe: String(recipe), quantity })
+          document.getElementById('produce-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }} />
       )}
       {can('production.view') && (
         <DataTable caption="Lotes de producción" columns={columns} rows={data?.results} rowKey={(b) => b.id} isLoading={isLoading}

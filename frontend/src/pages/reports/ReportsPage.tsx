@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, BarChart2 } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { analyticsApi } from '@/api/analytics'
 import { reportsApi } from '@/api/reports'
 import ChartTooltip from '@/components/charts/ChartTooltip'
 import { axisTick, CHART_COLORS } from '@/lib/charts'
@@ -14,7 +15,10 @@ import Tabs from '@/components/ui/Tabs'
 import { formatQty } from '@/lib/catalog'
 import { formatCOP, formatCompactNumber, toDisplayNumber } from '@/lib/money'
 import { INVOICE_STATUS } from '@/lib/status'
-import { useCan, useHasFeature } from '@/store/authStore'
+import { useAuthStore, useCan, useHasFeature } from '@/store/authStore'
+import PeriodPicker from '@/components/analytics/PeriodPicker'
+import { isReady, usePeriod } from '@/lib/period'
+import { CashTab, CoverageCard, ProductionWasteTab, ProfitTab, SalesTab } from './AnalyticsTabs'
 import type { Invoice } from '@/types'
 import { LifecycleMark } from '@/components/ui/StatusMark'
 
@@ -196,23 +200,46 @@ function TeamTab() {
   )
 }
 
-type TabId = 'billing' | 'inventory' | 'team'
+type TabId = 'sales' | 'profit' | 'production' | 'inventory' | 'cash' | 'billing' | 'team'
+const PERIOD_TABS: TabId[] = ['sales', 'profit', 'production', 'cash']
 
 export default function ReportsPage() {
   const can = useCan()
   const hasHr = useHasFeature()('module.hr') && can('hr.view')
-  const [tab, setTab] = useState<TabId>('billing')
+  const isBakery = useAuthStore((s) => s.session?.tenant?.vertical) === 'bakery'
+  const [params, setParams] = useSearchParams()
+  const [period, setPeriod] = usePeriod('7d')
   const tabs: { id: TabId; label: string }[] = [
-    { id: 'billing', label: 'Ventas y cartera' },
+    { id: 'sales', label: 'Ventas' },
+    { id: 'profit', label: 'Rentabilidad' },
+    { id: 'production', label: isBakery ? 'Producción y mermas' : 'Mermas' },
     { id: 'inventory', label: 'Inventario' },
+    ...(can('cash.manage') ? [{ id: 'cash' as const, label: 'Caja' }] : []),
+    { id: 'billing', label: 'Facturación' },
     ...(hasHr ? [{ id: 'team' as const, label: 'Equipo y proveedores' }] : []),
   ]
+  const requested = params.get('tab') as TabId | null
+  const tab = tabs.find((t) => t.id === requested)?.id ?? 'sales'
+  const setTab = (id: TabId) => setParams((prev) => { const next = new URLSearchParams(prev); next.set('tab', id); return next }, { replace: true })
+  const withPeriod = PERIOD_TABS.includes(tab)
+  const summary = useQuery({ queryKey: ['analytics', 'summary', period], queryFn: () => analyticsApi.summary(period),
+                             enabled: withPeriod && isReady(period) })
   return (
     <Page>
       <PageHeader title="Reportes" description="Cifras calculadas con los datos reales de tu empresa" />
       <Tabs label="Reportes" tabs={tabs} value={tab} onChange={setTab} />
+      {withPeriod && <PeriodPicker value={period} onChange={setPeriod} info={summary.data?.period} />}
+      {withPeriod && !isReady(period) && <EmptyState compact title="Elige las dos fechas del rango" />}
+      {withPeriod && isReady(period) && (
+        <>
+          {tab === 'sales' && <SalesTab period={period} />}
+          {tab === 'profit' && <ProfitTab period={period} />}
+          {tab === 'production' && <ProductionWasteTab period={period} canWaste={can('waste.view')} />}
+          {tab === 'cash' && <CashTab period={period} />}
+        </>
+      )}
+      {tab === 'inventory' && <div className="space-y-4"><InventoryTab />{can('inventory.view') && <CoverageCard />}</div>}
       {tab === 'billing' && <BillingTab />}
-      {tab === 'inventory' && <InventoryTab />}
       {tab === 'team' && hasHr && <TeamTab />}
     </Page>
   )

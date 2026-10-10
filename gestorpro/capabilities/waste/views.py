@@ -1,4 +1,4 @@
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from rest_framework import generics, status
 from rest_framework.response import Response
 
@@ -49,3 +49,28 @@ class WasteListCreateView(generics.ListCreateAPIView):
                                          reason=d['reason'], notes=d.get('notes', ''))
         return Response(WasteRecordSerializer(record, context={'request': request}).data,
                         status=status.HTTP_201_CREATED)
+
+
+class WasteSummaryView(generics.GenericAPIView):
+    """GET /api/waste/summary/?period= — mermas por motivo y por ítem, con costo si hay permiso."""
+    permission_classes = [HasTenantPermission]
+    required_permissions = {'GET': 'waste.view'}
+
+    def get(self, request):
+        from gestorpro.core.analytics.periods import resolve
+
+        p = request.query_params
+        period = resolve(request.tenant, p.get('period', '30d'), p.get('from'), p.get('to'))
+        qs = WasteRecord.objects.filter(created_at__gte=period.current.start, created_at__lt=period.current.end)
+        costs = request.membership.has_perm('catalog.view_costs')
+        by_reason = qs.values('reason__name').annotate(n=Count('id'), cost=Sum('total_cost')).order_by('-cost')
+        by_item = (qs.values('item__name', 'item__unit__symbol').annotate(q=Sum('quantity'), cost=Sum('total_cost'))
+                   .order_by('-cost')[:15])
+        return Response({
+            'period': period.as_dict(),
+            'total_cost': money_str(qs.aggregate(t=Sum('total_cost'))['t'] or 0) if costs else None,
+            'by_reason': [{'reason': r['reason__name'], 'records': r['n'],
+                           'cost': money_str(r['cost']) if costs else None} for r in by_reason],
+            'by_item': [{'item': r['item__name'], 'unit': r['item__unit__symbol'], 'quantity': str(r['q']),
+                         'cost': money_str(r['cost']) if costs else None} for r in by_item],
+        })

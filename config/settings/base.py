@@ -63,6 +63,7 @@ LOCAL_APPS = [
     'gestorpro.core.sales',
     'gestorpro.core.inventory',
     'gestorpro.core.purchasing',
+    'gestorpro.core.analytics',
     'gestorpro.core.reporting',
     # capabilities
     'gestorpro.capabilities.hr',

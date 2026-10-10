@@ -21,6 +21,7 @@ api = [
     path('cash/', include('gestorpro.core.cash.urls')),
     path('inventory/', include('gestorpro.core.inventory.urls')),
     path('purchases/', include('gestorpro.core.purchasing.urls')),
+    path('analytics/', include('gestorpro.core.analytics.urls')),
     path('reports/', include('gestorpro.core.reporting.urls')),
     # Capabilities
     path('employees/', include('gestorpro.capabilities.hr.urls')),
