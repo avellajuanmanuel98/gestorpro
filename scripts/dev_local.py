@@ -16,6 +16,7 @@ Qué hace `setup` (es seguro repetirlo):
 Solo para DESARROLLO. Nada de esto se usa en producción.
 """
 import glob
+import hashlib
 import os
 import secrets
 import shutil
@@ -111,9 +112,33 @@ def npm_env(npm: str):
 
 
 def port_in_use(port: int) -> bool:
-    with socket.socket() as s:
-        s.settimeout(0.5)
-        return s.connect_ex(('127.0.0.1', port)) == 0
+    # IPv4 e IPv6: en Windows, Node/Vite escucha "localhost" en ::1
+    for family, host in ((socket.AF_INET, '127.0.0.1'), (socket.AF_INET6, '::1')):
+        try:
+            with socket.socket(family) as s:
+                s.settimeout(0.5)
+                if s.connect_ex((host, port)) == 0:
+                    return True
+        except OSError:
+            continue
+    return False
+
+
+def install_frontend(npm: str):
+    """npm ci solo si package-lock.json cambió desde la última instalación."""
+    lock = FRONTEND / 'package-lock.json'
+    marker = FRONTEND / 'node_modules' / '.gestorpro-lock'
+    digest = hashlib.sha256(lock.read_bytes()).hexdigest()
+    if marker.exists() and marker.read_text(encoding='utf-8').strip() == digest:
+        say('  Dependencias del frontend al día.')
+        return
+    result = run([npm, 'ci', '--no-audit', '--no-fund'], cwd=FRONTEND, env=npm_env(npm), check=False)
+    if result.returncode != 0:
+        fail('No se pudieron instalar las dependencias del frontend.\n'
+             '  Si el error dice EPERM o "operation not permitted", hay archivos en uso:\n'
+             '  cierra las ventanas del backend y del frontend que abrió iniciar.bat\n'
+             '  (y cualquier editor abierto en la carpeta frontend) y vuelve a ejecutar instalar.bat.')
+    marker.write_text(digest, encoding='utf-8')
 
 
 # ── .env y base de datos ────────────────────────────────────────────────────
@@ -224,7 +249,7 @@ def setup():
     require_postgres()
     step('4/6  Frontend (puede tardar unos minutos la primera vez)')
     npm = require_npm()
-    run([npm, 'ci', '--no-audit', '--no-fund'], cwd=FRONTEND, env=npm_env(npm))
+    install_frontend(npm)
     step('5/6  Migraciones')
     manage('migrate')
     step('6/6  Datos de prueba')
@@ -260,6 +285,9 @@ def wait_for(port: int, seconds: int) -> bool:
 def start():
     step('Base de datos')
     require_postgres()
+    # Por si se actualizó el código sin ejecutar instalar.bat
+    if manage('migrate', '--noinput', capture=True, check=False).returncode != 0:
+        fail('No se pudieron aplicar las migraciones. Ejecuta instalar.bat y revisa el mensaje.')
     for port, what in [(8000, 'el backend'), (5173, 'el frontend')]:
         if port_in_use(port):
             fail(f'El puerto {port} ya está en uso (¿otro proyecto o una ventana anterior abierta?).\n'
