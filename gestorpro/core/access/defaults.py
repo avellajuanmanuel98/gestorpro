@@ -13,6 +13,7 @@ SYSTEM_ROLES = {
         'permissions': [
             'tenant.*', 'access.*', 'audit.*', 'customers.*', 'suppliers.*', 'catalog.*',
             'billing.*', 'reports.*', 'hr.*', 'assistant.*', 'sales.*', 'cash.*',
+            'inventory.*', 'purchases.*', 'recipes.*', 'production.*', 'waste.*',
         ],
     },
     'SUPERVISOR': {
@@ -21,19 +22,21 @@ SYSTEM_ROLES = {
             'tenant.view', 'customers.*', 'suppliers.view', 'catalog.view', 'catalog.view_costs',
             'billing.view', 'billing.create', 'billing.update', 'billing.apply_discount',
             'reports.view', 'hr.view', 'assistant.use', 'sales.*', 'cash.*',
+            'inventory.view', 'purchases.view', 'recipes.view', 'production.*', 'waste.*',
         ],
     },
     'CASHIER': {
         'name': 'Cajero',
         'permissions': [
             'tenant.view', 'customers.view', 'customers.create', 'catalog.view',
-            'billing.view', 'billing.create', 'sales.sell', 'sales.view', 'cash.operate',
+            'billing.view', 'billing.create', 'sales.sell', 'sales.view', 'cash.operate', 'waste.register',
         ],
     },
     'INVENTORY': {
         'name': 'Inventario',
         'permissions': [
             'tenant.view', 'catalog.*', 'suppliers.view', 'suppliers.create', 'suppliers.update',
+            'inventory.*', 'purchases.*', 'recipes.*', 'production.*', 'waste.*',
         ],
     },
 }

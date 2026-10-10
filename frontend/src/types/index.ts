@@ -166,6 +166,7 @@ export interface Unit {
   name: string
   symbol: string
   dimension: 'mass' | 'volume' | 'count'
+  factor: string
 }
 
 /**
@@ -194,6 +195,7 @@ export interface Item {
   minimum_stock: string
   is_low_stock: boolean
   stock_value?: string
+  consume_on_sale: boolean
   is_active: boolean
   created_by?: string
   created_at?: string

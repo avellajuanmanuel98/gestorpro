@@ -17,7 +17,7 @@ COST_FIELDS = ('avg_cost', 'stock_value', 'margin_pct')
 class UnitSerializer(serializers.ModelSerializer):
     class Meta:
         model = UnitOfMeasure
-        fields = ['code', 'name', 'symbol', 'dimension']
+        fields = ['code', 'name', 'symbol', 'dimension', 'factor']
 
 
 class CategorySerializer(TenantModelSerializer):
@@ -67,7 +67,7 @@ class ItemSerializer(CostAwareMixin, TenantModelSerializer):
             'id', 'tenant', 'name', 'code', 'description', 'kind',
             'category', 'category_name', 'unit', 'unit_symbol', 'image',
             'is_sellable', 'price', 'tax_rate', 'avg_cost', 'margin_pct',
-            'stock', 'minimum_stock', 'is_low_stock', 'stock_value',
+            'stock', 'minimum_stock', 'is_low_stock', 'stock_value', 'consume_on_sale',
             'is_active', 'created_by', 'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
@@ -109,4 +109,4 @@ class ItemListSerializer(CostAwareMixin, serializers.ModelSerializer):
         model = Item
         fields = ['id', 'name', 'code', 'kind', 'category', 'category_name', 'unit', 'unit_symbol',
                   'is_sellable', 'price', 'tax_rate', 'avg_cost', 'margin_pct',
-                  'stock', 'minimum_stock', 'is_low_stock', 'stock_value', 'is_active']
+                  'stock', 'minimum_stock', 'is_low_stock', 'stock_value', 'consume_on_sale', 'is_active']

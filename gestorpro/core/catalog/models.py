@@ -13,12 +13,13 @@ La UI los presenta en pantallas distintas (Productos / Ingredientes). Un insumo
 puede marcarse también como vendible (el queso que se vende por libra) sin
 duplicarlo: compras, existencias, costo y mermas aplican igual a ambos.
 
-Existencias y costo (TRANSITORIO hasta la Fase 8):
+Existencias y costo (desde la Fase 8):
+- `stock` (suma de sucursales) y `avg_cost` (promedio ponderado) los mantiene
+  el libro de inventario (core/inventory). No se editan a mano: cambian con
+  compras, producción, ventas, mermas y conteos físicos.
+- `avg_cost` solo admite un valor de referencia mientras el ítem no tiene
+  existencias (para costear recetas antes de la primera compra).
 - `stock` y `minimum_stock` se expresan en la unidad del ítem (`unit`).
-- `avg_cost` es el costo por unidad del ítem. Hoy lo registra la empresa como
-  costo de referencia. En la Fase 8 pasará a calcularse por promedio ponderado
-  desde el libro de movimientos, y `stock` dejará de editarse a mano (el valor
-  actual se convertirá en un movimiento de "saldo inicial").
 """
 from decimal import Decimal
 
@@ -123,6 +124,9 @@ class Item(AuthoredTenantModel):
     minimum_stock = models.DecimalField(verbose_name='existencia mínima', max_digits=14, decimal_places=4,
                                         default=Decimal('0'), validators=[MinValueValidator(Decimal('0'))])
     is_active = models.BooleanField(verbose_name='activo', default=True)
+    # Bebidas preparadas (tinto, café con leche): al venderse descuentan los
+    # ingredientes de su receta activa; el producto en sí no maneja existencias.
+    consume_on_sale = models.BooleanField(verbose_name='descuenta ingredientes al vender', default=False)
 
     # Auditoría: cambios de precio, impuesto o costo generan un evento propio
     audit_field_events = {
@@ -155,7 +159,7 @@ class Item(AuthoredTenantModel):
 
     @property
     def tracks_stock(self) -> bool:
-        return self.kind != self.Kind.SERVICE
+        return self.kind != self.Kind.SERVICE and not self.consume_on_sale
 
     @property
     def is_low_stock(self) -> bool:

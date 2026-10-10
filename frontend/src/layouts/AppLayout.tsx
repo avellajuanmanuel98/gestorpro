@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeftRight, BarChart2, Boxes, Building2, FileText, History, KeyRound, LayoutDashboard,
-  LogOut, Menu, Moon, Sun, Truck, UserCheck, UserCog, Users, Wheat, X, ShoppingCart, Wallet, ReceiptText,
+  LogOut, Menu, Moon, Sun, Truck, UserCheck, UserCog, Users, Wheat, X, ShoppingCart, Wallet, ReceiptText, Factory, Flame, ChefHat, PackagePlus,
 } from 'lucide-react'
 import Brand from '@/components/brand/Brand'
 import { cn } from '@/lib/cn'
@@ -31,15 +31,25 @@ const navGroups: { label: string; items: NavItem[] }[] = [
       { to: '/pos', icon: ShoppingCart, label: 'Vender', permission: 'sales.sell' },
       { to: '/cash', icon: Wallet, label: 'Caja', permission: 'cash.operate' },
       { to: '/sales', icon: ReceiptText, label: 'Ventas', permission: 'sales.view' },
-      { to: '/clients', icon: Users, label: 'Clientes', permission: 'customers.view' },
-      { to: '/invoices', icon: FileText, label: 'Facturación', permission: 'billing.view' },
+      { to: '/production', icon: Factory, label: 'Producción', permission: 'production.view' },
+      { to: '/waste', icon: Flame, label: 'Mermas', permission: 'waste.register' },
+    ],
+  },
+  {
+    label: 'Inventario',
+    items: [
       { to: '/inventory', icon: Boxes, label: 'Productos', permission: 'catalog.view' },
       { to: '/ingredients', icon: Wheat, label: 'Ingredientes', permission: 'catalog.view', genericLabel: 'Insumos' },
+      { to: '/recipes', icon: ChefHat, label: 'Recetas', permission: 'recipes.view' },
+      { to: '/purchases', icon: PackagePlus, label: 'Compras', permission: 'purchases.view' },
+      { to: '/movements', icon: ArrowLeftRight, label: 'Movimientos', permission: 'inventory.view' },
     ],
   },
   {
     label: 'Gestión',
     items: [
+      { to: '/clients', icon: Users, label: 'Clientes', permission: 'customers.view' },
+      { to: '/invoices', icon: FileText, label: 'Facturación', permission: 'billing.view' },
       { to: '/suppliers', icon: Truck, label: 'Proveedores', permission: 'suppliers.view' },
       { to: '/employees', icon: UserCheck, label: 'Personal', permission: 'hr.view', feature: 'module.hr' },
       { to: '/reports', icon: BarChart2, label: 'Reportes', permission: 'reports.view' },

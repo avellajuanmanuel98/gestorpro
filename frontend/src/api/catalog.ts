@@ -18,7 +18,7 @@ export interface ItemListParams {
 /** Lo que se envía al crear o editar: el servidor valida y completa el resto. */
 export type ItemPayload = Partial<Pick<Item,
   'name' | 'code' | 'description' | 'kind' | 'category' | 'unit' | 'is_sellable' | 'price' | 'tax_rate'
-  | 'avg_cost' | 'stock' | 'minimum_stock' | 'is_active'>>
+  | 'avg_cost' | 'stock' | 'minimum_stock' | 'is_active' | 'consume_on_sale'>>
 
 export const catalogApi = {
   units: async (): Promise<Unit[]> => (await apiClient.get<Unit[]>('/catalog/units/')).data,

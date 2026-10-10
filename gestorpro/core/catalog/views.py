@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+from django.db import transaction
 from django.db.models import Count, F, ProtectedError, Q
 from rest_framework import generics
 from rest_framework.exceptions import ValidationError
@@ -5,6 +8,8 @@ from rest_framework.exceptions import ValidationError
 from gestorpro.core import entitlements
 from gestorpro.core.access.permissions import HasTenantPermission
 from gestorpro.core.api.views import TenantDetailView, TenantListCreateView
+from gestorpro.core.inventory import services as inventory
+from gestorpro.core.inventory.models import StockMovement
 
 from . import services
 from .models import Category, Item, UnitOfMeasure
@@ -84,10 +89,20 @@ class ItemListCreateView(TenantListCreateView):
     def get_serializer_class(self):
         return ItemListSerializer if self.request.method == 'GET' else ItemSerializer
 
+    @transaction.atomic
     def perform_create(self, serializer):
         if serializer.validated_data['kind'] in Item.PRODUCT_KINDS:
             entitlements.check_limit(self.request.membership.tenant_id, 'products', services.products_count())
+        # La existencia inicial entra al libro como "saldo inicial", no como un número suelto
+        initial = serializer.validated_data.pop('stock', None) or Decimal('0')
         super().perform_create(serializer)
+        item = serializer.instance
+        if initial > 0 and item.tracks_stock:
+            locked = inventory.lock_items([item.id])[item.id]
+            inventory.post(item=locked, location=inventory.default_location(), type=StockMovement.Type.OPENING,
+                           quantity=initial, unit_cost=locked.avg_cost, user=self.request.user,
+                           source=inventory.Source('item', item.id, 'Alta del ítem'))
+            item.refresh_from_db()
 
 
 class ItemDetailView(TenantDetailView):

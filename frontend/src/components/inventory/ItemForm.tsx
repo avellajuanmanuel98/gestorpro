@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -9,7 +10,7 @@ import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import { SkeletonText } from '@/components/ui/Skeleton'
 import Textarea from '@/components/ui/Textarea'
-import { PRODUCT_KIND_OPTIONS, previewMargin } from '@/lib/catalog'
+import { formatQty, PRODUCT_KIND_OPTIONS, previewMargin } from '@/lib/catalog'
 import { getErrorMessage } from '@/lib/errors'
 import { useCan } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
@@ -32,6 +33,7 @@ const schema = z.object({
   avg_cost: optionalDecimal(4),
   stock: optionalDecimal(4),
   minimum_stock: optionalDecimal(4),
+  consume_on_sale: z.boolean(),
   is_active: z.enum(['true', 'false']),
 }).refine((d) => !d.is_sellable || (d.price !== '' && Number(d.price.replace(',', '.')) > 0), {
   path: ['price'], message: 'Indica el precio de venta',
@@ -81,11 +83,13 @@ function ItemFormFields({ group, item, onSuccess, onCancel, units, categories }:
       avg_cost: item?.avg_cost !== undefined && Number(item.avg_cost) > 0 ? plain(item.avg_cost) : '',
       stock: item ? plain(item.stock) : '', minimum_stock: item ? plain(item.minimum_stock) : '',
       is_active: item?.is_active === false ? 'false' : 'true',
+      consume_on_sale: item?.consume_on_sale ?? false,
     },
   })
-  const [kind, unitCode, sellable, price, cost] = useWatch({
-    control, name: ['kind', 'unit', 'is_sellable', 'price', 'avg_cost'],
+  const [kind, unitCode, sellable, price, cost, consume] = useWatch({
+    control, name: ['kind', 'unit', 'is_sellable', 'price', 'avg_cost', 'consume_on_sale'],
   })
+  const costLocked = !!item && Number(item.stock) !== 0
   const isService = kind === 'service'
   const unit = units.find((u) => u.code === unitCode)
   const margin = previewMargin(num(price), num(cost))
@@ -98,9 +102,11 @@ function ItemFormFields({ group, item, onSuccess, onCancel, units, categories }:
         category: d.category ? Number(d.category) : null, unit: d.kind === 'service' ? 'und' : d.unit,
         is_sellable: d.is_sellable, is_active: d.is_active === 'true',
         price: d.is_sellable ? num(d.price) : '0', tax_rate: d.is_sellable ? d.tax_rate : '0',
-        stock: num(d.stock) || '0', minimum_stock: num(d.minimum_stock) || '0',
+        // La existencia solo se envía al crear (saldo inicial); después la lleva el libro de inventario
+        ...(item ? {} : { stock: num(d.stock) || '0' }), minimum_stock: num(d.minimum_stock) || '0',
+        consume_on_sale: d.kind === 'finished_good' && d.consume_on_sale,
         // Sin permiso de costos el campo no se envía (el servidor lo rechazaría)
-        ...(canSeeCosts ? { avg_cost: num(d.avg_cost) || '0' } : {}),
+        ...(canSeeCosts && !costLocked ? { avg_cost: num(d.avg_cost) || '0' } : {}),
       }
       return item ? catalogApi.updateItem(item.id, payload) : catalogApi.createItem(payload)
     },
@@ -169,18 +175,38 @@ function ItemFormFields({ group, item, onSuccess, onCancel, units, categories }:
               </Select>
             </>
           )}
-          {canSeeCosts && !isService && (
+          {canSeeCosts && !isService && !consume && (
+            // Con existencias, el costo lo calcula el promedio ponderado (compras y producción)
             <Input label={`Costo por ${unit?.symbol ?? 'unidad'}`} inputMode="decimal" {...register('avg_cost')}
-                   error={errors.avg_cost?.message}
-                   hint={sellable && margin !== null ? `Margen: ${margin.toLocaleString('es-CO')} %` : 'Costo de referencia.'} />
+                   error={errors.avg_cost?.message} readOnly={costLocked}
+                   hint={costLocked ? 'Promedio ponderado de compras y producción.'
+                     : sellable && margin !== null ? `Margen: ${margin.toLocaleString('es-CO')} %` : 'Costo de referencia hasta la primera compra.'} />
           )}
         </div>
       )}
 
-      {!isService && (
+      {!isService && !isIngredientScreen && kind === 'finished_good' && (
+        <label className="flex items-start gap-2.5 text-sm text-ink cursor-pointer">
+          <input type="checkbox" {...register('consume_on_sale')} className="mt-0.5 accent-[var(--primary)]" />
+          <span>Se prepara al momento (tinto, café con leche, jugos)
+            <span className="block text-xs text-ink-muted">No maneja existencias: al venderlo se descuentan los ingredientes de su receta.</span></span>
+        </label>
+      )}
+
+      {!isService && !consume && (
         <div className="grid sm:grid-cols-2 gap-4">
-          <Input label={`Existencia actual (${unit?.symbol ?? ''})`} inputMode="decimal" {...register('stock')}
-                 error={errors.stock?.message} placeholder="0" />
+          {item ? (
+            // La existencia cambia con compras, producción, ventas, mermas o un conteo físico
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-ink">Existencia actual</p>
+              <p className="h-9 flex items-center text-sm num text-ink">{formatQty(item.stock, item.unit_symbol)}
+                <Link to={`/movements?item=${item.id}`} className="ml-3 text-xs text-primary-ink hover:underline">Ver movimientos</Link></p>
+              <p className="text-xs text-ink-muted">Se ajusta con compras, producción o un conteo físico.</p>
+            </div>
+          ) : (
+            <Input label={`Existencia inicial (${unit?.symbol ?? ''})`} inputMode="decimal" {...register('stock')}
+                   error={errors.stock?.message} placeholder="0" hint="Entra al inventario como saldo inicial." />
+          )}
           <Input label={`Existencia mínima (${unit?.symbol ?? ''})`} inputMode="decimal" {...register('minimum_stock')}
                  error={errors.minimum_stock?.message} placeholder="0" hint="Por debajo verás una alerta." />
         </div>

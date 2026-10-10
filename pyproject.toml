@@ -37,4 +37,6 @@ type = "independence"
 modules = [
     "gestorpro.capabilities.hr",
     "gestorpro.capabilities.assistant",
+    "gestorpro.capabilities.production",
+    "gestorpro.capabilities.waste",
 ]

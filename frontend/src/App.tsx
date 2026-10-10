@@ -19,6 +19,11 @@ import IngredientsPage from '@/pages/inventory/IngredientsPage'
 import PosPage         from '@/pages/pos/PosPage'
 import CashPage        from '@/pages/cash/CashPage'
 import SalesPage       from '@/pages/sales/SalesPage'
+import PurchasesPage   from '@/pages/purchases/PurchasesPage'
+import RecipesPage     from '@/pages/production/RecipesPage'
+import ProductionPage  from '@/pages/production/ProductionPage'
+import WastePage       from '@/pages/waste/WastePage'
+import MovementsPage   from '@/pages/inventory/MovementsPage'
 import UsersPage       from '@/pages/access/UsersPage'
 import RolesPage       from '@/pages/access/RolesPage'
 import AuditPage       from '@/pages/access/AuditPage'
@@ -78,6 +83,11 @@ function App() {
           <Route path="pos"       element={<PosPage />} />
           <Route path="cash"      element={<CashPage />} />
           <Route path="sales"     element={<SalesPage />} />
+          <Route path="purchases" element={<PurchasesPage />} />
+          <Route path="recipes"   element={<RecipesPage />} />
+          <Route path="production" element={<ProductionPage />} />
+          <Route path="waste"     element={<WastePage />} />
+          <Route path="movements" element={<MovementsPage />} />
           <Route path="employees" element={<EmployeesPage />} />
           <Route path="suppliers" element={<SuppliersPage />} />
           <Route path="reports"   element={<ReportsPage />} />

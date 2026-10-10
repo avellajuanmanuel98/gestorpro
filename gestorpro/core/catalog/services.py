@@ -15,6 +15,8 @@ from decimal import Decimal
 
 from rest_framework.exceptions import ValidationError
 
+from gestorpro.kernel.units import quantity as to_qty
+
 from .models import Category, Item, UnitOfMeasure
 
 CODE_PREFIX = {
@@ -61,6 +63,12 @@ def normalize(data: dict, instance: Item | None = None) -> dict:
         data['price'] = Decimal('0')
         data['tax_rate'] = Decimal('0')
 
+    consume = get('consume_on_sale', False)
+    if consume and kind != Item.Kind.FINISHED_GOOD:
+        errors['consume_on_sale'] = 'Solo los productos elaborados descuentan ingredientes al venderse.'
+    if consume:
+        data.update(stock=Decimal('0'), minimum_stock=Decimal('0'))
+
     # Servicios: sin existencias ni costo de inventario, siempre por unidad
     unit = get('unit')
     if kind == Item.Kind.SERVICE:
@@ -71,6 +79,16 @@ def normalize(data: dict, instance: Item | None = None) -> dict:
         data['unit'] = unit = und
     if unit is None:  # al crear, por defecto se vende por unidad
         data['unit'] = unit = UnitOfMeasure.objects.get(code='und')
+
+    # Existencias y costo los lleva el libro de inventario (Fase 8)
+    if instance is not None:
+        if 'stock' in data and to_qty(data['stock']) != instance.stock:
+            errors['stock'] = ('Primero lleva la existencia a cero con un conteo físico.'
+                               if kind == Item.Kind.SERVICE or consume else
+                               'La existencia cambia con compras, producción, ventas o un conteo físico.')
+        if 'avg_cost' in data and Decimal(data['avg_cost']) != instance.avg_cost and instance.stock != 0:
+            errors['avg_cost'] = 'Con existencias, el costo lo calcula el promedio ponderado de las compras.'
+        data.pop('stock', None)
 
     category = get('category')
     if category is not None and category.kind != category_kind_for(kind):

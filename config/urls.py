@@ -19,11 +19,15 @@ api = [
     path('billing/', include('gestorpro.core.billing.urls')),
     path('sales/', include('gestorpro.core.sales.urls')),
     path('cash/', include('gestorpro.core.cash.urls')),
+    path('inventory/', include('gestorpro.core.inventory.urls')),
+    path('purchases/', include('gestorpro.core.purchasing.urls')),
     path('reports/', include('gestorpro.core.reporting.urls')),
     # Capabilities
     path('employees/', include('gestorpro.capabilities.hr.urls')),
     path('reports/hr/', HRReportView.as_view(), name='report-hr'),
     path('assistant/', include('gestorpro.capabilities.assistant.urls')),
+    path('production/', include('gestorpro.capabilities.production.urls')),
+    path('waste/', include('gestorpro.capabilities.waste.urls')),
     # Verticals
     path('bakery/', include('gestorpro.verticals.bakery.urls')),
     # Documentación

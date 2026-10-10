@@ -61,10 +61,14 @@ LOCAL_APPS = [
     'gestorpro.core.numbering',
     'gestorpro.core.cash',
     'gestorpro.core.sales',
+    'gestorpro.core.inventory',
+    'gestorpro.core.purchasing',
     'gestorpro.core.reporting',
     # capabilities
     'gestorpro.capabilities.hr',
     'gestorpro.capabilities.assistant',
+    'gestorpro.capabilities.production',
+    'gestorpro.capabilities.waste',
     # verticals
     'gestorpro.verticals.bakery',
     # platform

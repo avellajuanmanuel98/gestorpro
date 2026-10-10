@@ -19,16 +19,16 @@ que envíe el navegador:
   abierto (después del cierre, la corrección será una devolución). Devuelve el
   efectivo y las existencias; la venta nunca se borra.
 
-Existencias (transitorio hasta la Fase 8): la venta descuenta `Item.stock` y
-la anulación lo repone. Se permite quedar en negativo (en panadería se vende
-antes de registrar la producción); la Fase 8 convertirá cada línea en un
-movimiento del libro de inventario.
+Existencias (Fase 8): cada venta genera movimientos de salida en el libro de
+inventario al costo promedio vigente, y la anulación los revierte al mismo
+costo. Las bebidas preparadas descuentan los ingredientes de su receta. Se
+permite quedar en negativo (en panadería se vende antes de registrar la
+producción).
 """
 from collections import defaultdict
 from decimal import Decimal
 
 from django.db import IntegrityError, transaction
-from django.db.models import F
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
@@ -37,6 +37,9 @@ from gestorpro.core.cash.models import CashMovement, CashSession
 from gestorpro.core.cash.services import current_session
 from gestorpro.core.catalog.models import Item
 from gestorpro.core.customers.services import ensure_final_consumer
+from gestorpro.core.inventory import services as inventory
+from gestorpro.core.inventory.models import StockMovement
+from gestorpro.core.inventory.services import lock_items
 from gestorpro.core.numbering.services import next_number
 from gestorpro.kernel.money import ZERO, money, money_str, percentage_of
 from gestorpro.kernel.units import quantity as to_quantity
@@ -47,7 +50,7 @@ SALE_DOC = 'sale'
 SALE_PREFIX = 'V'
 
 
-def _build_lines(raw_lines: list[dict]) -> list[SaleLine]:
+def _build_lines(raw_lines: list[dict], locked: dict) -> list[SaleLine]:
     if not raw_lines:
         raise ValidationError({'lines': 'La venta no tiene productos.'})
     # Varias líneas del mismo ítem se agrupan (el POS puede enviar el mismo producto dos veces)
@@ -57,7 +60,9 @@ def _build_lines(raw_lines: list[dict]) -> list[SaleLine]:
         if qty <= 0:
             raise ValidationError({'lines': 'Las cantidades deben ser mayores que cero.'})
         grouped[raw['item']] += qty
-    items = {i.id: i for i in Item.objects.select_related('unit').filter(id__in=grouped)}
+    # Bloqueados: el costo y la existencia que se leen aquí son los que se registran
+    locked.update(lock_items(grouped))
+    items = locked
     lines = []
     for item_id, qty in grouped.items():
         item = items.get(item_id)
@@ -73,6 +78,30 @@ def _build_lines(raw_lines: list[dict]) -> list[SaleLine]:
                               unit_price=item.price, tax_rate=item.tax_rate, line_subtotal=subtotal,
                               tax_amount=tax, line_total=subtotal + tax, unit_cost=item.avg_cost))
     return lines
+
+
+def _stock_plan(sale_lines: list[SaleLine], locked: dict) -> list[tuple[Item, Decimal]]:
+    """
+    Qué sale del inventario por cada línea. Los productos con `consume_on_sale`
+    (bebidas preparadas) descuentan los ingredientes de su receta activa y su
+    costo es el de esos ingredientes; sin receta, la venta no se bloquea y la
+    línea queda sin costo (se ve en los reportes).
+    """
+    plan: dict[int, Decimal] = defaultdict(lambda: ZERO)
+    for line in sale_lines:
+        item = line.item
+        if item.consume_on_sale:
+            needs = inventory.recipe_consumption(item, line.quantity) or []
+            missing = [ing.id for ing, _ in needs if ing.id not in locked]
+            locked.update(lock_items(missing) if missing else {})
+            cost = sum((qty * locked[ing.id].avg_cost for ing, qty in needs), ZERO)
+            line.unit_cost = (cost / line.quantity).quantize(Decimal('0.0001'))
+            for ing, qty in needs:
+                if locked[ing.id].tracks_stock:
+                    plan[ing.id] += qty
+        elif item.tracks_stock:
+            plan[item.id] += line.quantity
+    return [(locked[item_id], qty) for item_id, qty in plan.items() if qty > 0]
 
 
 def _build_payments(raw_payments: list[dict], total: Decimal) -> tuple[list[Payment], Decimal]:
@@ -124,7 +153,9 @@ def complete_sale(*, membership, client_uuid, lines: list[dict], payments: list[
     if not session.is_open:
         raise ValidationError('Tu turno de caja está cerrado.')
 
-    sale_lines = _build_lines(lines)
+    locked: dict[int, Item] = {}
+    sale_lines = _build_lines(lines, locked)
+    stock_plan = _stock_plan(sale_lines, locked)
     subtotal = sum((line.line_subtotal for line in sale_lines), ZERO)
     tax_total = sum((line.tax_amount for line in sale_lines), ZERO)
     gross = subtotal + tax_total
@@ -161,9 +192,10 @@ def complete_sale(*, membership, client_uuid, lines: list[dict], payments: list[
     if cash_in > 0:
         CashMovement.objects.create(session=session, type=CashMovement.Type.SALE, amount=cash_in, sale=sale,
                                     created_by=membership.user)
-    for line in sale_lines:
-        if line.item.tracks_stock:
-            Item.objects.filter(pk=line.item_id).update(stock=F('stock') - line.quantity)
+    source = inventory.Source('sale', sale.id, f'Venta {sale.number}')
+    for item, qty in stock_plan:
+        inventory.post(item=item, location=location, type=StockMovement.Type.SALE, quantity=qty,
+                       user=membership.user, source=source)
 
     audit.record('sales.sale.completed', target=sale,
                  summary=f'Venta {sale.number} por ${money_str(total)} ({len(sale_lines)} producto(s))')
@@ -188,9 +220,14 @@ def void_sale(*, membership, sale: Sale, reason: str) -> Sale:
     if cash_paid > 0:
         CashMovement.objects.create(session=session, type=CashMovement.Type.VOID, amount=-cash_paid, sale=sale,
                                     reason=reason[:200], created_by=membership.user)
-    for line in sale.lines.select_related('item'):
-        if line.item.tracks_stock:
-            Item.objects.filter(pk=line.item_id).update(stock=F('stock') + line.quantity)
+    # Se revierten exactamente los movimientos de la venta, al costo con que salieron
+    out = list(StockMovement.objects.filter(source_type='sale', source_id=sale.id).select_related('location'))
+    items = lock_items([m.item_id for m in out])
+    source = inventory.Source('sale', sale.id, f'Anulación {sale.number}')
+    for movement in out:
+        inventory.post(item=items[movement.item_id], location=movement.location, type=StockMovement.Type.SALE_VOID,
+                       quantity=-movement.quantity, unit_cost=movement.unit_cost, user=membership.user,
+                       source=source, reason=reason)
 
     sale.status = Sale.Status.VOIDED
     sale.voided_at, sale.voided_by, sale.void_reason = timezone.now(), membership.user, reason[:200]

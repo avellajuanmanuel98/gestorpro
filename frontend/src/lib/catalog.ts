@@ -1,4 +1,4 @@
-import type { ItemKind } from '@/types'
+import type { ItemKind, Unit } from '@/types'
 import { toDisplayNumber, type MoneyValue } from './money'
 
 export const ITEM_KIND_LABEL: Record<ItemKind, string> = {
@@ -38,3 +38,23 @@ export function previewMargin(price: string, cost: string): number | null {
   if (!Number.isFinite(p) || !Number.isFinite(c) || p <= 0 || c <= 0) return null
   return Math.round(((p - c) / p) * 1000) / 10
 }
+
+
+/** Unidades de la misma dimensión (masa, volumen o conteo) que la unidad del ítem. */
+export function compatibleUnits(units: Unit[], itemUnit: string): Unit[] {
+  const base = units.find((u) => u.code === itemUnit)
+  return base ? units.filter((u) => u.dimension === base.dimension) : units
+}
+
+/** Conversión SOLO para vista previa; la oficial la hace el servidor (kernel/units). */
+export function convertQty(value: number, from: string, to: string, units: Unit[]): number {
+  const a = units.find((u) => u.code === from), b = units.find((u) => u.code === to)
+  if (!a || !b || a.dimension !== b.dimension) return NaN
+  return (value * Number(a.factor)) / Number(b.factor)
+}
+
+const MOVEMENT_TONE: Record<string, 'in' | 'out'> = {
+  opening: 'in', purchase: 'in', sale_void: 'in', production_output: 'in', adjustment_in: 'in',
+  sale: 'out', production_consume: 'out', waste: 'out', adjustment_out: 'out',
+}
+export const isInbound = (type: string) => MOVEMENT_TONE[type] === 'in'
