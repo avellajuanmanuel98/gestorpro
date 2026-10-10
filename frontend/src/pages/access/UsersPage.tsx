@@ -18,6 +18,7 @@ import { useAuthStore, useCan } from '@/store/authStore'
 import type { Invitation, Member, Role } from '@/types'
 import StatusMark from '@/components/ui/StatusMark'
 import { MEMBER_STATUS } from '@/lib/status'
+import { copyText } from '@/lib/clipboard'
 
 // ── Invitar ───────────────────────────────────────────────────────────────────
 
@@ -45,8 +46,7 @@ function InviteModal({ roles, isOpen, onClose }: { roles: Role[]; isOpen: boolea
 
   const copy = async () => {
     if (!created?.invite_url) return
-    await navigator.clipboard.writeText(created.invite_url)
-    setCopied(true)
+    setCopied(await copyText(created.invite_url))
   }
 
   return (

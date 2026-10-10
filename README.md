@@ -87,6 +87,8 @@ gestorpro/
 
 ## Instalación local
 
+> ¿Instalar GestorPro **en el computador de un negocio** (sin nube, usado por la red local)? Ver la [edición local](docs/miga/09-edicion-local.md): `local\1-instalar.bat`. Esta sección es para desarrollo.
+
 **Requisitos:** Python 3.13, Node.js 22, Docker (para PostgreSQL).
 
 ```bash

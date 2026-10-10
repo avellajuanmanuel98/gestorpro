@@ -53,10 +53,17 @@ export function stepQuantity(line: CartLine, delta: number): string {
 /** Billetes y monedas de Colombia para el conteo del cierre. */
 export const DENOMINATIONS = [100000, 50000, 20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50]
 
-export const newClientId = (): string =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-        const r = (Math.random() * 16) | 0
-        return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
-      })
+/**
+ * Identificador de la venta (idempotencia). `crypto.randomUUID` solo existe con HTTPS o localhost;
+ * en la edición local, una tablet entra por http://192.168.x.x, así que se arma un UUID v4 con
+ * `getRandomValues`, que sí está disponible.
+ */
+export const newClientId = (): string => {
+  const c: Partial<Crypto> & Pick<Crypto, 'getRandomValues'> = globalThis.crypto
+  if (typeof c.randomUUID === 'function') return c.randomUUID()
+  const b = c.getRandomValues(new Uint8Array(16))
+  b[6] = (b[6] & 0x0f) | 0x40
+  b[8] = (b[8] & 0x3f) | 0x80
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('')
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
+}

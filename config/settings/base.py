@@ -218,6 +218,17 @@ STORAGES = {
 WHITENOISE_ROOT = BASE_DIR / 'frontend' / 'dist'
 WHITENOISE_INDEX_FILE = True
 
+
+def _whitenoise_headers(headers, path, url):
+    # WhiteNoise sirve index.html sin pasar por los middlewares de Django: anti-clickjacking aquí también
+    if path.endswith('.html'):
+        headers['X-Frame-Options'] = 'DENY'
+        headers['X-Content-Type-Options'] = 'nosniff'
+        headers['Referrer-Policy'] = 'same-origin'
+
+
+WHITENOISE_ADD_HEADERS_FUNCTION = _whitenoise_headers
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 

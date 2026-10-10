@@ -26,7 +26,8 @@ staticfiles/
 
 # ── Node / React ─────────────────────────────────
 frontend/node_modules/
-frontend/dist/
+# frontend/dist/ SÍ se versiona: lo sirve Django en producción y en la edición local (sin Node.js)
+!frontend/dist/
 frontend/.env
 frontend/.env.*
 

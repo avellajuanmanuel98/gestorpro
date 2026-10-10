@@ -2,7 +2,10 @@
 Cambia el plan de una empresa (operación de plataforma).
 
     python manage.py set_plan --list
-    python manage.py set_plan <slug-de-la-empresa> <codigo-del-plan> [--active]
+    python manage.py set_plan <slug-de-la-empresa> <codigo-del-plan> [--active] [--no-end]
+
+`--no-end` quita las fechas de fin (prueba y período): licencia sin vencimiento,
+como en la edición local.
 """
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -19,6 +22,7 @@ class Command(BaseCommand):
         parser.add_argument('tenant', nargs='?', help='slug de la empresa')
         parser.add_argument('plan', nargs='?', help='código del plan: starter | business | pro')
         parser.add_argument('--active', action='store_true', help='marcar la suscripción como activa (no prueba)')
+        parser.add_argument('--no-end', action='store_true', help='sin fecha de fin (licencia sin vencimiento)')
         parser.add_argument('--list', action='store_true', help='listar empresas y planes')
 
     def handle(self, *args, **options):
@@ -41,5 +45,7 @@ class Command(BaseCommand):
             sub.plan = plan
             if options['active']:
                 sub.status = Subscription.Status.ACTIVE
+            if options['no_end']:
+                sub.trial_ends_at = sub.current_period_end = None
             sub.save()
         self.stdout.write(self.style.SUCCESS(f'{tenant.name}: plan {plan.name} ({sub.get_status_display()})'))
