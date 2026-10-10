@@ -157,8 +157,16 @@ def ensure_postgres(pg_bin: Path):
         if port_in_use(PG_PORT):
             fail(f'El puerto {PG_PORT} está ocupado por otro programa. Define GESTORPRO_PG_PORT con otro puerto.')
         say(f'  Arrancando PostgreSQL en el puerto {PG_PORT} ...')
-        run([pg_ctl, 'start', '-D', str(PG_DATA), '-l', str(PG_DATA / 'server.log'), '-w', '-t', '60',
-             '-o', f'-p {PG_PORT} -c listen_addresses=localhost'], capture=True)
+        # Sin capturar la salida: en Windows el servidor hereda las tuberías y
+        # el script esperaría para siempre a que se cerraran.
+        started = subprocess.run(
+            [pg_ctl, 'start', '-D', str(PG_DATA), '-l', str(PG_DATA / 'server.log'), '-w', '-t', '60',
+             '-o', f'-p {PG_PORT} -c listen_addresses=localhost'],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        if started.returncode != 0:
+            log = PG_DATA / 'server.log'
+            tail = log.read_text(encoding='utf-8', errors='replace').splitlines()[-15:] if log.exists() else []
+            fail('PostgreSQL no arrancó. Últimas líneas del registro:\n  ' + '\n  '.join(tail))
     psql = str(pg_bin / f'psql{EXE}')
     exists = run([psql, '-h', 'localhost', '-p', str(PG_PORT), '-U', 'postgres', '-tAc',
                   f"SELECT 1 FROM pg_database WHERE datname='{DB_NAME}'"], capture=True).stdout.strip()
