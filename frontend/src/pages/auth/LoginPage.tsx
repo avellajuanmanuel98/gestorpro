@@ -24,7 +24,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await startSession(await authApi.login(email, password))
-      navigate('/dashboard')
+      navigate('/')
     } catch (err) {
       if (isAxiosError(err) && !err.response) setError('No se puede conectar con el servidor. Verifica tu conexión.')
       else if (isAxiosError(err) && err.response?.status === 429) setError('Demasiados intentos. Espera un minuto e inténtalo de nuevo.')

@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeftRight, BarChart2, Boxes, Building2, FileText, History, KeyRound, LayoutDashboard,
-  LogOut, Menu, Moon, Sun, Truck, UserCheck, UserCog, Users, Wheat, X,
+  LogOut, Menu, Moon, Sun, Truck, UserCheck, UserCog, Users, Wheat, X, ShoppingCart, Wallet, ReceiptText,
 } from 'lucide-react'
 import Brand from '@/components/brand/Brand'
 import { cn } from '@/lib/cn'
@@ -28,6 +28,9 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     label: 'Operación',
     items: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Inicio' },
+      { to: '/pos', icon: ShoppingCart, label: 'Vender', permission: 'sales.sell' },
+      { to: '/cash', icon: Wallet, label: 'Caja', permission: 'cash.operate' },
+      { to: '/sales', icon: ReceiptText, label: 'Ventas', permission: 'sales.view' },
       { to: '/clients', icon: Users, label: 'Clientes', permission: 'customers.view' },
       { to: '/invoices', icon: FileText, label: 'Facturación', permission: 'billing.view' },
       { to: '/inventory', icon: Boxes, label: 'Productos', permission: 'catalog.view' },
@@ -186,15 +189,17 @@ export default function AppLayout() {
   const location = useLocation()
   const vertical = useAuthStore((s) => s.session?.tenant?.vertical)
   const currentLabel = routeLabels[location.pathname] ?? ''
+  // En el POS el menú lateral se oculta hasta pantallas anchas: el mostrador necesita todo el espacio
+  const focusMode = location.pathname === '/pos'
 
   return (
     <div className="flex h-screen bg-canvas overflow-hidden">
-      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-line bg-surface">
+      <aside className={`${focusMode ? 'hidden xl:flex' : 'hidden md:flex'} w-64 shrink-0 flex-col border-r border-line bg-surface`}>
         <Sidebar />
       </aside>
 
       {sidebarOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
+        <div className={`fixed inset-0 z-40 ${focusMode ? 'xl:hidden' : 'md:hidden'}`}>
           <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={() => setSidebarOpen(false)} />
           <aside className="absolute left-0 top-0 h-full w-72 bg-surface border-r border-line flex flex-col animate-slide-in">
             <button type="button" onClick={() => setSidebarOpen(false)} aria-label="Cerrar menú"
@@ -207,7 +212,7 @@ export default function AppLayout() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="md:hidden h-14 shrink-0 bg-surface border-b border-line flex items-center gap-3 px-4">
+        <header className={`${focusMode ? 'xl:hidden' : 'md:hidden'} h-14 shrink-0 bg-surface border-b border-line flex items-center gap-3 px-4`}>
           <button type="button" onClick={() => setSidebarOpen(true)} aria-label="Abrir menú"
                   className="p-1.5 -ml-1.5 rounded-lg text-ink-muted hover:bg-surface-muted">
             <Menu size={18} />

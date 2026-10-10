@@ -27,7 +27,7 @@ export default function RegisterPage() {
     try {
       // El backend crea la cuenta y la empresa (con la persona como propietaria) y valida la contraseña
       await startSession(await authApi.register(form))
-      navigate('/dashboard')
+      navigate('/')
     } catch (err) {
       setError(getErrorMessage(err))
     } finally {

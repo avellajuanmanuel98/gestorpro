@@ -5,6 +5,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { billingApi } from '@/api/billing'
 import { customersApi } from '@/api/customers'
 import { catalogApi } from '@/api/catalog'
+import { salesApi } from '@/api/pos'
 import { formatQty } from '@/lib/catalog'
 import { Card, CardHeader } from '@/components/ui/Card'
 import EmptyState from '@/components/ui/EmptyState'
@@ -62,6 +63,7 @@ export default function DashboardPage() {
     queryKey: ['customers', 'active-count'], queryFn: () => customersApi.list({ status: 'active', exclude_final_consumer: true, page_size: 1 }),
     enabled: canCustomers,
   })
+  const today = useQuery({ queryKey: ['sales-today'], queryFn: salesApi.today, enabled: canReports })
   const lowStock = useQuery({ queryKey: ['low-stock'], queryFn: () => catalogApi.lowStock({ page_size: 5 }), enabled: canCatalog })
 
   const chartData = (monthly.data ?? []).map((m) => ({ ...m, total: toDisplayNumber(m.total) }))
@@ -87,7 +89,13 @@ export default function DashboardPage() {
     <Page>
       <PageHeader title="Inicio" description={tenantName} />
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+        <KpiTile label="Ventas de hoy" loading={today.isLoading && canReports}
+                 unavailable={canReports ? undefined : 'No incluido en tu rol'}
+                 value={formatCOP(today.data?.total, { compact: true })}
+                 hint={today.data?.count
+                   ? `${today.data.count} ventas · ticket ${formatCOP(today.data.average_ticket)}`
+                   : 'Aún no hay ventas en el POS'} />
         <KpiTile label="Total recaudado" loading={summary.isLoading && canReports}
                  unavailable={canReports ? undefined : 'No incluido en tu rol'}
                  value={formatCOP(summary.data?.paid_total, { compact: true })}

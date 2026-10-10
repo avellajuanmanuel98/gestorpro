@@ -17,6 +17,8 @@ api = [
     path('suppliers/', include('gestorpro.core.suppliers.urls')),
     path('catalog/', include('gestorpro.core.catalog.urls')),
     path('billing/', include('gestorpro.core.billing.urls')),
+    path('sales/', include('gestorpro.core.sales.urls')),
+    path('cash/', include('gestorpro.core.cash.urls')),
     path('reports/', include('gestorpro.core.reporting.urls')),
     # Capabilities
     path('employees/', include('gestorpro.capabilities.hr.urls')),

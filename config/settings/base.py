@@ -58,6 +58,9 @@ LOCAL_APPS = [
     'gestorpro.core.suppliers',
     'gestorpro.core.catalog',
     'gestorpro.core.billing',
+    'gestorpro.core.numbering',
+    'gestorpro.core.cash',
+    'gestorpro.core.sales',
     'gestorpro.core.reporting',
     # capabilities
     'gestorpro.capabilities.hr',
@@ -126,6 +129,9 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
 
 # Plan con el que arranca (en prueba) toda empresa nueva
 DEFAULT_PLAN_CODE = config('DEFAULT_PLAN_CODE', default='starter')
+
+# Diferencia de caja (COP) por encima de la cual el cierre lo debe hacer un supervisor
+CASH_DIFFERENCE_TOLERANCE = config('CASH_DIFFERENCE_TOLERANCE', default='5000')
 
 # Proxies de confianza delante de la app (para la IP real en auditoría). 0 en local.
 AUDIT_TRUSTED_PROXY_COUNT = config('AUDIT_TRUSTED_PROXY_COUNT', default=0, cast=int)

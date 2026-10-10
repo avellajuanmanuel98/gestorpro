@@ -16,6 +16,9 @@ import SuppliersPage   from '@/pages/suppliers/SuppliersPage'
 import ReportsPage     from '@/pages/reports/ReportsPage'
 import InventoryPage   from '@/pages/inventory/InventoryPage'
 import IngredientsPage from '@/pages/inventory/IngredientsPage'
+import PosPage         from '@/pages/pos/PosPage'
+import CashPage        from '@/pages/cash/CashPage'
+import SalesPage       from '@/pages/sales/SalesPage'
 import UsersPage       from '@/pages/access/UsersPage'
 import RolesPage       from '@/pages/access/RolesPage'
 import AuditPage       from '@/pages/access/AuditPage'
@@ -23,6 +26,12 @@ import AcceptInvitationPage from '@/pages/auth/AcceptInvitationPage'
 
 // Layout principal con sidebar
 import AppLayout from '@/layouts/AppLayout'
+
+/** Quien vende y no ve métricas (cajero) entra directo al POS; el resto, al inicio. */
+function HomeRedirect() {
+  const can = useCan()
+  return <Navigate to={can('sales.sell') && !can('reports.view') ? '/pos' : '/dashboard'} replace />
+}
 
 // Componente que protege rutas — si no estás logueado, te manda al login
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -60,12 +69,15 @@ function App() {
             </PrivateRoute>
           }
         >
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route index element={<HomeRedirect />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="clients"   element={<ClientsPage />} />
           <Route path="invoices"  element={<InvoicesPage />} />
           <Route path="inventory" element={<InventoryPage />} />
           <Route path="ingredients" element={<IngredientsPage />} />
+          <Route path="pos"       element={<PosPage />} />
+          <Route path="cash"      element={<CashPage />} />
+          <Route path="sales"     element={<SalesPage />} />
           <Route path="employees" element={<EmployeesPage />} />
           <Route path="suppliers" element={<SuppliersPage />} />
           <Route path="reports"   element={<ReportsPage />} />
@@ -76,7 +88,7 @@ function App() {
         </Route>
 
         {/* Cualquier ruta desconocida → dashboard */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
       {/* Asistente IA — solo si el rol lo incluye (el backend también lo exige) */}

@@ -188,3 +188,13 @@
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 99px; border: 2px solid var(--canvas); }
+
+/* Impresión del ticket del POS: solo se imprime .print-ticket (80 mm) */
+.print-only { display: none; }
+@media print {
+  .print-only { display: block; }
+  @page { size: 80mm auto; margin: 0; }
+  body * { visibility: hidden !important; }
+  .print-ticket, .print-ticket * { visibility: visible !important; }
+  .print-ticket { position: absolute; left: 0; top: 0; width: 76mm !important; padding: 2mm !important; }
+}

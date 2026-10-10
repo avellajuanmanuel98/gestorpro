@@ -20,7 +20,7 @@ export default function AcceptInvitationPage() {
   const preview = useQuery({ queryKey: ['invitation', token], queryFn: () => invitationApi.preview(token), retry: false })
   const accept = useMutation({
     mutationFn: () => invitationApi.accept({ token, password: form.password, first_name: form.first_name, last_name: form.last_name }),
-    onSuccess: async (tokens) => { await startSession(tokens); navigate('/dashboard') },
+    onSuccess: async (tokens) => { await startSession(tokens); navigate('/') },
   })
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((p) => ({ ...p, [key]: e.target.value }))
 

@@ -12,7 +12,7 @@ SYSTEM_ROLES = {
         'name': 'Administrador',
         'permissions': [
             'tenant.*', 'access.*', 'audit.*', 'customers.*', 'suppliers.*', 'catalog.*',
-            'billing.*', 'reports.*', 'hr.*', 'assistant.*',
+            'billing.*', 'reports.*', 'hr.*', 'assistant.*', 'sales.*', 'cash.*',
         ],
     },
     'SUPERVISOR': {
@@ -20,14 +20,14 @@ SYSTEM_ROLES = {
         'permissions': [
             'tenant.view', 'customers.*', 'suppliers.view', 'catalog.view', 'catalog.view_costs',
             'billing.view', 'billing.create', 'billing.update', 'billing.apply_discount',
-            'reports.view', 'hr.view', 'assistant.use',
+            'reports.view', 'hr.view', 'assistant.use', 'sales.*', 'cash.*',
         ],
     },
     'CASHIER': {
         'name': 'Cajero',
         'permissions': [
             'tenant.view', 'customers.view', 'customers.create', 'catalog.view',
-            'billing.view', 'billing.create',
+            'billing.view', 'billing.create', 'sales.sell', 'sales.view', 'cash.operate',
         ],
     },
     'INVENTORY': {

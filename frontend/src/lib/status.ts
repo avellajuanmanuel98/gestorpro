@@ -20,3 +20,13 @@ export const MEMBER_STATUS: Record<Member['status'], StatusSpec> = {
   invited: { label: 'Invitado', tone: 'info', glyph: 'half' },
   suspended: { label: 'Suspendido', tone: 'warning', glyph: 'paused' },
 }
+
+export const SALE_STATUS: Record<'completed' | 'voided', StatusSpec> = {
+  completed: { label: 'Completada', tone: 'success', glyph: 'solid' },
+  voided: { label: 'Anulada', tone: 'danger', glyph: 'hollow' },
+}
+
+export const SESSION_STATUS: Record<'open' | 'closed', StatusSpec> = {
+  open: { label: 'Abierta', tone: 'accent', glyph: 'half' },
+  closed: { label: 'Cerrada', tone: 'neutral', glyph: 'solid' },
+}
