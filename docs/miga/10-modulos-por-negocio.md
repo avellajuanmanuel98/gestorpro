@@ -24,6 +24,16 @@
 - El menú, las rutas (`RequireModule`), las pestañas de Reportes y el indicador de mermas en Inicio respetan los módulos.
 - Los textos se adaptan al tipo de negocio con `lib/vocabulary.ts`. Una panadería habla de "ingredientes" y del "horno"; el resto, de "insumos" y "lo que produces".
 
+## Ejemplos según el negocio
+
+Todos los textos de ejemplo que dependen del tipo de negocio viven en `frontend/src/lib/vocabulary.ts`. Las pantallas no los escriben directamente. Una panadería ve, por ejemplo:
+- en los campos: "Pan de bono", "Harina de trigo", "Panadero, cajera…", "tanda de las 6 a. m.";
+- en el tipo de producto: "panes, tortas, bebidas preparadas".
+
+El resto de negocios ve ejemplos generales ("Nombre del producto", "Lo compras listo y lo vendes tal cual", "Ej.: Vendedor, cajera…").
+
+Los motivos de merma también dependen del negocio: "Quemado o mal horneado" solo existe en panaderías (`VerticalDefinition.waste_reasons`). En las demás empresas se desactivó si nunca se usó.
+
 ## Tests
 
 **`tests/core/test_tenant_modules.py`** (5 tests):

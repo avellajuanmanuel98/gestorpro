@@ -18,8 +18,10 @@ import { useDeleteDialog } from '@/lib/useDeleteDialog'
 import { useCan } from '@/store/authStore'
 import type { Supplier } from '@/types'
 import StatusMark from '@/components/ui/StatusMark'
+import { useVocabulary } from '@/lib/vocabulary'
 
 export default function SuppliersPage() {
+  const v = useVocabulary()
   const can = useCan()
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
@@ -79,7 +81,7 @@ export default function SuppliersPage() {
         empty={search || category
           ? <EmptyState icon={<Truck size={20} />} title="Sin resultados" description="Ningún proveedor coincide con los filtros." />
           : <EmptyState icon={<Truck size={20} />} title="Aún no hay proveedores"
-                        description="Registra a quienes te venden harina, lácteos, empaques y demás insumos."
+                        description={v.examples.suppliers}
                         action={can('suppliers.create') ? { label: 'Agregar proveedor', onClick: () => setEditing('new'), icon: <Plus size={14} /> } : undefined} />}
       />
 

@@ -502,6 +502,47 @@ def try_firewall(port: str):
         say('  Marca "Redes privadas" y acepta, para poder entrar desde la tablet o el celular.')
 
 
+def keep_awake() -> bool:
+    """Windows: que el equipo no se suspenda mientras GestorPro está abierto (la pantalla sí puede apagarse)."""
+    if not IS_WINDOWS:
+        return False
+    import ctypes
+    es_continuous, es_system_required = 0x80000000, 0x00000001
+    return bool(ctypes.windll.kernel32.SetThreadExecutionState(es_continuous | es_system_required))
+
+
+def public_networks() -> list[str]:
+    """Redes que Windows marcó como "Pública": ahí el firewall bloquea a la tablet y al celular."""
+    if not IS_WINDOWS:
+        return []
+    result = subprocess.run(['powershell', '-NoProfile', '-Command',
+                             'Get-NetConnectionProfile | Where-Object NetworkCategory -eq Public | '
+                             'Select-Object -ExpandProperty Name'], capture_output=True, text=True, check=False)
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()] if result.returncode == 0 else []
+
+
+def warn_public_networks():
+    for name in public_networks():
+        say(f'  [AVISO] Windows marcó la red "{name}" como PÚBLICA: la tablet y los celulares no podrán entrar.')
+        say('          Cámbiala a "Privada": Configuración → Red e Internet → Wi-Fi (o Ethernet) → la red → Privada.')
+
+
+def network_watch(port: int, stop: threading.Event):
+    """Si el router le cambia la IP al equipo, GestorPro la acepta sin reiniciar y muestra la nueva dirección."""
+    from django.conf import settings
+    known = set(lan_ips())
+    while not stop.wait(60):
+        current = set(lan_ips())
+        for ip in sorted(current - known):
+            if ip not in settings.ALLOWED_HOSTS:
+                settings.ALLOWED_HOSTS.append(ip)
+                settings.CSRF_TRUSTED_ORIGINS.append(f'http://{ip}:{port}')
+            say(f'  [AVISO] La dirección de este equipo en la red cambió. Desde la tablet o el celular usa ahora: '
+                f'http://{ip}:{port}')
+            log_line(f'Nueva IP en la red local: {ip}')
+        known |= current
+
+
 def serve():
     cfg = require_installed()
     port = int(cfg['GESTORPRO_HTTP_PORT'])
@@ -519,6 +560,8 @@ def serve():
 
     stop = threading.Event()
     threading.Thread(target=backup_loop, args=(cfg, stop), daemon=True).start()
+    threading.Thread(target=network_watch, args=(port, stop), daemon=True).start()
+    awake = keep_awake()
 
     from waitress import serve as waitress_serve
 
@@ -532,7 +575,10 @@ def serve():
     for ip in ips:
         say(f'  Desde tablet o celular: http://{ip}:{port}   (misma red wifi)')
     say(f'  Copias de seguridad:    {paths()["backups"]}  (cada día a las {cfg.get("GESTORPRO_HORA_COPIA", "21")}:00)')
+    if awake:
+        say('  El computador no se suspenderá mientras esta ventana esté abierta.')
     say('=' * 64 + '\n')
+    warn_public_networks()
     if IS_WINDOWS:
         import webbrowser
         threading.Timer(2.0, lambda: webbrowser.open(f'http://localhost:{port}')).start()
@@ -685,6 +731,7 @@ def status():
     say(f'  En este computador: http://localhost:{port}')
     for ip in lan_ips():
         say(f'  Desde la red local: http://{ip}:{port}')
+    warn_public_networks()
     step('Copias de seguridad')
     backups = list_backups(paths()['backups'])
     if not backups:

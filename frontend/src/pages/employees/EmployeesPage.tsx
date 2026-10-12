@@ -19,8 +19,10 @@ import { useDeleteDialog } from '@/lib/useDeleteDialog'
 import { useCan } from '@/store/authStore'
 import type { Employee } from '@/types'
 import StatusMark from '@/components/ui/StatusMark'
+import { useVocabulary } from '@/lib/vocabulary'
 
 export default function EmployeesPage() {
+  const v = useVocabulary()
   const can = useCan()
   const [search, setSearch] = useState('')
   const [department, setDepartment] = useState('')
@@ -76,7 +78,7 @@ export default function EmployeesPage() {
         empty={search || department
           ? <EmptyState icon={<UserCheck size={20} />} title="Sin resultados" description="Nadie coincide con los filtros." />
           : <EmptyState icon={<UserCheck size={20} />} title="Aún no hay fichas de personal"
-                        description="Registra a tu equipo: panaderos, cajeros, domiciliarios…"
+                        description={`Registra a tu equipo: ${v.examples.team}`}
                         action={can('hr.manage') ? { label: 'Registrar empleado', onClick: () => setEditing('new'), icon: <Plus size={14} /> } : undefined} />}
       />
 

@@ -17,6 +17,7 @@ class VerticalDefinition:
     default_ingredient_categories: list[str] = field(default_factory=list)
     recommended_plan: str = 'business'
     modules: tuple[str, ...] = ()  # módulos opcionales encendidos al dar de alta (core/tenancy/modules.py)
+    waste_reasons: tuple[tuple[str, str], ...] = ()  # motivos de merma propios del tipo de negocio
 
 
 MIGA = VerticalDefinition(
@@ -28,6 +29,7 @@ MIGA = VerticalDefinition(
                                    'Levaduras y aditivos', 'Rellenos y frutas', 'Bebidas e insumos de cafetería',
                                    'Empaques'],
     modules=('production', 'waste'),
+    waste_reasons=(('burnt', 'Quemado o mal horneado'),),
 )
 
 # Catálogo base de ingredientes de una panadería colombiana: nombre, categoría,

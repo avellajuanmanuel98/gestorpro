@@ -12,6 +12,7 @@ import { DEPARTMENTS } from '@/lib/options'
 import { useCan } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
 import type { Employee } from '@/types'
+import { useVocabulary } from '@/lib/vocabulary'
 
 const schema = z.object({
   first_name: z.string().trim().min(2, 'Mínimo 2 caracteres'),
@@ -33,6 +34,7 @@ type FormData = z.infer<typeof schema>
 export default function EmployeeForm({ employee, onSuccess, onCancel }: {
   employee?: Employee; onSuccess: () => void; onCancel?: () => void
 }) {
+  const v = useVocabulary()
   const queryClient = useQueryClient()
   const canSeeSalary = useCan()('hr.view_salary')
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
@@ -75,7 +77,7 @@ export default function EmployeeForm({ employee, onSuccess, onCancel }: {
         <Input label="Número de documento" required {...register('document_number')} error={errors.document_number?.message} />
       </div>
       <div className="grid sm:grid-cols-2 gap-4">
-        <Input label="Cargo" required placeholder="Panadero, cajera…" {...register('position')} error={errors.position?.message} />
+        <Input label="Cargo" required placeholder={v.examples.jobTitle} {...register('position')} error={errors.position?.message} />
         <Select label="Área" {...register('department')}>
           {DEPARTMENTS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
         </Select>

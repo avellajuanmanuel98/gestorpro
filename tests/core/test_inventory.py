@@ -256,11 +256,11 @@ def test_waste_leaves_inventory_at_current_cost(pos):
     recipe = pan_de_bono_recipe(pos).data
     pos['admin'].post(BATCHES, {'recipe': recipe['id'], 'quantity': '40'}, format='json')
     reasons = {r['code']: r['id'] for r in pos['cashier'].get('/api/waste/reasons/').data}
-    assert {'unsold', 'burnt', 'expired'} <= reasons.keys()
-    half = pos['cashier'].post('/api/waste/', {'item': pos['pan'], 'quantity': '1.5', 'reason': reasons['burnt']},
+    assert {'unsold', 'damaged', 'expired'} <= reasons.keys()
+    half = pos['cashier'].post('/api/waste/', {'item': pos['pan'], 'quantity': '1.5', 'reason': reasons['damaged']},
                                format='json')
     assert half.status_code == 400  # unidades enteras
-    ok = pos['cashier'].post('/api/waste/', {'item': pos['pan'], 'quantity': '3', 'reason': reasons['burnt']},
+    ok = pos['cashier'].post('/api/waste/', {'item': pos['pan'], 'quantity': '3', 'reason': reasons['damaged']},
                              format='json')
     assert ok.status_code == 201 and 'total_cost' not in ok.data  # el cajero no ve costos
     assert pos['cashier'].get('/api/waste/').status_code == 403  # registra, pero no consulta

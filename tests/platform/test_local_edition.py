@@ -109,3 +109,23 @@ def test_set_plan_no_end_makes_a_license_that_never_expires():
     sub.refresh_from_db()
     assert (sub.plan.code, sub.status, sub.trial_ends_at, sub.current_period_end) == (
         'business', Subscription.Status.ACTIVE, None, None)
+
+
+def test_a_new_lan_ip_is_accepted_without_restarting(monkeypatch, settings):
+    """Si el router le cambia la IP al computador, la tablet sigue entrando (sin 400 por host no permitido)."""
+    settings.ALLOWED_HOSTS = ['localhost', '192.168.1.40']
+    settings.CSRF_TRUSTED_ORIGINS = ['http://192.168.1.40:8000']
+    ips = iter([['192.168.1.40'], ['192.168.1.57']])
+    monkeypatch.setattr(le, 'lan_ips', lambda: next(ips))
+    monkeypatch.setattr(le, 'log_line', lambda text: None)
+
+    class OneTick:
+        calls = 0
+
+        def wait(self, seconds):
+            self.calls += 1
+            return self.calls > 1
+
+    le.network_watch(8000, OneTick())
+    assert '192.168.1.57' in settings.ALLOWED_HOSTS
+    assert 'http://192.168.1.57:8000' in settings.CSRF_TRUSTED_ORIGINS

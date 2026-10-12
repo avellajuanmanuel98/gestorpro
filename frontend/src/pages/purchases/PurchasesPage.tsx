@@ -21,6 +21,7 @@ import { getErrorMessage } from '@/lib/errors'
 import { formatCOP } from '@/lib/money'
 import { useCan } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
+import { useVocabulary } from '@/lib/vocabulary'
 
 interface Line { key: number; item: ItemOption | null; quantity: string; unit: string; unitCost: string }
 let nextKey = 1
@@ -33,6 +34,7 @@ async function searchSuppliers(term: string): Promise<ComboOption[]> {
 }
 
 function PurchaseForm({ onDone }: { onDone: () => void }) {
+  const v = useVocabulary()
   const queryClient = useQueryClient()
   const units = useQuery({ queryKey: ['units'], queryFn: catalogApi.units, staleTime: Infinity })
   const [supplier, setSupplier] = useState<ComboOption | null>(null)
@@ -72,7 +74,7 @@ function PurchaseForm({ onDone }: { onDone: () => void }) {
           const options = l.item && units.data ? compatibleUnits(units.data, l.item.item.unit) : []
           return (
             <div key={l.key} className="grid gap-2 sm:grid-cols-[1fr_110px_120px_140px_110px_40px] items-end rounded-xl border border-line p-3">
-              <ItemPicker label="Ítem" value={l.item} queryKey="purchase-items" params={{}} placeholder="Harina, huevos, gaseosa…"
+              <ItemPicker label="Ítem" value={l.item} queryKey="purchase-items" params={{}} placeholder={v.examples.purchaseItem}
                           onChange={(item) => set(l.key, { item, unit: item?.item.unit ?? '' })} />
               <Input label="Cantidad" inputMode="decimal" value={l.quantity} onChange={(e) => set(l.key, { quantity: e.target.value })} />
               <label className="space-y-1.5 text-sm">

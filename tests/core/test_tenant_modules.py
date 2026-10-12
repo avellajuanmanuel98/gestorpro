@@ -56,3 +56,15 @@ def test_production_suggestion_also_respects_the_module():
     assert api.get('/api/bakery/production-suggestion/').status_code == 200
     api.patch('/api/tenant/', {'modules': ['waste']}, format='json')
     assert api.get('/api/bakery/production-suggestion/').status_code == 403
+
+
+def test_waste_reasons_follow_the_type_of_business():
+    from gestorpro.capabilities.waste.models import WasteReason
+    from gestorpro.core.tenancy.context import tenant_context
+    shop = provision_tenant(name='Carnes Versalles', owner=s._user('ver@carnes.co'), plan_code='business')
+    bakery = provision_tenant(name='Panadería Río', owner=s._user('rio@pan.co'), vertical='bakery',
+                              plan_code='business')
+    with tenant_context(shop):
+        assert 'burnt' not in set(WasteReason.objects.values_list('code', flat=True))
+    with tenant_context(bakery):
+        assert WasteReason.objects.get(code='burnt').name == 'Quemado o mal horneado'

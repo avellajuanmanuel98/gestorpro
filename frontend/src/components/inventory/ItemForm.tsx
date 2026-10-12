@@ -125,7 +125,7 @@ function ItemFormFields({ group, item, onSuccess, onCancel, units, categories }:
     <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-5" noValidate>
       <div className="grid sm:grid-cols-[1fr_170px] gap-4">
         <Input label="Nombre" required autoFocus {...register('name')} error={errors.name?.message}
-               placeholder={isIngredientScreen ? 'Harina de trigo' : 'Pan de bono'} />
+               placeholder={isIngredientScreen ? v.examples.ingredientName : v.examples.productName} />
         <Input label="Código" placeholder="Automático" {...register('code')} error={errors.code?.message}
                hint={item ? undefined : 'Déjalo vacío y se asigna solo.'} />
       </div>
@@ -139,7 +139,7 @@ function ItemFormFields({ group, item, onSuccess, onCancel, units, categories }:
                                                has-[:checked]:border-primary has-[:checked]:bg-primary-soft/60">
                 <input type="radio" value={o.value} {...register('kind')} className="mt-0.5 accent-[var(--primary)]" />
                 <span><span className="block text-sm font-medium text-ink">{o.label}</span>
-                  <span className="block text-xs text-ink-muted leading-snug">{o.hint}</span></span>
+                  <span className="block text-xs text-ink-muted leading-snug">{v.kindHints[o.value] ?? o.hint}</span></span>
               </label>
             ))}
           </div>

@@ -7,10 +7,12 @@ import Textarea from '@/components/ui/Textarea'
 import { getErrorMessage } from '@/lib/errors'
 import { toast } from '@/store/toastStore'
 import type { Category, CategoryKind } from '@/types'
+import { useVocabulary } from '@/lib/vocabulary'
 
 export default function CategoryForm({ kind, category, onSuccess, onCancel }: {
   kind: CategoryKind; category?: Category; onSuccess: () => void; onCancel?: () => void
 }) {
+  const v = useVocabulary()
   const queryClient = useQueryClient()
   const [name, setName] = useState(category?.name ?? '')
   const [description, setDescription] = useState(category?.description ?? '')
@@ -26,7 +28,7 @@ export default function CategoryForm({ kind, category, onSuccess, onCancel }: {
   })
   return (
     <form onSubmit={(e) => { e.preventDefault(); mutation.mutate() }} className="space-y-4">
-      <Input label="Nombre" required autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={kind === 'ingredient' ? 'Harinas' : 'Panes rellenos'} />
+      <Input label="Nombre" required autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={kind === 'ingredient' ? v.examples.ingredientCategory : v.examples.productCategory} />
       <Textarea label="Descripción" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
       <FormActions error={mutation.isError ? getErrorMessage(mutation.error) : null} submitting={mutation.isPending}
                    submitLabel={category ? 'Guardar' : 'Crear categoría'} onCancel={onCancel} />

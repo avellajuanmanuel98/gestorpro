@@ -82,6 +82,18 @@ Los archivos están en la carpeta `local\` del programa.
 
 ---
 
+### Si la tablet o el celular no se conectan, o se desconectan
+
+| Causa | Qué hace GestorPro | Qué hacer |
+|---|---|---|
+| El computador se suspendió | Mientras la ventana de GestorPro está abierta, **Windows no suspende el equipo** (la pantalla sí puede apagarse) | Dejar la ventana abierta (minimizada) |
+| El router le cambió la IP al computador | La nueva dirección **se acepta sola**, sin reiniciar, y la ventana muestra la nueva dirección | Reservar una IP fija en el router |
+| Windows marcó la red como **Pública** | Al abrir y en `estado.bat` aparece un aviso: el firewall bloquea a otros equipos en redes públicas | Configuración → Red e Internet → la red → **Privada** |
+| El celular pasó a datos móviles o a otra red | — | Conectarlo al **mismo wifi** que el computador |
+| La ventana de GestorPro se cerró | — | Abrir `GestorPro.bat` (o reiniciar el equipo si está el arranque automático) |
+
+> `iniciar.bat` (modo desarrollo) **no** acepta conexiones de otros equipos: solo funciona en ese computador. Para la tablet, usar la edición local (`local\GestorPro.bat`).
+
 ## 4. Copias de seguridad
 
 - **Cuándo:**

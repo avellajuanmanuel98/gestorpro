@@ -10,8 +10,8 @@ export const ITEM_KIND_LABEL: Record<ItemKind, string> = {
 
 /** Tipos que se crean desde la pantalla de Productos. */
 export const PRODUCT_KIND_OPTIONS: { value: ItemKind; label: string; hint: string }[] = [
-  { value: 'finished_good', label: 'Elaborado', hint: 'Lo produces tú: panes, tortas, bebidas preparadas' },
-  { value: 'resale', label: 'Reventa', hint: 'Lo compras listo y lo revendes: gaseosas, agua, leche' },
+  { value: 'finished_good', label: 'Elaborado', hint: 'Lo produces o transformas tú a partir de insumos' },
+  { value: 'resale', label: 'Reventa', hint: 'Lo compras listo y lo vendes tal cual' },
   { value: 'service', label: 'Servicio', hint: 'No tiene existencias: domicilio, decoración' },
 ]
 

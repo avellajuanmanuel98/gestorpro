@@ -81,7 +81,7 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: () => void })
       <div className="grid sm:grid-cols-[1fr_200px] gap-4">
         {recipe ? <Input label="Producto" value={recipe.product_name} readOnly /> : (
           <ItemPicker label="Producto" required value={product} onChange={setProduct} queryKey="recipe-products"
-                      params={{ kind: 'finished_good' }} placeholder="Pan de bono, almojábana…" />
+                      params={{ kind: 'finished_good' }} placeholder={v.examples.recipeProduct} />
         )}
         <Input label={`Rinde (${product?.item.unit_symbol ?? 'und'})`} required inputMode="decimal" value={yieldQty}
                onChange={(e) => setYieldQty(e.target.value)} hint="Cuánto sale de esta preparación." />

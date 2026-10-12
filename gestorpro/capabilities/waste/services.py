@@ -13,9 +13,9 @@ from gestorpro.kernel.units import quantity as to_quantity
 
 from .models import WasteReason, WasteRecord
 
+# Motivos generales. Cada vertical agrega los suyos (Miga: "Quemado o mal horneado").
 DEFAULT_REASONS = [
     ('unsold', 'Sobrante del día'),
-    ('burnt', 'Quemado o mal horneado'),
     ('expired', 'Vencido'),
     ('damaged', 'Dañado o caído'),
     ('tasting', 'Degustación'),
@@ -23,8 +23,8 @@ DEFAULT_REASONS = [
 ]
 
 
-def ensure_default_reasons() -> None:
-    for sort, (code, name) in enumerate(DEFAULT_REASONS):
+def ensure_default_reasons(extra: list[tuple[str, str]] = ()) -> None:
+    for sort, (code, name) in enumerate([*DEFAULT_REASONS, *extra]):
         WasteReason.objects.get_or_create(code=code, defaults={'name': name, 'sort': sort})
 
 

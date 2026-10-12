@@ -24,12 +24,13 @@ import { DENOMINATIONS, fromCents, toCents } from '@/lib/pos'
 import { SESSION_STATUS } from '@/lib/status'
 import { useCan } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
+import { useVocabulary } from '@/lib/vocabulary'
 
 const parseAmount = (v: string) => v.replace(/\./g, '').replace(',', '.')
 type MovementType = 'income' | 'expense' | 'withdrawal'
 const MOVEMENT_COPY: Record<MovementType, { title: string; hint: string; placeholder: string }> = {
   income: { title: 'Registrar ingreso', hint: 'Dinero que entra al cajón sin ser una venta.', placeholder: 'Ej.: base adicional' },
-  expense: { title: 'Registrar gasto', hint: 'Pagos hechos con el efectivo de la caja.', placeholder: 'Ej.: compra de huevos' },
+  expense: { title: 'Registrar gasto', hint: 'Pagos hechos con el efectivo de la caja.', placeholder: '' },
   withdrawal: { title: 'Registrar retiro', hint: 'Efectivo que se saca del cajón (consignación, caja fuerte).', placeholder: 'Ej.: consignación al banco' },
 }
 
@@ -44,6 +45,7 @@ function Difference({ value }: { value: string | null }) {
 }
 
 function MovementForm({ session, type, onDone }: { session: CashSessionDetail; type: MovementType; onDone: () => void }) {
+  const v = useVocabulary()
   const queryClient = useQueryClient()
   const [amount, setAmount] = useState('')
   const [reason, setReason] = useState('')
@@ -59,7 +61,7 @@ function MovementForm({ session, type, onDone }: { session: CashSessionDetail; t
     <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); save.mutate() }}>
       <p className="text-sm text-ink-muted">{MOVEMENT_COPY[type].hint}</p>
       <Input label="Valor" required autoFocus inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} />
-      <Input label="Motivo" required placeholder={MOVEMENT_COPY[type].placeholder} value={reason} onChange={(e) => setReason(e.target.value)} />
+      <Input label="Motivo" required placeholder={type === 'expense' ? v.examples.expense : MOVEMENT_COPY[type].placeholder} value={reason} onChange={(e) => setReason(e.target.value)} />
       {save.isError && <Alert tone="danger">{getErrorMessage(save.error)}</Alert>}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onDone}>Cancelar</Button>

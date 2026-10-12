@@ -17,9 +17,11 @@ import { getErrorMessage } from '@/lib/errors'
 import { formatCOP } from '@/lib/money'
 import { useCan } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
+import { useVocabulary } from '@/lib/vocabulary'
 
 /** Registro en pocos toques: qué, cuánto y por qué. */
 function WasteForm() {
+  const v = useVocabulary()
   const queryClient = useQueryClient()
   const reasons = useQuery({ queryKey: ['waste-reasons'], queryFn: wasteApi.reasons, staleTime: 300_000 })
   const [item, setItem] = useState<ItemOption | null>(null)
@@ -39,7 +41,7 @@ function WasteForm() {
     <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); save.mutate() }}>
       <div className="grid sm:grid-cols-[1fr_160px] gap-4">
         <ItemPicker label="¿Qué se perdió?" value={item} onChange={setItem} queryKey="waste-items" params={{}}
-                    placeholder="Pan de bono, harina…" />
+                    placeholder={v.examples.wasteItem} />
         <Input label={`Cantidad${item ? ` (${item.item.unit_symbol})` : ''}`} inputMode="decimal" value={quantity}
                onChange={(e) => setQuantity(e.target.value)} />
       </div>
@@ -55,7 +57,7 @@ function WasteForm() {
           ))}
         </div>
       </fieldset>
-      <Input label="Nota (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ej.: tanda de las 6 a. m." />
+      <Input label="Nota (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={v.examples.wasteNote} />
       {save.isError && <Alert tone="danger">{getErrorMessage(save.error)}</Alert>}
       <div className="flex justify-end">
         <Button type="submit" size="lg" loading={save.isPending} disabled={!item || !(Number(quantity.replace(',', '.')) > 0) || !reason}>

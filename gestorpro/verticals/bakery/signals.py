@@ -1,3 +1,5 @@
+from gestorpro.capabilities.waste.services import ensure_default_reasons
+
 from .catalog import ensure_default_categories
 from .definition import MIGA
 
@@ -9,3 +11,4 @@ def on_tenant_provisioned(sender, tenant, **kwargs):
     tenant.modules = sorted(set(tenant.modules or []) | set(MIGA.modules))
     tenant.save(update_fields=['modules'])
     ensure_default_categories()
+    ensure_default_reasons(list(MIGA.waste_reasons))
