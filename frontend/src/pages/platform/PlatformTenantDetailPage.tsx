@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Eye, MailPlus, PauseCircle, PlayCircle } from 'lucide-react'
+import { ArrowLeft, Eye, KeyRound, MailPlus, PauseCircle, PlayCircle } from 'lucide-react'
 import { platformApi, VERTICAL_LABEL, type PlatformTenantFull } from '@/api/platform'
 import InvitationLink from '@/components/platform/InvitationLink'
 import Alert from '@/components/ui/Alert'
@@ -145,11 +145,27 @@ function SupportForm({ tenant, onDone }: { tenant: PlatformTenantFull; onDone: (
   )
 }
 
+function ResetLink({ tenant, email }: { tenant: PlatformTenantFull; email: string }) {
+  const make = useMutation({ mutationFn: () => platformApi.resetLink(tenant.id, email) })
+  if (make.data) {
+    return <InvitationLink url={make.data.invitation_url}
+                           hint={`Entrégaselo solo a ${email}: con él escribe su contraseña nueva (nadie más la conoce). Sirve una vez y vence en 24 horas. La empresa lo verá en su auditoría.`} />
+  }
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-ink-muted">Genera un enlace de un solo uso para que <strong className="text-ink">{email}</strong> cree una contraseña nueva. Úsalo cuando la persona perdió el acceso y la empresa no puede ayudarla (por ejemplo, el dueño).</p>
+      {make.isError && <Alert tone="danger">{getErrorMessage(make.error)}</Alert>}
+      <div className="flex justify-end"><Button loading={make.isPending} onClick={() => make.mutate()}>Generar enlace</Button></div>
+    </div>
+  )
+}
+
 type Dialog = 'subscription' | 'status' | 'reinvite' | 'support' | null
 
 export default function PlatformTenantDetailPage() {
   const id = Number(useParams().id)
   const [dialog, setDialog] = useState<Dialog>(null)
+  const [resetEmail, setResetEmail] = useState<string | null>(null)
   const { data: t, isLoading, isError, error } = useQuery({ queryKey: ['platform', 'tenant', id], queryFn: () => platformApi.tenant(id) })
   const close = () => setDialog(null)
   if (isError) return <Page><Alert tone="danger">{getErrorMessage(error)}</Alert></Page>
@@ -210,13 +226,15 @@ export default function PlatformTenantDetailPage() {
           <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead className="text-xs text-ink-muted bg-surface-muted/60"><tr>
               <th className="text-left font-medium py-2 px-5">Persona</th><th className="text-left font-medium py-2 px-3">Rol</th>
-              <th className="text-left font-medium py-2 px-3">Estado</th><th className="text-left font-medium py-2 px-5">Último ingreso</th></tr></thead>
+              <th className="text-left font-medium py-2 px-3">Estado</th><th className="text-left font-medium py-2 px-5">Último ingreso</th>
+              <th className="py-2 px-5"><span className="sr-only">Acciones</span></th></tr></thead>
             <tbody className="divide-y divide-line">
               {t.members.map((m) => (
                 <tr key={m.email}><td className="py-2 px-5"><span className="block text-ink">{m.name || m.email}</span>
                   {m.name && <span className="text-xs text-ink-muted">{m.email}</span>}</td>
                   <td className="py-2 px-3">{m.role}</td><td className="py-2 px-3 text-ink-muted">{m.status === 'active' ? 'Activo' : m.status}</td>
-                  <td className="py-2 px-5 text-ink-muted">{m.last_login ? formatDateTime(m.last_login) : 'Nunca'}</td></tr>
+                  <td className="py-2 px-5 text-ink-muted">{m.last_login ? formatDateTime(m.last_login) : 'Nunca'}</td>
+                  <td className="py-2 px-5 text-right"><Button size="xs" variant="ghost" icon={<KeyRound size={13} />} onClick={() => setResetEmail(m.email)}>Contraseña</Button></td></tr>
               ))}
             </tbody>
           </table></div>
@@ -250,6 +268,9 @@ export default function PlatformTenantDetailPage() {
         </Card>
       </div>
 
+      <Modal title="Contraseña nueva" isOpen={resetEmail !== null} onClose={() => setResetEmail(null)} size="md">
+        {resetEmail && <ResetLink tenant={t} email={resetEmail} />}
+      </Modal>
       <Modal title={dialog ? titles[dialog] : ''} isOpen={dialog !== null} onClose={close} size="md">
         {dialog === 'subscription' && <SubscriptionForm tenant={t} onDone={close} />}
         {dialog === 'status' && <StatusForm tenant={t} onDone={close} />}

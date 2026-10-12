@@ -61,3 +61,35 @@ export const catalogApi = {
     await apiClient.delete(`/catalog/categories/${id}/`)
   },
 }
+
+// ── Importación desde Excel o CSV ─────────────────────────────────────────────
+export interface ImportRow {
+  line: number
+  name: string
+  code: string
+  kind: string | null
+  unit: string
+  price: string | null
+  stock: string | null
+  new_category: string | null
+  status: 'new' | 'exists' | 'error'
+  errors: string[]
+}
+export interface ImportSummary { new: number; exists: number; error: number }
+export interface ImportPreview { rows: ImportRow[]; summary: ImportSummary; new_categories: string[]; costs_ignored: boolean }
+export interface ImportResult extends ImportSummary { created: number; new_categories: string[] }
+
+export const importApi = {
+  preview: async (group: ItemGroup, file: File) => {
+    const body = new FormData()
+    body.append('file', file)
+    return (await apiClient.post<ImportPreview>(`/catalog/import/?group=${group}`, body,
+      { headers: { 'Content-Type': 'multipart/form-data' } })).data
+  },
+  confirm: async (group: ItemGroup, file: File) => {
+    const body = new FormData()
+    body.append('file', file)
+    return (await apiClient.post<ImportResult>(`/catalog/import/?group=${group}&confirm=1`, body,
+      { headers: { 'Content-Type': 'multipart/form-data' } })).data
+  },
+}

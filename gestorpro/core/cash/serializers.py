@@ -104,3 +104,20 @@ class CloseSessionSerializer(serializers.Serializer):
     counted_amount = serializers.DecimalField(max_digits=14, decimal_places=2)
     denominations = serializers.DictField(child=serializers.IntegerField(min_value=0), required=False)
     note = serializers.CharField(max_length=500, required=False, allow_blank=True)
+
+
+class RegisterConfigSerializer(serializers.ModelSerializer):
+    """Configuración de cajas (Configuración → Caja y pagos). Lo valida services.save_register."""
+    location_name = serializers.CharField(source='location.name', read_only=True)
+    open_session_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CashRegister
+        fields = ['id', 'name', 'location', 'location_name', 'is_active', 'open_session_by']
+        read_only_fields = ['id', 'location_name', 'open_session_by']
+        extra_kwargs = {'location': {'required': False}}  # por defecto, la sucursal principal
+        validators = []  # la unicidad del nombre la valida el servicio, con un mensaje claro
+
+    def get_open_session_by(self, obj):
+        session = obj.sessions.filter(status=CashSession.Status.OPEN).select_related('opened_by').first()
+        return _user_name(session.opened_by) if session else None

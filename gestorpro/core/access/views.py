@@ -172,3 +172,18 @@ class AcceptInvitationView(APIView):
         user, tenant_id = services.accept_invitation(**serializer.validated_data)
         audit.security_event(SecurityEvent.Kind.INVITATION_ACCEPTED, user=user, tenant_id=tenant_id)
         return Response(issue_tokens(user, tenant_id), status=status.HTTP_201_CREATED)
+
+
+class MemberResetLinkView(APIView):
+    """POST /api/access/members/<id>/reset-link/ → enlace de un solo uso para que esa persona cree su contraseña."""
+    permission_classes = [HasTenantPermission]
+    required_permissions = {'POST': 'access.manage_users'}
+
+    def post(self, request, pk):
+        from django.db import transaction
+
+        from gestorpro.core.identity import password_reset
+        member = generics.get_object_or_404(Membership.objects.select_related('user', 'role'), pk=pk)
+        with transaction.atomic():
+            url = password_reset.link_for_member(request.membership, member)
+        return Response({'url': url, 'hours': password_reset.HOURS, 'email': member.user.email})

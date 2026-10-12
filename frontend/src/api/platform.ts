@@ -103,6 +103,8 @@ export const platformApi = {
     (await apiClient.patch<PlatformTenantFull>(`/platform/tenants/${id}/subscription/`, body)).data,
   reinvite: async (id: number, email: string) =>
     (await apiClient.post<{ invitation_url: string }>(`/platform/tenants/${id}/reinvite/`, { email })).data,
+  resetLink: async (id: number, email: string) =>
+    (await apiClient.post<{ invitation_url: string }>(`/platform/tenants/${id}/reset-link/`, { email })).data,
   startSupport: async (id: number, reason: string) =>
     (await apiClient.post<SupportGrant>(`/platform/tenants/${id}/support/`, { reason })).data,
   endSupport: async () => (await apiClient.post<{ ended: boolean }>('/platform/support/end/')).data,

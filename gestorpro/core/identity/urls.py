@@ -3,7 +3,16 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from gestorpro.core.access.views import AcceptInvitationView, InvitationPreviewView
 
-from .views import ChangePasswordView, LoginView, LogoutView, MeView, RegisterView, SwitchTenantView
+from .views import (
+    ChangePasswordView,
+    ForgotPasswordView,
+    LoginView,
+    LogoutView,
+    MeView,
+    RegisterView,
+    ResetPasswordView,
+    SwitchTenantView,
+)
 
 # Endpoints de API con JWT en cabecera Authorization: no usan cookies de sesión,
 # por lo que no aplican CSRF (DRF solo aplica CSRF a SessionAuthentication).
@@ -15,6 +24,8 @@ urlpatterns = [
     path('me/', MeView.as_view(), name='auth-me'),
     path('switch-tenant/', SwitchTenantView.as_view(), name='auth-switch-tenant'),
     path('change-password/', ChangePasswordView.as_view(), name='auth-change-password'),
+    path('password/forgot/', ForgotPasswordView.as_view(), name='auth-password-forgot'),
+    path('password/reset/<str:uid>/<str:token>/', ResetPasswordView.as_view(), name='auth-password-reset'),
     path('invitation/<str:token>/', InvitationPreviewView.as_view(), name='auth-invitation-preview'),
     path('accept-invitation/', AcceptInvitationView.as_view(), name='auth-accept-invitation'),
 ]

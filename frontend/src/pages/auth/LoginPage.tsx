@@ -50,6 +50,7 @@ export default function LoginPage() {
                } />
         {error && <Alert>{error}</Alert>}
         <Button type="submit" fullWidth loading={loading} size="lg">Entrar</Button>
+        <p className="text-center"><Link to="/forgot-password" className="text-sm text-primary-ink hover:underline">¿Olvidaste tu contraseña?</Link></p>
       </form>
       <p className="text-sm text-ink-muted text-center">
         ¿Tu empresa aún no usa GestorPro? <Link to="/register" className="font-medium text-primary-ink hover:underline">Crea una cuenta</Link>

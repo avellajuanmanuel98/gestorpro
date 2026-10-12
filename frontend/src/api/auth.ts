@@ -29,6 +29,15 @@ export const authApi = {
   /** Cierra la sesión de soporte de la plataforma (el token de soporte deja de servir). */
   endSupport: async (): Promise<void> => { await apiClient.post('/platform/support/end/') },
 
+  /** "¿Olvidaste tu contraseña?": nunca revela si la cuenta existe. */
+  forgotPassword: async (email: string): Promise<{ email_enabled: boolean }> =>
+    (await apiClient.post('/auth/password/forgot/', { email })).data,
+  checkReset: async (uid: string, token: string): Promise<{ valid: boolean; email: string | null }> =>
+    (await apiClient.get(`/auth/password/reset/${uid}/${token}/`)).data,
+  resetPassword: async (uid: string, token: string, password: string, password2: string): Promise<void> => {
+    await apiClient.post(`/auth/password/reset/${uid}/${token}/`, { password, password2 })
+  },
+
   /** Revoca el refresh token en el servidor. */
   logout: async (): Promise<void> => {
     const refresh = tokenStorage.refresh

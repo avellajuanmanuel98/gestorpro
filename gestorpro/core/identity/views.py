@@ -183,3 +183,46 @@ def _blacklist(raw_refresh, user):
         return  # ya inválido/expirado: nada que revocar
     if str(token.get('user_id')) == str(user.pk):
         token.blacklist()
+
+
+class ForgotPasswordView(APIView):
+    """POST /api/auth/password/forgot/ {email} → siempre 200 (no revela si la cuenta existe)."""
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth'
+
+    def post(self, request):
+        from django.conf import settings
+
+        from . import password_reset
+        email = str(request.data.get('email', '')).strip()[:254]
+        if '@' not in email:
+            return Response({'email': ['Escribe tu correo.']}, status=status.HTTP_400_BAD_REQUEST)
+        password_reset.request_by_email(email)
+        return Response({'email_enabled': bool(getattr(settings, 'EMAIL_ENABLED', False))})
+
+
+class ResetPasswordView(APIView):
+    """
+    GET  /api/auth/password/reset/<uid>/<token>/ → {valid, email (enmascarado)}
+    POST /api/auth/password/reset/<uid>/<token>/ {password, password2} → contraseña nueva
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth'
+
+    def get(self, request, uid, token):
+        from . import password_reset
+        user = password_reset.user_from(uid, token)
+        return Response({'valid': user is not None, 'email': password_reset.mask(user.email) if user else None})
+
+    def post(self, request, uid, token):
+        from . import password_reset
+        user = password_reset.user_from(uid, token)
+        if user is None:
+            return Response({'detail': 'El enlace venció o ya se usó. Pide uno nuevo.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        password_reset.reset(user, str(request.data.get('password', '')), str(request.data.get('password2', '')))
+        return Response({'ok': True})

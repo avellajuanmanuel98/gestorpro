@@ -2,6 +2,9 @@ import apiClient from './client'
 import type { AuditEntry, Invitation, Member, PaginatedResponse, PermissionDef, Role } from '@/types'
 
 export const accessApi = {
+  /** Enlace de un solo uso (24 h) para que esa persona cree su contraseña nueva. */
+  resetLink: async (memberId: number): Promise<{ url: string; hours: number; email: string }> =>
+    (await apiClient.post(`/access/members/${memberId}/reset-link/`)).data,
   members: async (params?: { page?: number }) =>
     (await apiClient.get<PaginatedResponse<Member>>('/access/members/', { params })).data,
   updateMember: async (id: number, payload: { role?: number; status?: 'active' | 'suspended' }) =>

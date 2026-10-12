@@ -19,6 +19,8 @@ import type { Invitation, Member, Role } from '@/types'
 import StatusMark from '@/components/ui/StatusMark'
 import { MEMBER_STATUS } from '@/lib/status'
 import { copyText } from '@/lib/clipboard'
+import { toast } from '@/store/toastStore'
+import InvitationLink from '@/components/platform/InvitationLink'
 
 // ── Invitar ───────────────────────────────────────────────────────────────────
 
@@ -132,6 +134,13 @@ export default function UsersPage() {
     onSuccess: () => { refresh(); setPending(null) },
   })
 
+  const [resetFor, setResetFor] = useState<{ email: string; url: string; hours: number } | null>(null)
+  const resetLink = useMutation({
+    mutationFn: (m: Member) => accessApi.resetLink(m.id),
+    onSuccess: setResetFor,
+    onError: (e) => toast.error(getErrorMessage(e)),
+  })
+
   const canEdit = (m: Member) => canManage && m.email !== me?.user.email && (!m.is_owner || amOwner)
   const assignableRoles = (roles.data ?? []).filter((r) => !r.grants_all || amOwner)
 
@@ -197,6 +206,10 @@ export default function UsersPage() {
                                   onClick={() => update.mutate({ id: m.id, status: m.status === 'active' ? 'suspended' : 'active' })}>
                             {m.status === 'active' ? 'Suspender' : 'Reactivar'}
                           </Button>
+                          <Button size="xs" variant="ghost" loading={resetLink.isPending && resetLink.variables?.id === m.id}
+                                  onClick={() => resetLink.mutate(m)} title="Enlace para que cree una contraseña nueva">
+                            Contraseña
+                          </Button>
                           <Button size="xs" variant="ghost" className="text-danger"
                                   onClick={() => setPending({ kind: 'remove', member: m })}>
                             Quitar
@@ -235,6 +248,17 @@ export default function UsersPage() {
       )}
 
       <InviteModal roles={roles.data ?? []} isOpen={inviteOpen} onClose={() => setInviteOpen(false)} />
+
+      <Modal title="Enlace de contraseña nueva" isOpen={resetFor !== null} onClose={() => setResetFor(null)} size="md"
+             subtitle={resetFor ? `Para ${resetFor.email}` : undefined}>
+        {resetFor && (
+          <div className="space-y-4">
+            <InvitationLink url={resetFor.url}
+                            hint={`Entrégaselo solo a esa persona: con él escribe su contraseña nueva (tú no la conocerás). Sirve una vez y vence en ${resetFor.hours} horas.`} />
+            <div className="flex justify-end"><Button onClick={() => setResetFor(null)}>Listo</Button></div>
+          </div>
+        )}
+      </Modal>
 
       <ConfirmDialog
         isOpen={pending !== null}

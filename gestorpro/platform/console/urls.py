@@ -9,6 +9,7 @@ urlpatterns = [
     path('tenants/<int:pk>/status/', views.TenantStatusView.as_view(), name='platform-tenant-status'),
     path('tenants/<int:pk>/subscription/', views.TenantSubscriptionView.as_view(), name='platform-tenant-subscription'),
     path('tenants/<int:pk>/reinvite/', views.TenantReinviteView.as_view(), name='platform-tenant-reinvite'),
+    path('tenants/<int:pk>/reset-link/', views.TenantResetLinkView.as_view(), name='platform-tenant-reset-link'),
     path('tenants/<int:pk>/support/', views.SupportStartView.as_view(), name='platform-support-start'),
     path('support/end/', views.SupportEndView.as_view(), name='platform-support-end'),
     path('plans/', views.PlanListView.as_view(), name='platform-plans'),

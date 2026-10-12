@@ -8,6 +8,7 @@ from rest_framework.exceptions import ValidationError
 from gestorpro.core import entitlements
 from gestorpro.core.access.permissions import HasTenantPermission
 from gestorpro.core.api.views import TenantDetailView, TenantListCreateView
+from gestorpro.core.audit import services as audit
 from gestorpro.core.inventory import services as inventory
 from gestorpro.core.inventory.models import StockMovement
 
@@ -89,20 +90,27 @@ class ItemListCreateView(TenantListCreateView):
     def get_serializer_class(self):
         return ItemListSerializer if self.request.method == 'GET' else ItemSerializer
 
-    @transaction.atomic
     def perform_create(self, serializer):
-        if serializer.validated_data['kind'] in Item.PRODUCT_KINDS:
-            entitlements.check_limit(self.request.membership.tenant_id, 'products', services.products_count())
-        # La existencia inicial entra al libro como "saldo inicial", no como un número suelto
-        initial = serializer.validated_data.pop('stock', None) or Decimal('0')
-        super().perform_create(serializer)
-        item = serializer.instance
-        if initial > 0 and item.tracks_stock:
-            locked = inventory.lock_items([item.id])[item.id]
-            inventory.post(item=locked, location=inventory.default_location(), type=StockMovement.Type.OPENING,
-                           quantity=initial, unit_cost=locked.avg_cost, user=self.request.user,
-                           source=inventory.Source('item', item.id, 'Alta del ítem'))
-            item.refresh_from_db()
+        create_item(serializer, self.request)
+
+
+
+@transaction.atomic
+def create_item(serializer, request):
+    """Alta de un ítem (pantalla o importación): límite del plan + existencia inicial como saldo inicial."""
+    if serializer.validated_data['kind'] in Item.PRODUCT_KINDS:
+        entitlements.check_limit(request.membership.tenant_id, 'products', services.products_count())
+    # La existencia inicial entra al libro como "saldo inicial", no como un número suelto
+    initial = serializer.validated_data.pop('stock', None) or Decimal('0')
+    item = serializer.save(created_by=request.user)
+    audit.record_created(item)
+    if initial > 0 and item.tracks_stock:
+        locked = inventory.lock_items([item.id])[item.id]
+        inventory.post(item=locked, location=inventory.default_location(), type=StockMovement.Type.OPENING,
+                       quantity=initial, unit_cost=locked.avg_cost, user=request.user,
+                       source=inventory.Source('item', item.id, 'Alta del ítem'))
+        item.refresh_from_db()
+    return item
 
 
 class ItemDetailView(TenantDetailView):
@@ -140,3 +148,43 @@ class LowStockView(TenantListCreateView):
         if self.request.query_params.get('group') in GROUPS:
             qs = qs.filter(GROUPS[self.request.query_params['group']])
         return qs
+
+
+class ItemImportView(generics.GenericAPIView):
+    """
+    POST /api/catalog/import/?group=products|ingredients (multipart `file`):
+    vista previa por fila. Con `?confirm=1` crea las filas nuevas y válidas.
+    GET  /api/catalog/import/?group=…  → plantilla .xlsx.
+    """
+    permission_classes = [HasTenantPermission]
+    required_permissions = {'GET': 'catalog.manage', 'POST': 'catalog.manage'}
+
+    def get(self, request):
+        from django.http import HttpResponse
+
+        from .importer import template
+        group = request.query_params.get('group', 'products')
+        if group not in ('products', 'ingredients'):
+            raise ValidationError({'group': 'Indica products o ingredients.'})
+        name = 'plantilla-productos.xlsx' if group == 'products' else 'plantilla-ingredientes.xlsx'
+        response = HttpResponse(template(group, request.tenant.vertical == 'bakery'),
+                                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename="{name}"'
+        return response
+
+    def post(self, request):
+        from rest_framework.response import Response
+
+        from .importer import Importer
+        importer = Importer(request.query_params.get('group', ''), request)
+        results = importer.evaluate()
+        summary = {k: sum(1 for r in results if r['status'] == k) for k in ('new', 'exists', 'error')}
+        new_categories = sorted({r['new_category'] for r in results if r['status'] == 'new' and r['new_category']})
+        if request.query_params.get('confirm') == '1':
+            created = importer.commit(results)
+            audit.record('catalog.items.imported', summary=f'Importó {len(created)} ítems desde un archivo '
+                         f'({summary["exists"]} ya existían, {summary["error"]} con errores)')
+            return Response({'created': len(created), **summary, 'new_categories': new_categories})
+        return Response({'rows': [{k: v for k, v in r.items() if k != '_data'} for r in results],
+                         'summary': summary, 'new_categories': new_categories,
+                         'costs_ignored': not importer.can_costs})

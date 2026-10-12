@@ -2,6 +2,8 @@ from django.urls import path
 
 from .views import (
     CurrentSessionView,
+    RegisterConfigDetailView,
+    RegisterConfigListView,
     RegisterListView,
     SessionCloseView,
     SessionDetailView,
@@ -11,6 +13,8 @@ from .views import (
 
 urlpatterns = [
     path('registers/', RegisterListView.as_view(), name='cash-registers'),
+    path('registers/config/', RegisterConfigListView.as_view(), name='cash-registers-config'),
+    path('registers/config/<int:pk>/', RegisterConfigDetailView.as_view(), name='cash-register-config'),
     path('sessions/', SessionListCreateView.as_view(), name='cash-sessions'),
     path('sessions/current/', CurrentSessionView.as_view(), name='cash-session-current'),
     path('sessions/<int:pk>/', SessionDetailView.as_view(), name='cash-session-detail'),

@@ -136,3 +136,34 @@ def close_session(*, membership, session: CashSession, counted_amount, denominat
                          f'contado ${money_str(counted)} ({detail})',
                  changes={'difference': [None, money_str(difference)]})
     return session
+
+
+@transaction.atomic
+def save_register(*, register: CashRegister | None, data: dict) -> CashRegister:
+    """Crea o modifica una caja. Una caja con un turno abierto no se desactiva."""
+    from gestorpro.core.tenancy.models import Location
+
+    name = (data.get('name', register.name if register else '') or '').strip()
+    if not name:
+        raise ValidationError({'name': 'Escribe un nombre para la caja.'})
+    location = data.get('location') or (register.location if register else None) \
+        or Location.objects.filter(is_default=True).first()
+    if location is None or not location.is_active:
+        raise ValidationError({'location': 'Elige una sucursal activa.'})
+    clash = CashRegister.objects.filter(location=location, name__iexact=name)
+    if register:
+        clash = clash.exclude(pk=register.pk)
+    if clash.exists():
+        raise ValidationError({'name': 'Ya hay una caja con ese nombre en esa sucursal.'})
+    is_active = data.get('is_active', register.is_active if register else True)
+    if register and not is_active and register.sessions.filter(status=CashSession.Status.OPEN).exists():
+        raise ValidationError({'is_active': 'Esta caja tiene un turno abierto: ciérralo antes de desactivarla.'})
+    before = audit.snapshot(register) if register else None
+    register = register or CashRegister(location=location)
+    register.name, register.location, register.is_active = name, location, is_active
+    register.save()
+    if before is None:
+        audit.record_created(register)
+    else:
+        audit.record_updated(register, before)
+    return register

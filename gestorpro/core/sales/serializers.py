@@ -12,6 +12,17 @@ class PaymentMethodSerializer(serializers.ModelSerializer):
         fields = ['id', 'code', 'name', 'kind']
 
 
+class PaymentMethodConfigSerializer(serializers.ModelSerializer):
+    """Configuración de medios de pago. Lo valida services.save_payment_method."""
+    kind_label = serializers.CharField(source='get_kind_display', read_only=True)
+
+    class Meta:
+        model = PaymentMethod
+        fields = ['id', 'code', 'name', 'kind', 'kind_label', 'is_active', 'sort']
+        read_only_fields = ['id', 'code', 'kind_label']
+        validators = []
+
+
 class POSItemSerializer(serializers.Serializer):
     """Ítem del catálogo del POS. `price_with_tax` es lo que paga el cliente por unidad."""
     id = serializers.IntegerField()

@@ -81,6 +81,14 @@ class TenantReinviteView(TenantDetailView):
         return Response({'invitation_url': url})
 
 
+class TenantResetLinkView(TenantDetailView):
+    def post(self, request, pk):
+        data = s.EmailSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        url = services.reset_link(request.user, self.tenant(pk), data.validated_data['email'], ip=self.ip())
+        return Response({'invitation_url': url})
+
+
 class SupportStartView(TenantDetailView):
     def post(self, request, pk):
         data = s.ReasonSerializer(data=request.data)

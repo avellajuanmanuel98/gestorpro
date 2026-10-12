@@ -5,6 +5,7 @@ from .views import (
     InvitationRevokeView,
     MemberDetailView,
     MemberListView,
+    MemberResetLinkView,
     PermissionCatalogView,
     RoleDetailView,
     RoleListCreateView,
@@ -13,6 +14,7 @@ from .views import (
 urlpatterns = [
     path('members/', MemberListView.as_view(), name='access-members'),
     path('members/<int:pk>/', MemberDetailView.as_view(), name='access-member-detail'),
+    path('members/<int:pk>/reset-link/', MemberResetLinkView.as_view(), name='access-member-reset-link'),
     path('invitations/', InvitationListCreateView.as_view(), name='access-invitations'),
     path('invitations/<int:pk>/', InvitationRevokeView.as_view(), name='access-invitation-detail'),
     path('roles/', RoleListCreateView.as_view(), name='access-roles'),

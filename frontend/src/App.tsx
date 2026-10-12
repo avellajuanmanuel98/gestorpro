@@ -11,6 +11,7 @@ import DashboardPage   from '@/pages/dashboard/DashboardPage'
 import ClientsPage     from '@/pages/clients/ClientsPage'
 import InvoicesPage    from '@/pages/billing/InvoicesPage'
 import CompanyPage     from '@/pages/settings/CompanyPage'
+import PosSettingsPage from '@/pages/settings/PosSettingsPage'
 import EmployeesPage   from '@/pages/employees/EmployeesPage'
 import SuppliersPage   from '@/pages/suppliers/SuppliersPage'
 import ReportsPage     from '@/pages/reports/ReportsPage'
@@ -28,6 +29,8 @@ import UsersPage       from '@/pages/access/UsersPage'
 import RolesPage       from '@/pages/access/RolesPage'
 import AuditPage       from '@/pages/access/AuditPage'
 import AcceptInvitationPage from '@/pages/auth/AcceptInvitationPage'
+import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
+import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
 
 // Layout principal con sidebar
 import AppLayout from '@/layouts/AppLayout'
@@ -78,6 +81,8 @@ function App() {
         <Route path="/login"    element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/invitation/:token" element={<AcceptInvitationPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
 
         {/* Rutas protegidas — todas dentro del AppLayout (sidebar + header) */}
         <Route
@@ -106,6 +111,7 @@ function App() {
           <Route path="suppliers" element={<SuppliersPage />} />
           <Route path="reports"   element={<ReportsPage />} />
           <Route path="company"   element={<CompanyPage />} />
+          <Route path="settings/pos" element={<PosSettingsPage />} />
           <Route path="users"     element={<UsersPage />} />
           <Route path="roles"     element={<RolesPage />} />
           <Route path="audit"     element={<AuditPage />} />

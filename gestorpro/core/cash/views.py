@@ -15,6 +15,7 @@ from .serializers import (
     CloseSessionSerializer,
     MovementInputSerializer,
     OpenSessionSerializer,
+    RegisterConfigSerializer,
 )
 
 
@@ -101,3 +102,35 @@ class SessionCloseView(_SessionActionView):
         session = services.close_session(membership=request.membership, session=self.get_session(pk),
                                          **data.validated_data)
         return Response(CashSessionDetailSerializer(session).data)
+
+
+class RegisterConfigListView(generics.ListCreateAPIView):
+    """GET/POST /api/cash/registers/config/ — todas las cajas, activas o no (quien administra la empresa)."""
+    serializer_class = RegisterConfigSerializer
+    permission_classes = [HasTenantPermission]
+    required_permissions = {'GET': 'tenant.manage', 'POST': 'tenant.manage'}
+    pagination_class = None
+
+    def get_queryset(self):
+        return CashRegister.objects.select_related('location').order_by('-is_active', 'location__name', 'name')
+
+    def create(self, request, *args, **kwargs):
+        data = RegisterConfigSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        register = services.save_register(register=None, data=data.validated_data)
+        return Response(RegisterConfigSerializer(register).data, status=status.HTTP_201_CREATED)
+
+
+class RegisterConfigDetailView(APIView):
+    """PATCH /api/cash/registers/config/<id>/ — renombrar, cambiar de sucursal, activar o desactivar."""
+    permission_classes = [HasTenantPermission]
+    required_permissions = {'PATCH': 'tenant.manage'}
+
+    def patch(self, request, pk):
+        register = CashRegister.objects.filter(pk=pk).first()
+        if register is None:
+            raise NotFound()
+        data = RegisterConfigSerializer(register, data=request.data, partial=True)
+        data.is_valid(raise_exception=True)
+        register = services.save_register(register=register, data=data.validated_data)
+        return Response(RegisterConfigSerializer(register).data)

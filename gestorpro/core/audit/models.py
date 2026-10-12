@@ -76,6 +76,9 @@ class SecurityEvent(models.Model):
         PASSWORD_CHANGED = 'password_changed', 'Cambio de contraseña'
         TENANT_SWITCHED = 'tenant_switched', 'Cambio de empresa'
         INVITATION_ACCEPTED = 'invitation_accepted', 'Invitación aceptada'
+        PASSWORD_RESET_REQUESTED = 'password_reset_requested', 'Solicitud de nueva contraseña'
+        PASSWORD_RESET_LINK = 'password_reset_link', 'Enlace de nueva contraseña generado'
+        PASSWORD_RESET = 'password_reset', 'Contraseña restablecida con enlace'
 
     kind = models.CharField(max_length=30, choices=Kind.choices)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,

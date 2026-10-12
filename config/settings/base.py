@@ -133,6 +133,20 @@ AUTH_USER_MODEL = 'identity.User'
 # URL pública del frontend (enlaces de invitación)
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
 
+# Correo (recuperar contraseña). Sin EMAIL_HOST no se envía nada: la edición local y
+# cualquier instalación sin correo usan enlaces que genera el dueño o la plataforma.
+EMAIL_HOST = config('EMAIL_HOST', default='')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='GestorPro <no-responder@gestorpro.co>')
+EMAIL_ENABLED = bool(EMAIL_HOST)
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_TIMEOUT = 15
+# Enlaces para crear una contraseña nueva: válidos 24 h y de un solo uso
+PASSWORD_RESET_TIMEOUT = 60 * 60 * 24
+
 # Plan con el que arranca (en prueba) toda empresa nueva
 DEFAULT_PLAN_CODE = config('DEFAULT_PLAN_CODE', default='starter')
 

@@ -341,3 +341,24 @@ def end_support(actor, session_id: int, ip=None) -> bool:
     _tenant_audit(session.tenant, 'platform.support.ended',
                   f'Soporte de GestorPro ({actor.email}) salió ({session.request_count} consultas)')
     return True
+
+
+@transaction.atomic
+def reset_link(actor, tenant: Tenant, email: str, ip=None) -> str:
+    """Soporte: enlace para que una persona de esa empresa cree su contraseña. Nunca para el equipo de GestorPro."""
+    from gestorpro.core.audit.models import SecurityEvent
+    from gestorpro.core.identity import password_reset
+
+    member = Membership.all_tenants.select_related('user').filter(
+        tenant=tenant, user__email__iexact=email.strip()).first()
+    if member is None:
+        raise ValidationError({'email': 'Esa persona no pertenece a esta empresa.'})
+    if member.user.is_platform_admin:
+        raise ValidationError({'email': 'Las cuentas del equipo de GestorPro no se restablecen desde aquí.'})
+    url = password_reset.make_link(member.user)
+    audit.security_event(SecurityEvent.Kind.PASSWORD_RESET_LINK, user=member.user, tenant_id=tenant.id)
+    record(actor, 'tenant.password_reset_link', f'Generó un enlace de contraseña nueva para {member.user.email}',
+           tenant=tenant, details={'email': member.user.email}, ip=ip)
+    _tenant_audit(tenant, 'platform.password_reset_link',
+                  f'Soporte de GestorPro generó un enlace para que {member.user.email} cree una contraseña nueva')
+    return url

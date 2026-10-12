@@ -15,6 +15,7 @@ from gestorpro.kernel.money import ZERO, money, money_str
 from . import services
 from .models import Payment, PaymentMethod, Sale
 from .serializers import (
+    PaymentMethodConfigSerializer,
     PaymentMethodSerializer,
     POSItemSerializer,
     SaleCreateSerializer,
@@ -147,3 +148,35 @@ class SalesTodayView(APIView):
             'gross_margin': money_str(total - (totals['cost'] or ZERO)) if show_costs and count else None,
             'by_method': [{'method': r['method__name'], 'total': money_str(r['total'])} for r in by_method],
         })
+
+
+class PaymentMethodConfigListView(generics.ListCreateAPIView):
+    """GET/POST /api/sales/payment-methods/config/ — todos los medios, activos o no."""
+    serializer_class = PaymentMethodConfigSerializer
+    permission_classes = [HasTenantPermission]
+    required_permissions = {'GET': 'tenant.manage', 'POST': 'tenant.manage'}
+    pagination_class = None
+
+    def get_queryset(self):
+        return PaymentMethod.objects.order_by('-is_active', 'sort', 'name')
+
+    def create(self, request, *args, **kwargs):
+        data = PaymentMethodConfigSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        method = services.save_payment_method(method=None, data=data.validated_data)
+        return Response(PaymentMethodConfigSerializer(method).data, status=status.HTTP_201_CREATED)
+
+
+class PaymentMethodConfigDetailView(APIView):
+    """PATCH /api/sales/payment-methods/config/<id>/ — renombrar, tipo, orden, activar o desactivar."""
+    permission_classes = [HasTenantPermission]
+    required_permissions = {'PATCH': 'tenant.manage'}
+
+    def patch(self, request, pk):
+        method = PaymentMethod.objects.filter(pk=pk).first()
+        if method is None:
+            raise NotFound()
+        data = PaymentMethodConfigSerializer(method, data=request.data, partial=True)
+        data.is_valid(raise_exception=True)
+        method = services.save_payment_method(method=method, data=data.validated_data)
+        return Response(PaymentMethodConfigSerializer(method).data)

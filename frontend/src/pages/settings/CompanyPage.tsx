@@ -15,6 +15,7 @@ import type { Tenant } from '@/types'
 import StatusMark from '@/components/ui/StatusMark'
 import { ACTIVE_STATUS } from '@/lib/status'
 import { cn } from '@/lib/cn'
+import Switch from '@/components/ui/Switch'
 import { Factory, Flame } from 'lucide-react'
 
 type EditableFields = Pick<Tenant, 'name' | 'legal_name' | 'tax_id' | 'email' | 'phone' | 'city' | 'address'>
@@ -136,12 +137,7 @@ function ModulesCard({ tenant }: { tenant: Tenant }) {
                 <span className="block text-sm font-medium text-ink">{title}</span>
                 <span className="block text-xs text-ink-muted mt-0.5">{text}</span>
               </span>
-              <button type="button" role="switch" aria-checked={on} aria-label={title}
-                      disabled={!canEdit || mutation.isPending} onClick={() => toggle(key)}
-                      className={cn('relative mt-1 h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50',
-                        on ? 'bg-primary' : 'bg-line-strong')}>
-                <span className={cn('absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow transition-all', on ? 'left-[22px]' : 'left-0.5')} />
-              </button>
+              <span className="mt-1"><Switch checked={on} label={title} disabled={!canEdit || mutation.isPending} onChange={() => toggle(key)} /></span>
             </li>
           )
         })}

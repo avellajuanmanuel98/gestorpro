@@ -1,6 +1,8 @@
 from django.urls import path
 
 from .views import (
+    PaymentMethodConfigDetailView,
+    PaymentMethodConfigListView,
     PaymentMethodListView,
     POSCatalogView,
     SaleDetailView,
@@ -15,5 +17,7 @@ urlpatterns = [
     path('<int:pk>/void/', SaleVoidView.as_view(), name='sale-void'),
     path('catalog/', POSCatalogView.as_view(), name='pos-catalog'),
     path('payment-methods/', PaymentMethodListView.as_view(), name='payment-methods'),
+    path('payment-methods/config/', PaymentMethodConfigListView.as_view(), name='payment-methods-config'),
+    path('payment-methods/config/<int:pk>/', PaymentMethodConfigDetailView.as_view(), name='payment-method-config'),
     path('today/', SalesTodayView.as_view(), name='sales-today'),
 ]

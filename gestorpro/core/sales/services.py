@@ -256,3 +256,48 @@ def ensure_pos_defaults() -> None:
     for location in Location.objects.filter(is_active=True):
         if not CashRegister.objects.filter(location=location).exists():
             CashRegister.objects.create(location=location, name='Caja principal')
+
+
+@transaction.atomic
+def save_payment_method(*, method: PaymentMethod | None, data: dict) -> PaymentMethod:
+    """
+    Crea o modifica un medio de pago. Reglas: nombre único; siempre queda al menos
+    un medio activo; el efectivo del sistema ('cash') no cambia de tipo, porque es
+    el único que da cambio y mueve el cajón.
+    """
+    from django.utils.text import slugify
+
+    name = (data.get('name', method.name if method else '') or '').strip()
+    if not name:
+        raise ValidationError({'name': 'Escribe un nombre para el medio de pago.'})
+    clash = PaymentMethod.objects.filter(name__iexact=name)
+    if method:
+        clash = clash.exclude(pk=method.pk)
+    if clash.exists():
+        raise ValidationError({'name': 'Ya existe un medio de pago con ese nombre.'})
+    kind = data.get('kind', method.kind if method else None)
+    if kind not in PaymentMethod.Kind.values:
+        raise ValidationError({'kind': 'Elige el tipo: efectivo, tarjeta, transferencia o billetera digital.'})
+    if method and method.code == 'cash' and kind != PaymentMethod.Kind.CASH:
+        raise ValidationError({'kind': 'El efectivo no puede cambiar de tipo.'})
+    is_active = data.get('is_active', method.is_active if method else True)
+    if method and method.is_active and not is_active \
+            and not PaymentMethod.objects.filter(is_active=True).exclude(pk=method.pk).exists():
+        raise ValidationError({'is_active': 'Debe quedar al menos un medio de pago activo.'})
+    before = audit.snapshot(method) if method else None
+    if method is None:
+        base = slugify(name)[:24] or 'medio'
+        code, n = base, 2
+        while PaymentMethod.objects.filter(code=code).exists():
+            code, n = f'{base}-{n}', n + 1
+        last = PaymentMethod.objects.order_by('-sort').values_list('sort', flat=True).first() or 0
+        method = PaymentMethod(code=code, sort=last + 1)
+    method.name, method.kind, method.is_active = name, kind, is_active
+    if 'sort' in data:
+        method.sort = data['sort']
+    method.save()
+    if before is None:
+        audit.record_created(method)
+    else:
+        audit.record_updated(method, before)
+    return method

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Boxes, PackagePlus, Plus, Tags, Wheat } from 'lucide-react'
+import { AlertTriangle, Boxes, FileSpreadsheet, PackagePlus, Plus, Tags, Wheat } from 'lucide-react'
 import { catalogApi, type ItemGroup } from '@/api/catalog'
 import CategoryForm from '@/components/inventory/CategoryForm'
 import ItemForm from '@/components/inventory/ItemForm'
@@ -15,6 +15,7 @@ import SearchInput from '@/components/ui/SearchInput'
 import Select from '@/components/ui/Select'
 import StatusMark from '@/components/ui/StatusMark'
 import Tabs from '@/components/ui/Tabs'
+import ImportDialog from '@/components/inventory/ImportDialog'
 import { formatQty, formatUnitCost, ITEM_KIND_LABEL } from '@/lib/catalog'
 import { getErrorMessage } from '@/lib/errors'
 import { formatCOP } from '@/lib/money'
@@ -70,6 +71,7 @@ function ItemsTab({ group, canManage }: { group: ItemGroup; canManage: boolean }
   const [page, setPage] = useState(1)
   const [editing, setEditing] = useState<Item | 'new' | null>(null)
   const [loadingId, setLoadingId] = useState<number | null>(null)
+  const [importing, setImporting] = useState(false)
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['items', group, search, filter, page],
@@ -161,7 +163,10 @@ function ItemsTab({ group, canManage }: { group: ItemGroup; canManage: boolean }
           </Select>
         </div>
         <div className="sm:ml-auto">
-          {canManage && <Button icon={<Plus size={15} />} onClick={() => setEditing('new')}>{copy.newLabel}</Button>}
+          {canManage && <div className="flex gap-2">
+            <Button variant="outline" icon={<FileSpreadsheet size={15} />} onClick={() => setImporting(true)}>Importar desde Excel</Button>
+            <Button icon={<Plus size={15} />} onClick={() => setEditing('new')}>{copy.newLabel}</Button>
+          </div>}
         </div>
       </div>
 
@@ -182,6 +187,9 @@ function ItemsTab({ group, canManage }: { group: ItemGroup; canManage: boolean }
       <Modal title={editing === 'new' ? copy.newLabel : `Editar ${copy.noun}`} isOpen={editing !== null} onClose={() => setEditing(null)} size="lg">
         {editing !== null && <ItemForm group={group} item={editing === 'new' ? undefined : editing}
                                        onSuccess={() => setEditing(null)} onCancel={() => setEditing(null)} />}
+      </Modal>
+      <Modal title={`Importar ${copy.plural} desde Excel`} isOpen={importing} onClose={() => setImporting(false)} size="lg">
+        {importing && <ImportDialog group={group} onDone={() => setImporting(false)} />}
       </Modal>
       <ConfirmDialog isOpen={del.target !== null} title={`Eliminar ${copy.noun}`} confirmLabel="Eliminar"
                      description={<>Se eliminará <strong className="text-ink">{del.target?.name}</strong>. Si aparece en facturas no podrá
