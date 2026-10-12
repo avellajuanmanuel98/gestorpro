@@ -8,6 +8,7 @@ red local (caja, tablet, celular del dueño). Lo usan los .bat de la carpeta loc
     python scripts/local_edition.py restaurar    # vuelve a una copia (conserva la base actual)
     python scripts/local_edition.py actualizar   # copia + trae la nueva versión + migra
     python scripts/local_edition.py estado       # cómo está todo
+    python scripts/local_edition.py contrasena   # restablecer la contraseña olvidada de un usuario
 
 Todo vive en la carpeta de datos (por defecto %USERPROFILE%\\GestorPro-datos):
 
@@ -760,8 +761,45 @@ def status():
                 say(f'  {name}  ({size})')
 
 
+def reset_password():
+    """Contraseña olvidada: la cambia quien usa el computador de GestorPro (la edición local no envía correos)."""
+    import getpass
+    cfg = require_installed()
+    Postgres(cfg).start()
+    os.environ.update(django_env(cfg))
+    import django
+    django.setup()
+    from django.contrib.auth import get_user_model, password_validation
+    from django.core.exceptions import ValidationError
+    from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+
+    step('Restablecer contraseña')
+    email = ask('Email del usuario')
+    user = get_user_model().objects.filter(email__iexact=email).first()
+    if user is None:
+        fail('No existe un usuario con ese email en este GestorPro.')
+    while True:
+        first = getpass.getpass('  Nueva contraseña (no se ve al escribir): ')
+        if first != getpass.getpass('  Repítela: '):
+            say('  No coinciden. Intenta de nuevo.')
+            continue
+        try:
+            password_validation.validate_password(first, user)
+        except ValidationError as exc:
+            say('  ' + ' '.join(exc.messages))
+            continue
+        break
+    user.set_password(first)
+    user.save(update_fields=['password'])
+    # Las sesiones abiertas con la contraseña anterior se cierran
+    for token in OutstandingToken.objects.filter(user=user):
+        BlacklistedToken.objects.get_or_create(token=token)
+    log_line(f'Contraseña restablecida para {user.email}')
+    say(f'\nListo: {user.email} ya puede entrar con la nueva contraseña. Sus sesiones abiertas se cerraron.')
+
+
 COMMANDS = {'instalar': install, 'iniciar': serve, 'copia': backup_now, 'restaurar': restore,
-            'actualizar': update, 'estado': status}
+            'actualizar': update, 'estado': status, 'contrasena': reset_password}
 
 if __name__ == '__main__':
     os.environ.setdefault('PYTHONUTF8', '1')
