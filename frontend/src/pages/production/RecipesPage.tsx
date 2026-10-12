@@ -20,6 +20,7 @@ import { formatCOP } from '@/lib/money'
 import { useCan } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
 import type { Unit } from '@/types'
+import { useVocabulary } from '@/lib/vocabulary'
 
 interface Line { key: number; item: ItemOption | null; quantity: string; unit: string; waste: string }
 let nextKey = 1
@@ -45,6 +46,7 @@ function previewCost(lines: Line[], units: Unit[]): { total: number; complete: b
 }
 
 function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: () => void }) {
+  const v = useVocabulary()
   const queryClient = useQueryClient()
   const canSeeCosts = useCan()('catalog.view_costs')
   const units = useQuery({ queryKey: ['units'], queryFn: catalogApi.units, staleTime: Infinity })
@@ -86,12 +88,12 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: () => void })
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-medium text-ink">Ingredientes</p>
+        <p className="text-sm font-medium text-ink">{v.Ingredients}</p>
         {lines.map((l) => {
           const options = l.item && units.data ? compatibleUnits(units.data, l.item.item.unit) : []
           return (
             <div key={l.key} className="grid gap-2 sm:grid-cols-[1fr_100px_120px_90px_40px] items-end rounded-xl border border-line p-3">
-              <ItemPicker label="Ingrediente" value={l.item} queryKey="recipe-ingredients" params={{}} placeholder="Buscar…"
+              <ItemPicker label={v.Ingredient} value={l.item} queryKey="recipe-ingredients" params={{}} placeholder="Buscar…"
                           onChange={(item) => set(l.key, { item, unit: item?.item.unit ?? '' })} />
               <Input label="Cantidad" inputMode="decimal" value={l.quantity} onChange={(e) => set(l.key, { quantity: e.target.value })} />
               <label className="space-y-1.5 text-sm">
@@ -102,13 +104,13 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: () => void })
                 </select>
               </label>
               <Input label="Desperdicio %" inputMode="decimal" placeholder="0" value={l.waste} onChange={(e) => set(l.key, { waste: e.target.value })} />
-              <button type="button" aria-label="Quitar ingrediente" onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))}
+              <button type="button" aria-label={`Quitar ${v.ingredient}`} onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))}
                       className="h-9 w-10 rounded-lg text-ink-subtle hover:text-danger hover:bg-danger-soft flex items-center justify-center"><Trash2 size={15} /></button>
             </div>
           )
         })}
         <Button type="button" variant="outline" size="sm" icon={<Plus size={14} />}
-                onClick={() => setLines((ls) => [...ls, { key: nextKey++, item: null, quantity: '', unit: '', waste: '' }])}>Agregar ingrediente</Button>
+                onClick={() => setLines((ls) => [...ls, { key: nextKey++, item: null, quantity: '', unit: '', waste: '' }])}>Agregar {v.ingredient}</Button>
       </div>
 
       {canSeeCosts && (
@@ -119,7 +121,7 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: () => void })
         </div>
       )}
       {canSeeCosts && !preview.complete && lines.some((l) => l.item) && (
-        <Alert tone="warning">Algunos ingredientes no tienen costo todavía: registra una compra para que el costo sea real.</Alert>
+        <Alert tone="warning">Algunos {v.ingredients} no tienen costo todavía: registra una compra para que el costo sea real.</Alert>
       )}
       <Textarea label="Preparación / notas" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       {save.isError && <Alert tone="danger">{getErrorMessage(save.error)}</Alert>}
@@ -138,6 +140,7 @@ function RecipeEditor({ id, onDone }: { id: number; onDone: () => void }) {
 }
 
 export default function RecipesPage() {
+  const v = useVocabulary()
   const can = useCan()
   const canManage = can('recipes.manage')
   const [search, setSearch] = useState('')
@@ -150,7 +153,7 @@ export default function RecipesPage() {
   const columns: Column<Recipe>[] = [
     { key: 'product', header: 'Producto', primary: true, cell: (r) => (
       <div><p className="font-medium text-ink">{r.product_name}</p>
-        <p className="text-xs text-ink-muted">v{r.version} · {r.lines.length} ingredientes{r.consume_on_sale && ' · se descuenta al vender'}</p></div>
+        <p className="text-xs text-ink-muted">v{r.version} · {r.lines.length} {v.ingredients}{r.consume_on_sale && ' · se descuenta al vender'}</p></div>
     ) },
     { key: 'yield', header: 'Rinde', align: 'right', cell: (r) => formatQty(r.yield_quantity, r.product_unit) },
     ...(can('catalog.view_costs') ? [
@@ -170,7 +173,7 @@ export default function RecipesPage() {
         onRowClick={canManage ? (r) => setEditing(r.id) : undefined}
         pagination={{ data, onPageChange: setPage, noun: 'recetas', isFetching }}
         empty={<EmptyState icon={<ChefHat size={20} />} title="Aún no hay recetas"
-                           description="Con la receta, el sistema calcula el costo real de cada pan y descuenta los ingredientes al producir."
+                           description={v.recipeTagline}
                            action={canManage ? { label: 'Crear receta', onClick: () => setEditing('new') } : undefined} />} />
       <Modal title={editing === 'new' ? 'Nueva receta' : 'Editar receta'} isOpen={editing !== null} onClose={() => setEditing(null)} size="xl">
         {editing === 'new' && <RecipeForm onDone={() => setEditing(null)} />}

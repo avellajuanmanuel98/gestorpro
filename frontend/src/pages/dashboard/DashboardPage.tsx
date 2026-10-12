@@ -19,7 +19,7 @@ import { cn } from '@/lib/cn'
 import { formatTime } from '@/lib/dates'
 import { formatCOP, formatCompactNumber, toDisplayNumber } from '@/lib/money'
 import { INVOICE_STATUS } from '@/lib/status'
-import { useAuthStore, useCan } from '@/store/authStore'
+import { useAuthStore, useCan, useHasModule } from '@/store/authStore'
 
 interface HourTooltipProps { active?: boolean; label?: number; payload?: { dataKey: string; value: number }[]; previous?: string }
 
@@ -95,6 +95,8 @@ export default function DashboardPage() {
   const canBilling = can('billing.view')
   const canCash = can('cash.manage')
   const showCosts = can('catalog.view_costs')
+  const hasModule = useHasModule()
+  const showWaste = showCosts && hasModule('waste')
   const [period, setPeriod] = usePeriod('today')
   const ready = canReports && isReady(period)
 
@@ -137,7 +139,7 @@ export default function DashboardPage() {
       <PageHeader title="Inicio" description={tenantName} />
       {canReports && <PeriodPicker value={period} onChange={setPeriod} presets={['today', 'yesterday', '7d', '30d', 'this_month', 'last_month']} info={info} />}
 
-      <div className={cn('grid grid-cols-2 gap-3', showCosts ? 'lg:grid-cols-5' : 'lg:grid-cols-3')}>
+      <div className={cn('grid grid-cols-2 gap-3', showWaste ? 'lg:grid-cols-5' : showCosts ? 'lg:grid-cols-4' : 'lg:grid-cols-3')}>
         <KpiTile label={`Ventas ${periodNoun(info)}`} loading={loading} unavailable={unavailable}
                  value={formatCOP(k?.sales.value, { compact: true })}
                  hint={k && <Delta pct={k.sales.change_pct} />} />
@@ -154,13 +156,13 @@ export default function DashboardPage() {
                        {k.gross_margin_pct != null && <span>Margen {k.gross_margin_pct.toLocaleString('es-CO')}% sobre ventas sin IVA</span>}
                        <Delta pct={k.gross_profit?.change_pct} />
                      </span>} />
-            <KpiTile label="Mermas (a costo)" loading={loading} unavailable={unavailable}
+            {showWaste && <KpiTile label="Mermas (a costo)" loading={loading} unavailable={unavailable}
                      tone={Number(k?.waste_cost?.value ?? 0) > 0 ? 'warning' : 'default'}
                      value={formatCOP(k?.waste_cost?.value, { compact: true })}
                      hint={k && <span className="flex flex-col gap-0.5">
                        {k.waste_pct_of_cost != null && <span>{k.waste_pct_of_cost.toLocaleString('es-CO')}% de lo que salió a costo</span>}
                        <Delta pct={k.waste_cost?.change_pct} inverse />
-                     </span>} />
+                     </span>} />}
           </>
         )}
       </div>

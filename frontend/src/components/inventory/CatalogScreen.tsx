@@ -42,7 +42,8 @@ const COPY = {
 /** Las panaderías hablan de "ingredientes"; el resto de negocios, de "insumos". */
 function useCopy(group: ItemGroup) {
   const isBakery = useAuthStore((s) => s.session?.tenant?.vertical) === 'bakery'
-  if (group === 'products' || isBakery) return COPY[group]
+  if (isBakery) return COPY[group]
+  if (group === 'products') return { ...COPY.products, emptyText: 'Agrega lo que vendes, con su precio y su IVA.' }
   return { ...COPY.ingredients, title: 'Insumos', description: 'Materias primas, insumos y empaques: unidades, costo y existencias',
            noun: 'insumo', plural: 'insumos', newLabel: 'Nuevo insumo', searchLabel: 'Buscar insumos',
            emptyTitle: 'Aún no tienes insumos', emptyText: 'Registra las materias primas e insumos con su unidad y su costo.' }

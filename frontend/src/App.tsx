@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useAuthStore, useCan, useHasFeature } from '@/store/authStore'
+import { useAuthStore, useCan, useHasFeature, useHasModule } from '@/store/authStore'
 import AssistantButton from '@/components/ai/AssistantButton'
 import Toaster from '@/components/ui/Toaster'
 
@@ -33,6 +33,12 @@ import AcceptInvitationPage from '@/pages/auth/AcceptInvitationPage'
 import AppLayout from '@/layouts/AppLayout'
 
 /** Quien vende y no ve métricas (cajero) entra directo al POS; el resto, al inicio. */
+/** Módulo apagado para esta empresa (p. ej. producción en una lavandería): no se muestra la pantalla. */
+function RequireModule({ module, children }: { module: string; children: React.ReactNode }) {
+  const hasModule = useHasModule()
+  return hasModule(module) ? <>{children}</> : <Navigate to="/dashboard" replace />
+}
+
 function HomeRedirect() {
   const can = useCan()
   return <Navigate to={can('sales.sell') && !can('reports.view') ? '/pos' : '/dashboard'} replace />
@@ -84,9 +90,9 @@ function App() {
           <Route path="cash"      element={<CashPage />} />
           <Route path="sales"     element={<SalesPage />} />
           <Route path="purchases" element={<PurchasesPage />} />
-          <Route path="recipes"   element={<RecipesPage />} />
-          <Route path="production" element={<ProductionPage />} />
-          <Route path="waste"     element={<WastePage />} />
+          <Route path="recipes"   element={<RequireModule module="production"><RecipesPage /></RequireModule>} />
+          <Route path="production" element={<RequireModule module="production"><ProductionPage /></RequireModule>} />
+          <Route path="waste"     element={<RequireModule module="waste"><WastePage /></RequireModule>} />
           <Route path="movements" element={<MovementsPage />} />
           <Route path="employees" element={<EmployeesPage />} />
           <Route path="suppliers" element={<SuppliersPage />} />

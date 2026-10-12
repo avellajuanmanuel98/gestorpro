@@ -77,3 +77,9 @@ export function useHasFeature() {
   const features = useAuthStore((s) => s.session?.features)
   return (feature: string) => Boolean(features?.includes(feature))
 }
+
+/** Módulos opcionales de la empresa (producción, mermas), solo para adaptar la UI (el backend los exige). */
+export function useHasModule() {
+  const modules = useAuthStore((s) => s.session?.tenant?.modules)
+  return (module: string) => Boolean(modules?.includes(module))
+}

@@ -32,6 +32,7 @@ class ProductionSuggestionView(APIView):
     """GET /api/bakery/production-suggestion/?date=AAAA-MM-DD — cuánto producir (mismo día de semanas previas)."""
     permission_classes = [HasTenantPermission]
     required_permissions = {'GET': 'production.view'}
+    required_module = 'production'
 
     def get(self, request):
         from datetime import datetime

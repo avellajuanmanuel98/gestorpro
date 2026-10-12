@@ -12,7 +12,8 @@ import { SkeletonText } from '@/components/ui/Skeleton'
 import Textarea from '@/components/ui/Textarea'
 import { formatQty, PRODUCT_KIND_OPTIONS, previewMargin } from '@/lib/catalog'
 import { getErrorMessage } from '@/lib/errors'
-import { useCan } from '@/store/authStore'
+import { useCan, useHasModule } from '@/store/authStore'
+import { useVocabulary } from '@/lib/vocabulary'
 import { toast } from '@/store/toastStore'
 import type { Category, Item, ItemKind, Unit } from '@/types'
 
@@ -68,6 +69,8 @@ export default function ItemForm(props: FormProps) {
 function ItemFormFields({ group, item, onSuccess, onCancel, units, categories }: FormProps & { units: Unit[]; categories: Category[] }) {
   const queryClient = useQueryClient()
   const canSeeCosts = useCan()('catalog.view_costs')
+  const hasProduction = useHasModule()('production')
+  const v = useVocabulary()
   const isIngredientScreen = group === 'ingredients'
 
   const { register, handleSubmit, control, formState: { errors } } = useForm<FormData>({
@@ -93,7 +96,7 @@ function ItemFormFields({ group, item, onSuccess, onCancel, units, categories }:
   const isService = kind === 'service'
   const unit = units.find((u) => u.code === unitCode)
   const margin = previewMargin(num(price), num(cost))
-  const noun = isIngredientScreen ? 'ingrediente' : 'producto'
+  const noun = isIngredientScreen ? v.ingredient : 'producto'
 
   const mutation = useMutation({
     mutationFn: (d: FormData) => {
@@ -185,11 +188,11 @@ function ItemFormFields({ group, item, onSuccess, onCancel, units, categories }:
         </div>
       )}
 
-      {!isService && !isIngredientScreen && kind === 'finished_good' && (
+      {hasProduction && !isService && !isIngredientScreen && kind === 'finished_good' && (
         <label className="flex items-start gap-2.5 text-sm text-ink cursor-pointer">
           <input type="checkbox" {...register('consume_on_sale')} className="mt-0.5 accent-[var(--primary)]" />
-          <span>Se prepara al momento (tinto, café con leche, jugos)
-            <span className="block text-xs text-ink-muted">No maneja existencias: al venderlo se descuentan los ingredientes de su receta.</span></span>
+          <span>Se prepara al momento ({v.preparedExamples})
+            <span className="block text-xs text-ink-muted">No maneja existencias: al venderlo se descuentan los {v.ingredients} de su receta.</span></span>
         </label>
       )}
 

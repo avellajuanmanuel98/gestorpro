@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import Brand from '@/components/brand/Brand'
 import { cn } from '@/lib/cn'
-import { useAuthStore, useCan, useHasFeature } from '@/store/authStore'
+import { useAuthStore, useCan, useHasFeature, useHasModule } from '@/store/authStore'
 import { useThemeStore } from '@/store/themeStore'
 
 // ── Navegación ────────────────────────────────────────────────────────────────
@@ -19,6 +19,8 @@ interface NavItem {
   label: string
   permission?: string
   feature?: string
+  /** Módulo opcional de la empresa (core/tenancy/modules.py) */
+  module?: string
   /** Etiqueta para empresas que NO son panadería (p. ej. Ingredientes → Insumos) */
   genericLabel?: string
 }
@@ -31,8 +33,8 @@ const navGroups: { label: string; items: NavItem[] }[] = [
       { to: '/pos', icon: ShoppingCart, label: 'Vender', permission: 'sales.sell' },
       { to: '/cash', icon: Wallet, label: 'Caja', permission: 'cash.operate' },
       { to: '/sales', icon: ReceiptText, label: 'Ventas', permission: 'sales.view' },
-      { to: '/production', icon: Factory, label: 'Producción', permission: 'production.view' },
-      { to: '/waste', icon: Flame, label: 'Mermas', permission: 'waste.register' },
+      { to: '/production', icon: Factory, label: 'Producción', permission: 'production.view', module: 'production' },
+      { to: '/waste', icon: Flame, label: 'Mermas', permission: 'waste.register', module: 'waste' },
     ],
   },
   {
@@ -40,7 +42,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     items: [
       { to: '/inventory', icon: Boxes, label: 'Productos', permission: 'catalog.view' },
       { to: '/ingredients', icon: Wheat, label: 'Ingredientes', permission: 'catalog.view', genericLabel: 'Insumos' },
-      { to: '/recipes', icon: ChefHat, label: 'Recetas', permission: 'recipes.view' },
+      { to: '/recipes', icon: ChefHat, label: 'Recetas', permission: 'recipes.view', module: 'production' },
       { to: '/purchases', icon: PackagePlus, label: 'Compras', permission: 'purchases.view' },
       { to: '/movements', icon: ArrowLeftRight, label: 'Movimientos', permission: 'inventory.view' },
     ],
@@ -125,6 +127,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const logout = useAuthStore((s) => s.logout)
   const can = useCan()
   const hasFeature = useHasFeature()
+  const hasModule = useHasModule()
   const { theme, toggleTheme } = useThemeStore()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -137,7 +140,8 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   const groups = navGroups
     .map((g) => ({ ...g, items: g.items
-      .filter((i) => (!i.permission || can(i.permission)) && (!i.feature || hasFeature(i.feature)))
+      .filter((i) => (!i.permission || can(i.permission)) && (!i.feature || hasFeature(i.feature))
+        && (!i.module || hasModule(i.module)))
       .map((i) => (i.genericLabel && session?.tenant?.vertical !== 'bakery' ? { ...i, label: i.genericLabel } : i)) }))
     .filter((g) => g.items.length > 0)
 

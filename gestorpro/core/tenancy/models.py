@@ -33,6 +33,8 @@ class Tenant(models.Model):
     city = models.CharField(verbose_name='ciudad', max_length=100, blank=True, default='')
     logo = models.ImageField(verbose_name='logo', upload_to='logos/', null=True, blank=True)
 
+    # Módulos opcionales encendidos (ver tenancy/modules.py). Los fija el vertical al dar de alta la empresa.
+    modules = models.JSONField(verbose_name='módulos activos', default=list, blank=True)
     timezone = models.CharField(verbose_name='zona horaria', max_length=64, default='America/Bogota')
     currency = models.CharField(verbose_name='moneda', max_length=3, default='COP')
 

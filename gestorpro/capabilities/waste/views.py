@@ -13,6 +13,7 @@ from .serializers import WasteInputSerializer, WasteReasonSerializer, WasteRecor
 class ReasonListView(generics.ListAPIView):
     serializer_class = WasteReasonSerializer
     permission_classes = [HasTenantPermission]
+    required_module = 'waste'
     required_permissions = {'GET': 'waste.register'}
     pagination_class = None
 
@@ -23,6 +24,7 @@ class ReasonListView(generics.ListAPIView):
 class WasteListCreateView(generics.ListCreateAPIView):
     serializer_class = WasteRecordSerializer
     permission_classes = [HasTenantPermission]
+    required_module = 'waste'
     required_permissions = {'GET': 'waste.view', 'POST': 'waste.register'}
 
     def get_queryset(self):
@@ -54,6 +56,7 @@ class WasteListCreateView(generics.ListCreateAPIView):
 class WasteSummaryView(generics.GenericAPIView):
     """GET /api/waste/summary/?period= — mermas por motivo y por ítem, con costo si hay permiso."""
     permission_classes = [HasTenantPermission]
+    required_module = 'waste'
     required_permissions = {'GET': 'waste.view'}
 
     def get(self, request):

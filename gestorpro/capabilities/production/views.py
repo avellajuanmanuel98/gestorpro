@@ -16,6 +16,7 @@ class RecipeListCreateView(generics.ListCreateAPIView):
     """Recetas ACTIVAS (una por producto). POST guarda (y versiona si hace falta)."""
     serializer_class = RecipeSerializer
     permission_classes = [HasTenantPermission]
+    required_module = 'production'
     required_permissions = {'GET': 'recipes.view', 'POST': 'recipes.manage'}
     filter_backends = [filters.SearchFilter]
     search_fields = ['product__name', 'product__code']
@@ -34,6 +35,7 @@ class RecipeListCreateView(generics.ListCreateAPIView):
 class RecipeDetailView(generics.RetrieveAPIView):
     serializer_class = RecipeSerializer
     permission_classes = [HasTenantPermission]
+    required_module = 'production'
     required_permissions = {'GET': 'recipes.view'}
 
     def get_queryset(self):
@@ -43,6 +45,7 @@ class RecipeDetailView(generics.RetrieveAPIView):
 class RecipePlanView(APIView):
     """GET /api/production/recipes/<id>/plan/?quantity=150 — ingredientes y costo para producir esa cantidad."""
     permission_classes = [HasTenantPermission]
+    required_module = 'production'
     required_permissions = {'GET': 'production.register'}
 
     def get(self, request, pk):
@@ -73,6 +76,7 @@ class RecipePlanView(APIView):
 class BatchListCreateView(generics.ListCreateAPIView):
     serializer_class = BatchSerializer
     permission_classes = [HasTenantPermission]
+    required_module = 'production'
     required_permissions = {'GET': 'production.view', 'POST': 'production.register'}
 
     def get_queryset(self):

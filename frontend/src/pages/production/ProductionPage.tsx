@@ -21,10 +21,12 @@ import { formatCOP } from '@/lib/money'
 import { useDebounced } from '@/lib/useDebounced'
 import { useAuthStore, useCan } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
+import { useVocabulary } from '@/lib/vocabulary'
 
 const num = (v: string) => v.replace(',', '.')
 
 function ProduceForm({ initial }: { initial?: { recipe: string; quantity: string } }) {
+  const v = useVocabulary()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const recipes = useQuery({ queryKey: ['recipes', 'all'], queryFn: () => productionApi.recipes({ page_size: 200 }) })
@@ -55,7 +57,7 @@ function ProduceForm({ initial }: { initial?: { recipe: string; quantity: string
 
   if (recipes.isSuccess && !producible.length) {
     return <EmptyState icon={<Factory size={20} />} title="Primero crea una receta"
-                       description="La producción usa la receta para saber qué ingredientes descontar."
+                       description={`La producción usa la receta para saber qué ${v.ingredients} descontar.`}
                        action={{ label: 'Ir a recetas', onClick: () => navigate('/recipes') }} />
   }
   return (
@@ -72,7 +74,7 @@ function ProduceForm({ initial }: { initial?: { recipe: string; quantity: string
         <div className="rounded-xl border border-line overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-surface-muted/60 text-xs text-ink-muted"><tr>
-              <th className="text-left px-3 py-2 font-medium">Ingrediente</th><th className="text-right px-3 py-2 font-medium">Según receta</th>
+              <th className="text-left px-3 py-2 font-medium">{v.Ingredient}</th><th className="text-right px-3 py-2 font-medium">Según receta</th>
               <th className="text-right px-3 py-2 font-medium w-36">Usado de verdad</th><th className="text-right px-3 py-2 font-medium">Existencia</th></tr></thead>
             <tbody className="divide-y divide-line">
               {plan.data.lines.map((l) => (
@@ -99,7 +101,7 @@ function ProduceForm({ initial }: { initial?: { recipe: string; quantity: string
         </div>
       )}
       {plan.data?.lines.some((l) => l.short) && (
-        <Alert tone="warning">Según el sistema, algún ingrediente no alcanza. Puedes registrar igual (quedará en negativo) y corregirlo con una compra o un conteo.</Alert>
+        <Alert tone="warning">Según el sistema, algún {v.ingredient} no alcanza. Puedes registrar igual (quedará en negativo) y corregirlo con una compra o un conteo.</Alert>
       )}
       {produce.isError && <Alert tone="danger">{getErrorMessage(produce.error)}</Alert>}
       <div className="flex justify-end">
@@ -186,6 +188,7 @@ function SuggestionCard({ onProduce, canRegister }: { onProduce: (recipe: number
 
 export default function ProductionPage() {
   const can = useCan()
+  const v = useVocabulary()
   const isBakery = useAuthStore((s) => s.session?.tenant?.vertical) === 'bakery'
   const [preset, setPreset] = useState<{ key: number; recipe: string; quantity: string } | undefined>()
   const [page, setPage] = useState(1)
@@ -206,7 +209,7 @@ export default function ProductionPage() {
   ]
   return (
     <Page>
-      <PageHeader title="Producción" description="Registra lo que sale del horno: descuenta ingredientes y suma producto"
+      <PageHeader title="Producción" description={v.productionTagline}
                   actions={<Link to="/recipes" className="text-sm text-primary-ink hover:underline">Ver recetas</Link>} />
       {can('production.register') && (
         <Card><CardHeader title="Registrar producción" /><div id="produce-form" className="px-5 pb-5">

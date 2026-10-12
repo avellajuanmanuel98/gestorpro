@@ -14,6 +14,8 @@ import { toast } from '@/store/toastStore'
 import type { Tenant } from '@/types'
 import StatusMark from '@/components/ui/StatusMark'
 import { ACTIVE_STATUS } from '@/lib/status'
+import { cn } from '@/lib/cn'
+import { Factory, Flame } from 'lucide-react'
 
 type EditableFields = Pick<Tenant, 'name' | 'legal_name' | 'tax_id' | 'email' | 'phone' | 'city' | 'address'>
 
@@ -93,13 +95,71 @@ function CompanyForm({ tenant }: { tenant: Tenant }) {
   )
 }
 
+const MODULES = [
+  { key: 'production', icon: Factory, title: 'Producción y recetas',
+    text: 'Para negocios que fabrican o preparan lo que venden: recetas con costo, lotes de producción y descuento automático de insumos.' },
+  { key: 'waste', icon: Flame, title: 'Mermas',
+    text: 'Registrar lo que se pierde (vencido, dañado, sobrante) y ver cuánto cuesta.' },
+]
+
+/** Módulos opcionales: una lavandería no produce; una panadería sí. El servidor también los exige. */
+function ModulesCard({ tenant }: { tenant: Tenant }) {
+  const queryClient = useQueryClient()
+  const canEdit = useCan()('tenant.manage')
+  const refreshSession = useAuthStore((s) => s.refreshSession)
+  const mutation = useMutation({
+    mutationFn: (modules: string[]) => tenantApi.update({ modules }),
+    onSuccess: async (updated, modules) => {
+      queryClient.setQueryData(['tenant'], updated)
+      await refreshSession() // el menú cambia de inmediato
+      toast.success(modules.length > (tenant.modules?.length ?? 0) ? 'Módulo activado' : 'Módulo desactivado')
+    },
+  })
+  const active = new Set(tenant.modules ?? [])
+  const toggle = (key: string) => {
+    const next = new Set(active)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    mutation.mutate([...next].sort())
+  }
+  return (
+    <Card>
+      <CardHeader title="Módulos de tu negocio" description="Activa solo lo que usas: el menú se adapta. Los datos de un módulo apagado se conservan." />
+      <ul className="divide-y divide-line border-t border-line">
+        {MODULES.map(({ key, icon: Icon, title, text }) => {
+          const on = active.has(key)
+          return (
+            <li key={key} className="flex items-start gap-3 px-5 py-4">
+              <span className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0',
+                on ? 'bg-primary-soft text-primary-ink' : 'bg-surface-muted text-ink-subtle')}><Icon size={17} /></span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-medium text-ink">{title}</span>
+                <span className="block text-xs text-ink-muted mt-0.5">{text}</span>
+              </span>
+              <button type="button" role="switch" aria-checked={on} aria-label={title}
+                      disabled={!canEdit || mutation.isPending} onClick={() => toggle(key)}
+                      className={cn('relative mt-1 h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50',
+                        on ? 'bg-primary' : 'bg-line-strong')}>
+                <span className={cn('absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow transition-all', on ? 'left-[22px]' : 'left-0.5')} />
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+      {!canEdit && <p className="px-5 pb-4 text-xs text-ink-muted">Solo los administradores pueden cambiar los módulos.</p>}
+      {mutation.isError && <div className="px-5 pb-4"><Alert tone="danger">{getErrorMessage(mutation.error)}</Alert></div>}
+    </Card>
+  )
+}
+
 export default function CompanyPage() {
   const { data: tenant, isLoading } = useQuery({ queryKey: ['tenant'], queryFn: tenantApi.current })
   return (
     <Page width="narrow">
-      <PageHeader title="Empresa" description="Información y plan de tu empresa" />
+      <PageHeader title="Empresa" description="Información, plan y módulos de tu empresa" />
       <PlanCard />
       {isLoading || !tenant ? <Card padded><SkeletonText lines={6} /></Card> : <CompanyForm tenant={tenant} />}
+      {tenant && <ModulesCard tenant={tenant} />}
     </Page>
   )
 }

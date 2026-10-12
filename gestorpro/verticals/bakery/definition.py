@@ -16,6 +16,7 @@ class VerticalDefinition:
     default_categories: list[str] = field(default_factory=list)
     default_ingredient_categories: list[str] = field(default_factory=list)
     recommended_plan: str = 'business'
+    modules: tuple[str, ...] = ()  # módulos opcionales encendidos al dar de alta (core/tenancy/modules.py)
 
 
 MIGA = VerticalDefinition(
@@ -26,6 +27,7 @@ MIGA = VerticalDefinition(
     default_ingredient_categories=['Harinas y almidones', 'Lácteos y huevos', 'Grasas', 'Endulzantes',
                                    'Levaduras y aditivos', 'Rellenos y frutas', 'Bebidas e insumos de cafetería',
                                    'Empaques'],
+    modules=('production', 'waste'),
 )
 
 # Catálogo base de ingredientes de una panadería colombiana: nombre, categoría,

@@ -15,12 +15,13 @@ import Tabs from '@/components/ui/Tabs'
 import { formatQty } from '@/lib/catalog'
 import { formatCOP, formatCompactNumber, toDisplayNumber } from '@/lib/money'
 import { INVOICE_STATUS } from '@/lib/status'
-import { useAuthStore, useCan, useHasFeature } from '@/store/authStore'
+import { useCan, useHasFeature, useHasModule } from '@/store/authStore'
 import PeriodPicker from '@/components/analytics/PeriodPicker'
 import { isReady, usePeriod } from '@/lib/period'
 import { CashTab, CoverageCard, ProductionWasteTab, ProfitTab, SalesTab } from './AnalyticsTabs'
 import type { Invoice } from '@/types'
 import { LifecycleMark } from '@/components/ui/StatusMark'
+import { useVocabulary } from '@/lib/vocabulary'
 
 const Loading = () => <div className="grid gap-4 md:grid-cols-2"><Skeleton height={280} /><Skeleton height={280} /></div>
 const NoData = ({ text }: { text: string }) => <EmptyState compact icon={<BarChart2 size={20} />} title={text} />
@@ -93,6 +94,7 @@ function BillingTab() {
 }
 
 function InventoryTab() {
+  const v = useVocabulary()
   const { data, isLoading } = useQuery({ queryKey: ['report-inventory'], queryFn: reportsApi.inventory })
   if (isLoading || !data) return <Loading />
   const showCosts = data.valor_inventario !== null
@@ -101,8 +103,8 @@ function InventoryTab() {
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiTile label="Productos activos" value={data.total_productos} />
-        <KpiTile label="Ingredientes activos" value={data.total_ingredientes} />
-        <KpiTile label="Inventario de ingredientes" unavailable={showCosts ? undefined : 'No incluido en tu rol'}
+        <KpiTile label={`${v.Ingredients} activos`} value={data.total_ingredientes} />
+        <KpiTile label={`Inventario de ${v.ingredients}`} unavailable={showCosts ? undefined : 'No incluido en tu rol'}
                  value={formatCOP(data.valor_ingredientes, { compact: true })} hint="A costo: existencia × costo por unidad." />
         <KpiTile label="Inventario de productos" unavailable={showCosts ? undefined : 'No incluido en tu rol'}
                  value={formatCOP(data.valor_productos, { compact: true })} hint="A costo, no a precio de venta." />
@@ -112,11 +114,11 @@ function InventoryTab() {
           <CardHeader title={showCosts ? 'Valor del inventario por categoría' : 'Ítems por categoría'}
                       description={<span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
                         {showCosts && <span>A costo.</span>}
-                        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'var(--chart-2)' }} />Ingredientes</span>
+                        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'var(--chart-2)' }} />{v.Ingredients}</span>
                         <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: 'var(--chart-1)' }} />Productos</span>
                       </span>} />
           <div className="px-2 pb-4">
-            {!chart.length ? <NoData text="Aún no hay productos ni ingredientes" /> : (
+            {!chart.length ? <NoData text={`Aún no hay productos ni ${v.ingredients}`} /> : (
               <ResponsiveContainer width="100%" height={Math.max(160, chart.length * 38)}>
                 <BarChart data={chart} layout="vertical" margin={{ top: 4, right: 24, left: 8, bottom: 4 }}>
                   <CartesianGrid horizontal={false} stroke="var(--chart-grid)" />
@@ -134,7 +136,7 @@ function InventoryTab() {
           </div>
         </Card>
         <Card>
-          <CardHeader title="Bajo el mínimo" description="Productos e ingredientes en su mínimo o por debajo" />
+          <CardHeader title="Bajo el mínimo" description={`Productos e ${v.ingredients} en su mínimo o por debajo`} />
           {!data.low_stock.length ? <NoData text="Todo está sobre el mínimo" /> : (
             <ul className="divide-y divide-line border-t border-line">
               {data.low_stock.map((p) => (
@@ -206,13 +208,15 @@ const PERIOD_TABS: TabId[] = ['sales', 'profit', 'production', 'cash']
 export default function ReportsPage() {
   const can = useCan()
   const hasHr = useHasFeature()('module.hr') && can('hr.view')
-  const isBakery = useAuthStore((s) => s.session?.tenant?.vertical) === 'bakery'
+  const hasModule = useHasModule()
+  const [hasProduction, hasWaste] = [hasModule('production'), hasModule('waste')]
   const [params, setParams] = useSearchParams()
   const [period, setPeriod] = usePeriod('7d')
   const tabs: { id: TabId; label: string }[] = [
     { id: 'sales', label: 'Ventas' },
     { id: 'profit', label: 'Rentabilidad' },
-    { id: 'production', label: isBakery ? 'Producción y mermas' : 'Mermas' },
+    ...(hasProduction || hasWaste ? [{ id: 'production' as const,
+      label: hasProduction && hasWaste ? 'Producción y mermas' : hasProduction ? 'Producción' : 'Mermas' }] : []),
     { id: 'inventory', label: 'Inventario' },
     ...(can('cash.manage') ? [{ id: 'cash' as const, label: 'Caja' }] : []),
     { id: 'billing', label: 'Facturación' },
@@ -234,7 +238,7 @@ export default function ReportsPage() {
         <>
           {tab === 'sales' && <SalesTab period={period} />}
           {tab === 'profit' && <ProfitTab period={period} />}
-          {tab === 'production' && <ProductionWasteTab period={period} canWaste={can('waste.view')} />}
+          {tab === 'production' && <ProductionWasteTab period={period} canWaste={hasWaste && can('waste.view')} showProduction={hasProduction} />}
           {tab === 'cash' && <CashTab period={period} />}
         </>
       )}

@@ -38,6 +38,7 @@ def build_session(user, membership):
             'name': membership.tenant.name,
             'slug': membership.tenant.slug,
             'vertical': membership.tenant.vertical,
+            'modules': sorted(membership.tenant.modules or []),
         },
         'role': None if membership is None else {'code': membership.role.code, 'name': membership.role.name},
         # Solo para adaptar la UI: el backend vuelve a validar cada permiso.

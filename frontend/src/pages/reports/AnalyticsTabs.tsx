@@ -19,6 +19,7 @@ import { formatDateTime } from '@/lib/dates'
 import { getErrorMessage } from '@/lib/errors'
 import { formatCOP, formatCompactNumber, toDisplayNumber } from '@/lib/money'
 import { toast } from '@/store/toastStore'
+import { useVocabulary } from '@/lib/vocabulary'
 
 const NoData = ({ text, description }: { text: string; description?: string }) =>
   <EmptyState compact icon={<BarChart2 size={20} />} title={text} description={description} />
@@ -220,7 +221,7 @@ const ADVICE: Record<Quadrant, string> = {
 
 // ── Producción y mermas ───────────────────────────────────────────────────────
 
-export function ProductionWasteTab({ period, canWaste }: { period: PeriodQuery; canWaste: boolean }) {
+export function ProductionWasteTab({ period, canWaste, showProduction }: { period: PeriodQuery; canWaste: boolean; showProduction: boolean }) {
   const products = useQuery({ queryKey: ['analytics', 'products', period], queryFn: () => analyticsApi.products(period) })
   const waste = useQuery({ queryKey: ['analytics', 'waste', period], queryFn: () => analyticsApi.waste(period), enabled: canWaste })
   const rows = (products.data?.rows ?? []).filter((r) => Number(r.produced) > 0 || Number(r.wasted) > 0)
@@ -229,7 +230,7 @@ export function ProductionWasteTab({ period, canWaste }: { period: PeriodQuery; 
   const reasons = (waste.data?.by_reason ?? []).map((r) => ({ ...r, value: costs ? toDisplayNumber(r.cost) : r.records }))
   return (
     <div className="space-y-4">
-      <Card>
+      {showProduction && <Card>
         <CardHeader title="Producido, vendido y perdido" description="Tasa de merma = unidades perdidas ÷ unidades producidas en el período" />
         {products.isLoading ? <div className="px-5 pb-5"><Skeleton height={160} /></div> : !rows.length ? (
           <NoData text="Sin producción ni mermas en el período" description="Registra la producción y las mermas para ver aquí cuánto se pierde de cada producto." />
@@ -264,7 +265,7 @@ export function ProductionWasteTab({ period, canWaste }: { period: PeriodQuery; 
             </table>
           </div>
         )}
-      </Card>
+      </Card>}
       {canWaste && (
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
@@ -350,15 +351,16 @@ export function CashTab({ period }: { period: PeriodQuery }) {
   )
 }
 
-// ── Cobertura de ingredientes (dentro de la pestaña Inventario) ───────────────
+// ── Cobertura de ingredientes o insumos (dentro de la pestaña Inventario) ───────────────
 
 export function CoverageCard() {
+  const v = useVocabulary()
   const { data, isLoading } = useQuery({ queryKey: ['analytics', 'coverage'], queryFn: analyticsApi.coverage })
   return (
     <Card>
-      <CardHeader title="¿Para cuántos días alcanza?" description="Existencia ÷ consumo diario promedio de los últimos 30 días (ingredientes)" />
+      <CardHeader title="¿Para cuántos días alcanza?" description={`Existencia ÷ consumo diario promedio de los últimos 30 días (${v.ingredients})`} />
       {isLoading ? <div className="px-5 pb-5"><Skeleton height={120} /></div> : !data?.rows.length ? (
-        <NoData text="Aún no hay consumo de ingredientes" description="Aparecerá cuando registres producción o ventas de bebidas preparadas." />
+        <NoData text={`Aún no hay consumo de ${v.ingredients}`} description="Aparecerá cuando registres producción, mermas o ventas de productos preparados." />
       ) : (
         <ul className="divide-y divide-line border-t border-line">
           {data.rows.slice(0, 12).map((r) => (

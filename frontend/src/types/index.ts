@@ -15,6 +15,8 @@ export interface SessionTenant {
   name: string
   slug: string
   vertical: 'generic' | 'bakery'
+  /** Módulos opcionales encendidos: 'production', 'waste' (el backend los exige) */
+  modules: string[]
 }
 
 export interface Session {
@@ -117,6 +119,7 @@ export interface Tenant {
   slug: string
   tax_id: string
   vertical: 'generic' | 'bakery'
+  modules: string[]
   status: 'active' | 'suspended'
   email: string
   phone: string
