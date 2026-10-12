@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeftRight, BarChart2, Boxes, Building2, FileText, History, KeyRound, LayoutDashboard,
-  LogOut, Menu, Moon, Sun, Truck, UserCheck, UserCog, Users, Wheat, X, ShoppingCart, Wallet, ReceiptText, Factory, Flame, ChefHat, PackagePlus,
+  LogOut, Menu, Moon, ShieldCheck, Sun, Truck, UserCheck, UserCog, Users, Wheat, X, ShoppingCart, Wallet, ReceiptText, Factory, Flame, ChefHat, PackagePlus,
 } from 'lucide-react'
 import Brand from '@/components/brand/Brand'
+import PlanBanner from '@/components/platform/PlanBanner'
+import SupportBanner from '@/components/platform/SupportBanner'
 import { cn } from '@/lib/cn'
 import { useAuthStore, useCan, useHasFeature, useHasModule } from '@/store/authStore'
 import { useThemeStore } from '@/store/themeStore'
@@ -89,7 +91,7 @@ function TenantSwitcher() {
   const switchTenant = useAuthStore((s) => s.switchTenant)
   const queryClient = useQueryClient()
   const [switching, setSwitching] = useState(false)
-  if (!session?.tenant) return null
+  if (!session?.tenant || session.support) return null
   const others = session.memberships.filter((m) => m.tenant_id !== session.tenant?.id)
 
   const handleSwitch = async (tenantId: number) => {
@@ -177,6 +179,12 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="shrink-0 border-t border-line p-3 space-y-1">
+        {session?.user.is_platform_admin && !session.support && (
+          <NavLink to="/platform" onClick={onNavigate}
+                   className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-ink-muted hover:bg-surface-muted hover:text-ink transition-colors">
+            <ShieldCheck size={16} /> Consola de plataforma
+          </NavLink>
+        )}
         <button type="button" onClick={toggleTheme}
                 className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-ink-muted hover:bg-surface-muted hover:text-ink transition-colors">
           {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
@@ -205,6 +213,9 @@ export default function AppLayout() {
   const currentLabel = routeLabels[location.pathname] ?? ''
   // En el POS el menú lateral se oculta hasta pantallas anchas: el mostrador necesita todo el espacio
   const focusMode = location.pathname === '/pos'
+  const session = useAuthStore((s) => s.session)
+  // Personal de la plataforma sin empresa: su lugar es la consola
+  if (session && !session.tenant && session.user.is_platform_admin) return <Navigate to="/platform" replace />
 
   return (
     <div className="flex h-screen bg-canvas overflow-hidden">
@@ -226,6 +237,8 @@ export default function AppLayout() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
+        <SupportBanner />
+        <PlanBanner />
         <header className={`${focusMode ? 'xl:hidden' : 'md:hidden'} h-14 shrink-0 bg-surface border-b border-line flex items-center gap-3 px-4`}>
           <button type="button" onClick={() => setSidebarOpen(true)} aria-label="Abrir menú"
                   className="p-1.5 -ml-1.5 rounded-lg text-ink-muted hover:bg-surface-muted">

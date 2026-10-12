@@ -30,3 +30,16 @@ export const SESSION_STATUS: Record<'open' | 'closed', StatusSpec> = {
   open: { label: 'Abierta', tone: 'accent', glyph: 'half' },
   closed: { label: 'Cerrada', tone: 'neutral', glyph: 'solid' },
 }
+
+export const SUBSCRIPTION_STATUS: Record<'trialing' | 'trial_expired' | 'active' | 'past_due' | 'canceled', StatusSpec> = {
+  trialing: { label: 'En prueba', tone: 'accent', glyph: 'half' },
+  trial_expired: { label: 'Prueba vencida', tone: 'warning', glyph: 'paused' },
+  active: { label: 'Activa', tone: 'success', glyph: 'solid' },
+  past_due: { label: 'Pago pendiente', tone: 'danger', glyph: 'paused' },
+  canceled: { label: 'Cancelada', tone: 'neutral', glyph: 'hollow' },
+}
+
+export const TENANT_STATUS: Record<'active' | 'suspended', StatusSpec> = {
+  active: { label: 'Activa', tone: 'success', glyph: 'solid' },
+  suspended: { label: 'Suspendida', tone: 'danger', glyph: 'paused' },
+}

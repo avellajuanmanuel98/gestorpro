@@ -31,6 +31,12 @@ import AcceptInvitationPage from '@/pages/auth/AcceptInvitationPage'
 
 // Layout principal con sidebar
 import AppLayout from '@/layouts/AppLayout'
+import PlatformLayout from '@/layouts/PlatformLayout'
+import PlatformOverviewPage from '@/pages/platform/PlatformOverviewPage'
+import PlatformTenantsPage from '@/pages/platform/PlatformTenantsPage'
+import PlatformTenantDetailPage from '@/pages/platform/PlatformTenantDetailPage'
+import PlatformPlansPage from '@/pages/platform/PlatformPlansPage'
+import PlatformEventsPage from '@/pages/platform/PlatformEventsPage'
 
 /** Quien vende y no ve métricas (cajero) entra directo al POS; el resto, al inicio. */
 /** Módulo apagado para esta empresa (p. ej. producción en una lavandería): no se muestra la pantalla. */
@@ -41,6 +47,8 @@ function RequireModule({ module, children }: { module: string; children: React.R
 
 function HomeRedirect() {
   const can = useCan()
+  const session = useAuthStore((s) => s.session)
+  if (session && !session.tenant && session.user.is_platform_admin) return <Navigate to="/platform" replace />
   return <Navigate to={can('sales.sell') && !can('reports.view') ? '/pos' : '/dashboard'} replace />
 }
 
@@ -101,6 +109,15 @@ function App() {
           <Route path="users"     element={<UsersPage />} />
           <Route path="roles"     element={<RolesPage />} />
           <Route path="audit"     element={<AuditPage />} />
+        </Route>
+
+        {/* Consola de la plataforma (personal de GestorPro) */}
+        <Route path="/platform" element={<PrivateRoute><PlatformLayout /></PrivateRoute>}>
+          <Route index element={<PlatformOverviewPage />} />
+          <Route path="tenants" element={<PlatformTenantsPage />} />
+          <Route path="tenants/:id" element={<PlatformTenantDetailPage />} />
+          <Route path="plans" element={<PlatformPlansPage />} />
+          <Route path="events" element={<PlatformEventsPage />} />
         </Route>
 
         {/* Cualquier ruta desconocida → dashboard */}

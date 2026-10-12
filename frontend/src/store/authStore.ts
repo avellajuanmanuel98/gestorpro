@@ -14,7 +14,27 @@ interface AuthState {
   switchTenant: (tenantId: number) => Promise<void>
   logout: () => Promise<void>
   clear: () => void
+  /** Personal de la plataforma: entra a una empresa en modo soporte (solo lectura) y vuelve a la consola. */
+  enterSupport: (access: string) => Promise<void>
+  exitSupport: () => Promise<number | null>
 }
+
+// Mientras dura el soporte, los tokens propios del agente esperan aquí (solo en esta pestaña)
+const STASH = 'gp_platform_tokens'
+const stash = {
+  save() { sessionStorage.setItem(STASH, JSON.stringify({ access: tokenStorage.access, refresh: tokenStorage.refresh })) },
+  restore(): boolean {
+    const raw = sessionStorage.getItem(STASH)
+    if (!raw) return false
+    sessionStorage.removeItem(STASH)
+    const saved = JSON.parse(raw) as { access: string | null; refresh: string | null }
+    tokenStorage.clear()
+    if (saved.access) tokenStorage.set({ access: saved.access, refresh: saved.refresh ?? undefined })
+    return Boolean(saved.access)
+  },
+  get active() { return sessionStorage.getItem(STASH) !== null },
+}
+export const supportStash = stash
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -41,6 +61,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
+        if (stash.active) await get().exitSupport() // primero se recupera la sesión propia, para revocarla
         try {
           await authApi.logout()
         } catch {
@@ -49,7 +70,27 @@ export const useAuthStore = create<AuthState>()(
         get().clear()
       },
 
+      enterSupport: async (access) => {
+        stash.save()
+        tokenStorage.clear()
+        tokenStorage.set({ access }) // sin refresh: el acceso vence con la sesión de soporte
+        await get().refreshSession()
+      },
+
+      exitSupport: async () => {
+        const tenantId = get().session?.tenant?.id ?? null
+        try {
+          await authApi.endSupport()
+        } catch {
+          // Si ya venció, igual se vuelve a la consola
+        }
+        stash.restore()
+        await get().refreshSession()
+        return tenantId
+      },
+
       clear: () => {
+        sessionStorage.removeItem(STASH)
         tokenStorage.clear()
         set({ session: null, user: null, isAuthenticated: false })
       },
@@ -62,6 +103,11 @@ export const useAuthStore = create<AuthState>()(
 )
 
 setSessionExpiredHandler(() => {
+  // Venció una sesión de soporte: se vuelve a la consola con los tokens propios del agente
+  if (stash.active && stash.restore()) {
+    window.location.assign('/platform')
+    return
+  }
   useAuthStore.getState().clear()
   if (window.location.pathname !== '/login') window.location.assign('/login')
 })

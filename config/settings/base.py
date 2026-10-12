@@ -75,6 +75,7 @@ LOCAL_APPS = [
     # platform
     'gestorpro.platform.subscriptions',
     'gestorpro.platform.admin_panel',
+    'gestorpro.platform.console',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

@@ -5,10 +5,13 @@ El access token lleva el claim `tid` (empresa activa). En CADA petición se
 verifica en base de datos que la membresía siga activa, de modo que suspender
 a un usuario o a una empresa surte efecto inmediato, sin esperar a que el
 token expire. Solo después de esa verificación se activa el contexto de tenant.
+
+Un token con claim `sup` es de soporte de la plataforma (ver access/support.py).
 """
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from gestorpro.core.access import support
 from gestorpro.core.access.services import active_memberships_for
 from gestorpro.core.audit.context import bind_actor
 from gestorpro.core.tenancy.context import activate
@@ -25,7 +28,13 @@ class TenantJWTAuthentication(JWTAuthentication):
         bind_actor(user)
         membership = None
         tenant_id = token.get(TENANT_CLAIM)
-        if tenant_id is not None:
+        if token.get(support.SUPPORT_CLAIM) is not None:
+            # Soporte de la plataforma: solo lectura, validado en cada petición
+            membership = support.resolve(request, user, token[support.SUPPORT_CLAIM])
+            if membership.tenant_id != tenant_id:
+                raise AuthenticationFailed('Token de soporte inválido.', code='support_invalid')
+            activate(membership.tenant_id)
+        elif tenant_id is not None:
             membership = active_memberships_for(user).filter(tenant_id=tenant_id).first()
             if membership is None:
                 raise AuthenticationFailed('Tu acceso a esta empresa ya no está activo.', code='membership_inactive')

@@ -26,6 +26,8 @@ GLOBAL_MODELS = {
     'subscriptions.PlanFeature': 'Funcionalidades de un plan (plataforma).',
     'subscriptions.PlanLimit': 'Límites de un plan (plataforma).',
     'subscriptions.Subscription': 'La administra la plataforma; la empresa solo la lee vía entitlements.',
+    'access.SupportSession': 'Acceso de soporte de la plataforma; se consulta por empresa de forma explícita.',
+    'console.PlatformEvent': 'Bitácora de la plataforma (personal de GestorPro), no de una empresa.',
     'identity.User_groups': 'M2M de Django auth sobre el usuario global (solo admin de plataforma).',
     'identity.User_user_permissions': 'M2M de Django auth sobre el usuario global (solo admin de plataforma).',
 }

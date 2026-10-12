@@ -11,6 +11,7 @@ from gestorpro.platform.admin_panel.site import platform_admin_site
 api = [
     # Core
     path('auth/', include('gestorpro.core.identity.urls')),
+    path('platform/', include('gestorpro.platform.console.urls')),
     path('tenant/', include('gestorpro.core.tenancy.urls')),
     path('access/', include('gestorpro.core.access.urls')),
     path('audit/', include('gestorpro.core.audit.urls')),

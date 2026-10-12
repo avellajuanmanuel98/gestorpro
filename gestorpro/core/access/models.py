@@ -106,3 +106,28 @@ class Invitation(TenantModel):
         if self.expires_at <= timezone.now():
             return 'expired'
         return 'pending'
+
+
+class SupportSession(models.Model):
+    """
+    Acceso de SOPORTE de la plataforma a una empresa: solo lectura, con motivo,
+    con vencimiento y visible para la empresa en su auditoría. Lo crea la capa
+    Platform; aquí vive porque la autenticación (Core) debe poder validarlo.
+    No es TenantModel: la plataforma lo consulta por empresa de forma explícita.
+    """
+    tenant = models.ForeignKey('tenancy.Tenant', on_delete=models.CASCADE, related_name='support_sessions')
+    agent = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='+')
+    reason = models.CharField('motivo', max_length=300)
+    started_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    ended_at = models.DateTimeField(null=True, blank=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    request_count = models.PositiveIntegerField(default=0)
+    ip = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-started_at']
+        indexes = [models.Index(fields=['tenant', '-started_at'])]
+
+    def __str__(self):
+        return f'Soporte {self.agent} → {self.tenant} ({self.started_at:%Y-%m-%d %H:%M})'

@@ -29,6 +29,8 @@ export interface Session {
   /** Plan y funcionalidades: solo para la UI; el backend las valida. */
   plan: PlanInfo | null
   features: string[]
+  /** Sesión de soporte de la plataforma (solo lectura) */
+  support: { session: number; reason: string; expires_at: string; agent: string } | null
 }
 
 export interface PlanInfo {

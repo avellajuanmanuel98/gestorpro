@@ -48,6 +48,11 @@ def build_session(user, membership):
             'code': ent.plan_code, 'name': ent.plan_name, 'status': ent.status, 'trial_ends_at': ent.trial_ends_at,
         },
         'features': sorted(ent.features),
+        # Sesión de soporte de la plataforma (solo lectura): la UI muestra un aviso permanente
+        'support': None if not getattr(membership, 'is_support', False) else {
+            'session': membership.session.id, 'reason': membership.session.reason,
+            'expires_at': membership.session.expires_at.isoformat(), 'agent': user.email,
+        },
         'memberships': [
             {'tenant_id': m.tenant_id, 'tenant_name': m.tenant.name, 'role': m.role.name}
             for m in memberships

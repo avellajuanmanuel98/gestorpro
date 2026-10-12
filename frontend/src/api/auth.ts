@@ -26,6 +26,9 @@ export const authApi = {
       tenant_id: tenantId, refresh: tokenStorage.refresh,
     })).data,
 
+  /** Cierra la sesión de soporte de la plataforma (el token de soporte deja de servir). */
+  endSupport: async (): Promise<void> => { await apiClient.post('/platform/support/end/') },
+
   /** Revoca el refresh token en el servidor. */
   logout: async (): Promise<void> => {
     const refresh = tokenStorage.refresh
