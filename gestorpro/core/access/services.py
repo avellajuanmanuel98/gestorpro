@@ -148,7 +148,7 @@ def seats_in_use() -> int:
 
 
 def _check_seat_available():
-    entitlements.check_limit(get_active_tenant_id(), 'users', seats_in_use())
+    entitlements.check_limit(get_active_tenant_id(), 'users', seats_in_use)
 
 
 # ── Membresías ────────────────────────────────────────────────────────────────
@@ -327,7 +327,7 @@ def _validate_codes(codes) -> set[str]:
 def create_role(*, actor: Membership, name: str, permissions) -> Role:
     tenant_id = get_active_tenant_id()
     entitlements.require_feature(tenant_id, 'custom_roles')
-    entitlements.check_limit(tenant_id, 'custom_roles', _custom_role_count())
+    entitlements.check_limit(tenant_id, 'custom_roles', _custom_role_count)
     codes = _validate_codes(permissions)
     _assert_can_grant_codes(actor, codes)
     base = slugify(name).upper().replace('-', '_')[:30] or 'ROL'

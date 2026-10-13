@@ -99,7 +99,7 @@ class ItemListCreateView(TenantListCreateView):
 def create_item(serializer, request):
     """Alta de un ítem (pantalla o importación): límite del plan + existencia inicial como saldo inicial."""
     if serializer.validated_data['kind'] in Item.PRODUCT_KINDS:
-        entitlements.check_limit(request.membership.tenant_id, 'products', services.products_count())
+        entitlements.check_limit(request.membership.tenant_id, 'products', services.products_count)
     # La existencia inicial entra al libro como "saldo inicial", no como un número suelto
     initial = serializer.validated_data.pop('stock', None) or Decimal('0')
     item = serializer.save(created_by=request.user)
@@ -121,11 +121,12 @@ class ItemDetailView(TenantDetailView):
     def get_queryset(self):
         return super().get_queryset().select_related('category', 'unit')
 
+    @transaction.atomic
     def perform_update(self, serializer):
         becomes_product = (serializer.instance.kind == Item.Kind.RAW_MATERIAL
                            and serializer.validated_data.get('kind') in Item.PRODUCT_KINDS)
         if becomes_product:
-            entitlements.check_limit(self.request.membership.tenant_id, 'products', services.products_count())
+            entitlements.check_limit(self.request.membership.tenant_id, 'products', services.products_count)
         super().perform_update(serializer)
 
     def perform_destroy(self, instance):

@@ -1,0 +1,4 @@
+# Solo para los recorridos en navegador (pytest -m e2e). No hace falta para usar
+# GestorPro ni para la suite normal. Después: playwright install chromium
+-r requirements-dev.txt
+playwright==1.63.0

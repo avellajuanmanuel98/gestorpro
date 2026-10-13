@@ -41,3 +41,8 @@ frontend/.env.*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Cobertura (pytest --cov)
+.coverage
+.coverage.*
+htmlcov/

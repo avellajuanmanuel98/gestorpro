@@ -136,14 +136,19 @@ def _build_payments(raw_payments: list[dict], total: Decimal) -> tuple[list[Paym
     return [p for p in payments if p.amount > 0], change
 
 
+def _already_registered(membership, client_uuid) -> Sale | None:
+    existing = Sale.objects.filter(client_uuid=client_uuid).first()
+    if existing is not None and existing.cashier_id != membership.user_id:
+        raise ValidationError('Identificador de venta repetido.')
+    return existing
+
+
 @transaction.atomic
 def complete_sale(*, membership, client_uuid, lines: list[dict], payments: list[dict],
                   customer=None, discount=None) -> tuple[Sale, bool]:
     """Registra una venta. Devuelve (venta, creada). Si `client_uuid` ya existe, devuelve la existente."""
-    existing = Sale.objects.filter(client_uuid=client_uuid).first()
+    existing = _already_registered(membership, client_uuid)
     if existing is not None:
-        if existing.cashier_id != membership.user_id:
-            raise ValidationError('Identificador de venta repetido.')
         return existing, False
 
     session = current_session(membership.user)
@@ -152,6 +157,10 @@ def complete_sale(*, membership, client_uuid, lines: list[dict], payments: list[
     session = CashSession.objects.select_for_update().select_related('register').get(pk=session.pk)
     if not session.is_open:
         raise ValidationError('Tu turno de caja está cerrado.')
+    # Un reintento que llegó a la vez esperó el bloqueo del turno: ahora ve la venta ya confirmada
+    existing = _already_registered(membership, client_uuid)
+    if existing is not None:
+        return existing, False
 
     locked: dict[int, Item] = {}
     sale_lines = _build_lines(lines, locked)

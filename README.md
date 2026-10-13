@@ -149,7 +149,8 @@ ruff check .
 lint-imports                                   # contratos de capas
 python manage.py makemigrations --check --dry-run
 pytest -m isolation                            # aislamiento entre empresas (obligatorio)
-pytest                                         # suite completa
+pytest --cov                                   # suite completa + cobertura (mínimo 90 %)
+pytest -m e2e                                  # navegador real (pip install -r requirements-e2e.txt)
 cd frontend && npm run lint && npm test && npm run build
 ```
 

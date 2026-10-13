@@ -40,3 +40,13 @@ modules = [
     "gestorpro.capabilities.production",
     "gestorpro.capabilities.waste",
 ]
+
+[tool.coverage.run]
+source = ["gestorpro"]
+omit = ["*/migrations/*"]
+
+[tool.coverage.report]
+# Piso global. Los servicios críticos (dinero, existencias, permisos, empresas)
+# tienen su propio piso en CI: ver .github/workflows/ci.yml.
+fail_under = 90
+skip_empty = true

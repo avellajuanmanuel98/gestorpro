@@ -235,7 +235,7 @@ class Importer:
         new = [r for r in results if r['status'] == 'new']
         products = sum(1 for r in new if r['kind'] in Item.PRODUCT_KINDS)
         if products:
-            entitlements.check_limit(self.request.membership.tenant_id, 'products', services.products_count(),
+            entitlements.check_limit(self.request.membership.tenant_id, 'products', services.products_count,
                                      adding=products)
         created = []
         for r in new:

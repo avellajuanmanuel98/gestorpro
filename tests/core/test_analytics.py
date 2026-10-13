@@ -150,7 +150,7 @@ def test_waste_rate_uses_produced_and_wasted_units(shop):
 
 
 def test_breakdowns_and_hourly(shop):
-    sell(shop, [('Pan', '2')], method='card')
+    sell(shop, [('Pan', '2')], method='card', when=local(today(), 6))  # hora fija: no depender del reloj
     sell(shop, [('Torta', '1')], when=local(today(), 7))
     by_method = {r['label']: r['sales'] for r in shop['owner'].get('/api/analytics/breakdown/', {
         'period': 'today', 'by': 'method'}).data['rows']}

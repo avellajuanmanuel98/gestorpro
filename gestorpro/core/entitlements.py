@@ -86,10 +86,26 @@ def require_feature(tenant_id: int, feature: str):
         raise FeatureNotInPlan()
 
 
-def check_limit(tenant_id: int, key: str, used: int, adding: int = 1):
-    """Lanza PlanLimitReached si `used + adding` supera el límite del plan."""
+def check_limit(tenant_id: int, key: str, count, adding: int = 1):
+    """
+    Lanza PlanLimitReached si lo usado + `adding` supera el límite del plan.
+
+    `count` es la FUNCIÓN que cuenta lo usado, no el número: antes de contar se
+    bloquea la fila de la empresa hasta que termine la transacción. Así dos
+    altas simultáneas no pueden pasar las dos con el último cupo (la segunda
+    espera a la primera y cuenta lo que esta ya creó).
+    """
+    from django.db import transaction
+
+    from gestorpro.core.tenancy.models import Tenant
+
     limit = for_tenant(tenant_id).limit(key)
-    if limit is not None and used + adding > limit:
+    if limit is None:
+        return
+    if not transaction.get_connection().in_atomic_block:
+        raise RuntimeError('check_limit() requiere una transacción activa.')
+    list(Tenant.objects.select_for_update().filter(pk=tenant_id).values_list('pk', flat=True))
+    if count() + adding > limit:
         raise PlanLimitReached(
             f'Tu plan permite {limit} {LIMITS.get(key, key).lower()}. Mejora tu plan para agregar más.'
         )
