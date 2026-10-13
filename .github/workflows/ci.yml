@@ -109,3 +109,24 @@ jobs:
         run: pytest -m e2e -q
         env:
           E2E_REQUIRED: '1'
+
+  # Obligatorio: ninguna dependencia con vulnerabilidades conocidas en lo que se despliega.
+  # (Las herramientas de desarrollo del frontend se revisan, pero no bloquean: no llegan al navegador.)
+  dependencies:
+    name: Dependencias sin vulnerabilidades conocidas (obligatorio)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '${{ env.PYTHON_VERSION }}' }
+      - run: pip install pip-audit==2.10.1
+      - name: Backend (requirements.txt)
+        run: pip-audit -r requirements.txt --progress-spinner off
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}' }
+      - name: Frontend (lo que llega al navegador)
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+      - name: Frontend (herramientas de desarrollo, informativo)
+        working-directory: frontend
+        run: npm audit || true

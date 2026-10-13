@@ -33,6 +33,7 @@ from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, Ou
 
 from gestorpro.core.audit import services as audit
 from gestorpro.core.audit.models import SecurityEvent
+from gestorpro.core.tenancy.rls import rls_bypass
 
 logger = logging.getLogger('gestorpro.identity')
 HOURS = settings.PASSWORD_RESET_TIMEOUT // 3600
@@ -104,8 +105,9 @@ def link_for_member(actor, member) -> str:
         raise PermissionDenied('Esta cuenta es del equipo de GestorPro.')
     if member.role.grants_all and not actor.role.grants_all:
         raise PermissionDenied('Solo un propietario puede generar este enlace para otro propietario.')
-    elsewhere = Membership.all_tenants.filter(user=target, status=Membership.Status.ACTIVE) \
-        .exclude(tenant_id=member.tenant_id).exists()
+    with rls_bypass():  # mira las OTRAS empresas de la persona: acceso global declarado, solo para esta pregunta
+        elsewhere = Membership.all_tenants.filter(user=target, status=Membership.Status.ACTIVE) \
+            .exclude(tenant_id=member.tenant_id).exists()
     if elsewhere:
         raise ValidationError({'detail': 'Esta persona también usa otra empresa en GestorPro: debe recuperar su '
                                          'contraseña con "¿Olvidaste tu contraseña?" o con el soporte de GestorPro.'})

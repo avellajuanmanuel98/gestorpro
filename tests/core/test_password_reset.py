@@ -39,7 +39,8 @@ def member_id(api, email):
 
 def test_admin_gives_a_one_time_link_and_never_learns_the_password(shop):
     api = s.api_for(shop['admin'])
-    old = APIClient().post('/api/auth/login/', {'email': 'caja@cla.co', 'password': s.PASSWORD}, format='json')
+    old = APIClient()  # una sesión abierta antes del cambio (su refresh queda en la cookie)
+    old.post('/api/auth/login/', {'email': 'caja@cla.co', 'password': s.PASSWORD}, format='json')
     res = api.post(f"/api/access/members/{member_id(api, 'caja@cla.co')}/reset-link/")
     assert res.status_code == 200 and res.data['hours'] == 24
     url = parts(res.data['url'])
@@ -52,9 +53,9 @@ def test_admin_gives_a_one_time_link_and_never_learns_the_password(shop):
     # Un solo uso, y la sesión que tenía abierta se cierra
     assert anon.get(url).data['valid'] is False
     assert anon.post(url, {'password': NEW, 'password2': NEW}, format='json').status_code == 400
-    renewed = APIClient().post('/api/auth/token/refresh/', {'refresh': old.data['refresh']}, format='json')
-    assert renewed.status_code == 401
-    assert AuditLog.all_tenants.filter(tenant=shop['t'], action='access.password_reset_link').exists()
+    assert old.post('/api/auth/token/refresh/').status_code == 401
+    assert s.globally(lambda: AuditLog.all_tenants.filter(tenant=shop['t'],
+                                                          action='access.password_reset_link').exists())
     assert SecurityEvent.objects.filter(kind='password_reset', user=shop['cashier']).exists()
 
 
@@ -102,7 +103,8 @@ def test_platform_support_can_send_a_link_audited_in_both_logs(shop):
     res = api.post(url, {'email': 'duena@cla.co'}, format='json')
     assert res.status_code == 200 and '/reset-password/' in res.data['invitation_url']
     assert api.post(url, {'email': 'extrano@otro.co'}, format='json').status_code == 400
-    assert AuditLog.all_tenants.filter(tenant=shop['t'], action='platform.password_reset_link').exists()
+    assert s.globally(lambda: AuditLog.all_tenants.filter(tenant=shop['t'],
+                                                          action='platform.password_reset_link').exists())
     assert s.api_for(shop['owner']).post(url, {'email': 'caja@cla.co'}, format='json').status_code == 403
 
 

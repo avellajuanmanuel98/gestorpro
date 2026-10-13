@@ -15,6 +15,7 @@ from decimal import Decimal
 from rest_framework.test import APIClient
 
 from gestorpro.core.tenancy.context import tenant_context
+from gestorpro.core.tenancy.rls import rls_bypass
 
 PASSWORD = 'Test-pass-1234!'
 
@@ -59,6 +60,16 @@ def make_user(tenant, email, role=ADMIN_ROLE):
     with tenant_context(tenant):
         add_member(user=user, role_code=role)
     return user
+
+
+def globally(fn):
+    """
+    Ejecuta `fn` con acceso global declarado (Row-Level Security). Para que un
+    test inspeccione datos de varias empresas o sin empresa activa, como haría
+    la plataforma: sin esto, PostgreSQL no devuelve filas de ninguna.
+    """
+    with rls_bypass():
+        return fn()
 
 
 def make_user_without_tenant(email):
@@ -125,8 +136,19 @@ def api_for(user):
     client = APIClient()
     res = client.post(ENDPOINTS['login'], {'email': user.email, 'password': PASSWORD}, format='json')
     assert res.status_code == 200, res.content
+    if 'mfa' in res.data:  # personal de la plataforma: el código de su app autenticadora
+        res = client.post('/api/auth/mfa/verify/', {'mfa_token': res.data['mfa_token'], 'code': current_code(user)},
+                          format='json')
+        assert res.status_code == 200, res.content
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {res.data['access']}")
     return client
+
+
+def current_code(user, offset=0):
+    """El código que mostraría ahora la app autenticadora del usuario."""
+    from gestorpro.core.identity import mfa
+    user.refresh_from_db()
+    return mfa.code_at(user.totp_secret, mfa.current_step() + offset)
 
 
 def invoice_payload(customer_id, product_id, unit_price='1000', number='F-100'):

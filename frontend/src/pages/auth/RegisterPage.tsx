@@ -50,8 +50,8 @@ export default function RegisterPage() {
           <Input label="Apellido" required autoComplete="family-name" value={form.last_name} onChange={set('last_name')} />
         </div>
         <Input label="Email" type="email" required autoComplete="email" value={form.email} onChange={set('email')} />
-        <Input label="Contraseña" type="password" required minLength={8} autoComplete="new-password" value={form.password}
-               onChange={set('password')} hint="Mínimo 8 caracteres; evita contraseñas comunes." />
+        <Input label="Contraseña" type="password" required minLength={12} autoComplete="new-password" value={form.password}
+               onChange={set('password')} hint="Mínimo 12 caracteres; evita contraseñas comunes." />
         <Input label="Confirmar contraseña" type="password" required autoComplete="new-password" value={form.password2} onChange={set('password2')} />
         {error && <Alert>{error}</Alert>}
         <Button type="submit" fullWidth loading={loading} size="lg">Crear cuenta</Button>

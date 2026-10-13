@@ -1,4 +1,5 @@
 from .context import deactivate_all, restore
+from .rls import reset_global_access
 
 
 class TenantContextMiddleware:
@@ -16,7 +17,9 @@ class TenantContextMiddleware:
 
     def __call__(self, request):
         token = deactivate_all()
+        access = reset_global_access()  # tampoco se hereda un acceso global (RLS) de otra petición
         try:
             return self.get_response(request)
         finally:
             restore(token)
+            access.restore()

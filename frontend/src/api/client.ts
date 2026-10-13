@@ -8,24 +8,27 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 export const API_BASE_URL: string = import.meta.env.VITE_API_URL ?? '/api'
 
 const ACCESS_KEY = 'access_token'
-const REFRESH_KEY = 'refresh_token'
+// Versiones anteriores guardaban aquí el refresh token: se borra al cargar
+localStorage.removeItem('refresh_token')
 
+/**
+ * Solo el token corto (15 min) vive en el navegador. El refresh token está en
+ * una cookie httpOnly que JavaScript no puede leer (ni un script inyectado).
+ */
 export const tokenStorage = {
   get access() { return localStorage.getItem(ACCESS_KEY) },
-  get refresh() { return localStorage.getItem(REFRESH_KEY) },
-  set(tokens: { access: string; refresh?: string }) {
-    localStorage.setItem(ACCESS_KEY, tokens.access)
-    if (tokens.refresh) localStorage.setItem(REFRESH_KEY, tokens.refresh)
-  },
-  clear() {
-    localStorage.removeItem(ACCESS_KEY)
-    localStorage.removeItem(REFRESH_KEY)
-  },
+  set(tokens: { access: string }) { localStorage.setItem(ACCESS_KEY, tokens.access) },
+  clear() { localStorage.removeItem(ACCESS_KEY) },
 }
+
+/** Mientras el personal de la plataforma está en modo soporte, la sesión no se renueva sola. */
+let refreshBlocked: () => boolean = () => false
+export function setRefreshBlocker(fn: () => boolean) { refreshBlocked = fn }
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true, // la cookie del refresh (solo la envía el navegador a /api/auth/)
 })
 
 apiClient.interceptors.request.use((config) => {
@@ -43,13 +46,18 @@ let refreshInFlight: Promise<string> | null = null
 
 export function refreshAccessToken(): Promise<string> {
   if (!refreshInFlight) {
-    const refresh = tokenStorage.refresh
-    refreshInFlight = (refresh
-      ? axios.post(`${API_BASE_URL}/auth/token/refresh/`, { refresh }).then(({ data }) => {
-          tokenStorage.set({ access: data.access, refresh: data.refresh })
+    const before = tokenStorage.access
+    refreshInFlight = (refreshBlocked()
+      ? Promise.reject(new Error('Sesión de soporte'))
+      : axios.post(`${API_BASE_URL}/auth/token/refresh/`, {}, { withCredentials: true }).then(({ data }) => {
+          tokenStorage.set({ access: data.access })
           return data.access as string
+        }).catch((err) => {
+          // Otra pestaña pudo renovar al mismo tiempo (el refresh rota): si dejó un token nuevo, sirve
+          const now = tokenStorage.access
+          if (now && now !== before) return now
+          throw err
         })
-      : Promise.reject(new Error('Sin sesión'))
     ).finally(() => { refreshInFlight = null })
   }
   return refreshInFlight

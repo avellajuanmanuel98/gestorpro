@@ -27,6 +27,7 @@ from gestorpro.core.audit import services as audit
 from gestorpro.core.audit.context import bind_actor
 from gestorpro.core.tenancy.context import get_active_tenant_id, tenant_context
 from gestorpro.core.tenancy.models import Location, Tenant
+from gestorpro.core.tenancy.rls import rls_bypass
 from gestorpro.core.tenancy.signals import tenant_provisioned
 
 from .defaults import SYSTEM_ROLES, expand
@@ -80,17 +81,21 @@ def provision_tenant(*, name: str, owner=None, vertical: str = Tenant.Vertical.G
     return tenant
 
 
-def active_memberships_for(user):
+def active_memberships_for(user) -> list[Membership]:
     """
-    Membresías activas de un usuario en TODAS sus empresas.
-    Acceso no filtrado explícito: se usa para login y selector de empresa.
+    Membresías activas de un usuario en TODAS sus empresas (login y selector de
+    empresa). Cruza empresas a propósito: acceso global declarado (rls_bypass).
     """
-    return (
-        Membership.all_tenants
-        .select_related('tenant', 'role')
-        .filter(user=user, status=Membership.Status.ACTIVE, tenant__status=Tenant.Status.ACTIVE)
-        .order_by('tenant__name')
-    )
+    with rls_bypass():
+        return list(Membership.all_tenants
+                    .select_related('tenant', 'role')
+                    .filter(user=user, status=Membership.Status.ACTIVE, tenant__status=Tenant.Status.ACTIVE)
+                    .order_by('tenant__name'))
+
+
+def active_membership_in(user, tenant_id) -> Membership | None:
+    """La membresía activa del usuario en esa empresa, o None."""
+    return next((m for m in active_memberships_for(user) if m.tenant_id == tenant_id), None)
 
 
 # ── Reglas de autorización sobre roles ────────────────────────────────────────
@@ -260,7 +265,8 @@ def revoke_invitation(invitation: Invitation):
 
 def find_pending_invitation(token: str) -> Invitation | None:
     """Búsqueda sin tenant activo (el token identifica la empresa). Acceso global explícito."""
-    invitation = Invitation.all_tenants.select_related('tenant', 'role').filter(token_hash=_hash(token)).first()
+    with rls_bypass():
+        invitation = Invitation.all_tenants.select_related('tenant', 'role').filter(token_hash=_hash(token)).first()
     if invitation is None or invitation.status != 'pending' or not invitation.tenant.is_active:
         return None
     return invitation
@@ -277,7 +283,9 @@ def accept_invitation(*, token: str, password: str, first_name: str = '', last_n
     invitation = find_pending_invitation(token)
     if invitation is None:
         raise ValidationError('La invitación no es válida o ya expiró.')
-    invitation = Invitation.all_tenants.select_for_update().get(pk=invitation.pk)
+    with tenant_context(invitation.tenant_id):  # desde aquí, dentro de la empresa de la invitación
+        invitation = Invitation.objects.select_related('tenant', 'role').select_for_update(of=('self',)) \
+            .get(pk=invitation.pk)
     user = User.objects.filter(email__iexact=invitation.email).first()
     if user is not None:
         if authenticate(email=user.email, password=password) is None:

@@ -2,6 +2,8 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.http import FileResponse, Http404
 from django.urls import include, path, re_path
+from django.utils.csp import CSP
+from django.views.decorators.csp import csp_override
 from django.views.static import serve
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
@@ -33,10 +35,19 @@ api = [
     path('waste/', include('gestorpro.capabilities.waste.urls')),
     # Verticals
     path('bakery/', include('gestorpro.verticals.bakery.urls')),
-    # Documentación
-    path('schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
 ]
+
+# Documentación de la API: en desarrollo, o si se habilita a propósito. En producción no se
+# publica el mapa completo de la API. Swagger UI carga sus archivos desde jsDelivr: solo esa
+# página amplía la CSP para ese origen.
+if settings.DEBUG or getattr(settings, 'API_DOCS_ENABLED', False):
+    _docs_csp = {**settings.SECURE_CSP, 'script-src': [CSP.SELF, 'https://cdn.jsdelivr.net', CSP.UNSAFE_INLINE],
+                 'style-src': [CSP.SELF, 'https://cdn.jsdelivr.net', CSP.UNSAFE_INLINE],
+                 'img-src': [CSP.SELF, 'data:', 'https://cdn.jsdelivr.net']}
+    api += [
+        path('schema/', SpectacularAPIView.as_view(), name='schema'),
+        path('docs/', csp_override(_docs_csp)(SpectacularSwaggerView.as_view(url_name='schema')), name='swagger-ui'),
+    ]
 
 urlpatterns = [
     path('admin/', platform_admin_site.urls),

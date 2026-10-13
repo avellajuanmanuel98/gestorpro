@@ -95,7 +95,8 @@ def test_subscription_changes_are_logged_for_platform_and_for_the_company(staff,
     assert res.data['subscription_status'] == 'active'
     event = PlatformEvent.objects.get(action='subscription.changed')
     assert event.details['changes']['plan'] == ['starter', 'business'] and event.details['note'] == 'Pago de octubre'
-    assert AuditLog.all_tenants.filter(tenant=tenant, action='platform.subscription.changed').exists()
+    assert s.globally(lambda: AuditLog.all_tenants.filter(tenant=tenant,
+                                                          action='platform.subscription.changed').exists())
     assert api.patch(f'/api/platform/tenants/{tenant.id}/subscription/', {'plan': 'galactico'},
                      format='json').status_code == 400
 
@@ -107,7 +108,7 @@ def test_suspending_requires_a_reason_and_locks_the_company_out(staff, shop):
     assert api.post(url, {'status': 'suspended'}, format='json').status_code == 400
     assert api.post(url, {'status': 'suspended', 'reason': 'Solicitud del cliente'}, format='json').status_code == 200
     assert owner_api.get('/api/customers/').status_code == 401
-    assert AuditLog.all_tenants.filter(tenant=tenant, action='platform.tenant.suspended').exists()
+    assert s.globally(lambda: AuditLog.all_tenants.filter(tenant=tenant, action='platform.tenant.suspended').exists())
     assert api.post(url, {'status': 'active'}, format='json').status_code == 200
     assert s.api_for(shop[1]).get('/api/customers/').status_code == 200
 

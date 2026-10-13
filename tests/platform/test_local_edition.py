@@ -129,3 +129,24 @@ def test_a_new_lan_ip_is_accepted_without_restarting(monkeypatch, settings):
     le.network_watch(8000, OneTick())
     assert '192.168.1.57' in settings.ALLOWED_HOSTS
     assert 'http://192.168.1.57:8000' in settings.CSRF_TRUSTED_ORIGINS
+
+
+def test_the_database_setup_gives_the_app_the_row_level_security_role():
+    """El usuario de la app es dueño (migraciones, copias) y consulta como `gestorpro_rls` (RLS)."""
+    pg = le.Postgres.__new__(le.Postgres)
+    pg.cfg = {'GESTORPRO_DB_PASSWORD': 'x'}
+    statements = []
+    pg.sql = lambda statement, db='postgres': statements.append(statement) or ''
+    pg.database_exists = lambda name: False
+    pg.ensure_database()
+    joined = '\n'.join(statements)
+    assert f'CREATE ROLE {le.RLS_ROLE} NOLOGIN NOSUPERUSER NOBYPASSRLS' in joined
+    assert f'GRANT {le.RLS_ROLE} TO {le.APP_ROLE}' in joined
+    assert 'SUPERUSER' not in joined.replace('NOSUPERUSER', '')
+
+
+def test_start_update_and_restore_ensure_the_role_on_older_installs():
+    source = (ROOT / 'scripts' / 'local_edition.py').read_text(encoding='utf-8')
+    for fn in ('def serve(', 'def update(', 'def restore('):
+        body = source[source.index(f'\n{fn}') + 1:].split('\ndef ', 1)[0]
+        assert 'ensure_database()' in body, fn

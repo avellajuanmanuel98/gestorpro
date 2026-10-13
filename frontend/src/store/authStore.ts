@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { authApi } from '@/api/auth'
-import { setSessionExpiredHandler, tokenStorage } from '@/api/client'
+import { setRefreshBlocker, setSessionExpiredHandler, tokenStorage } from '@/api/client'
 import type { AuthTokens, Session, User } from '@/types'
 
 interface AuthState {
@@ -19,18 +19,19 @@ interface AuthState {
   exitSupport: () => Promise<number | null>
 }
 
-// Mientras dura el soporte, los tokens propios del agente esperan aquí (solo en esta pestaña)
+// Mientras dura el soporte, el token corto propio del agente espera aquí (solo en esta pestaña).
+// Su refresh sigue en la cookie httpOnly, intacto: al volver, la sesión propia se renueva sola.
 const STASH = 'gp_platform_tokens'
 const stash = {
-  save() { sessionStorage.setItem(STASH, JSON.stringify({ access: tokenStorage.access, refresh: tokenStorage.refresh })) },
+  save() { sessionStorage.setItem(STASH, JSON.stringify({ access: tokenStorage.access })) },
   restore(): boolean {
     const raw = sessionStorage.getItem(STASH)
-    if (!raw) return false
+    if (raw === null) return false
     sessionStorage.removeItem(STASH)
-    const saved = JSON.parse(raw) as { access: string | null; refresh: string | null }
+    const saved = JSON.parse(raw) as { access: string | null }
     tokenStorage.clear()
-    if (saved.access) tokenStorage.set({ access: saved.access, refresh: saved.refresh ?? undefined })
-    return Boolean(saved.access)
+    if (saved.access) tokenStorage.set({ access: saved.access })
+    return true
   },
   get active() { return sessionStorage.getItem(STASH) !== null },
 }
@@ -73,7 +74,7 @@ export const useAuthStore = create<AuthState>()(
       enterSupport: async (access) => {
         stash.save()
         tokenStorage.clear()
-        tokenStorage.set({ access }) // sin refresh: el acceso vence con la sesión de soporte
+        tokenStorage.set({ access }) // no se renueva: el acceso vence con la sesión de soporte
         await get().refreshSession()
       },
 
@@ -101,6 +102,9 @@ export const useAuthStore = create<AuthState>()(
     },
   ),
 )
+
+// En modo soporte, la cookie de refresh es la del agente: renovarla lo sacaría del soporte sin aviso
+setRefreshBlocker(() => stash.active)
 
 setSessionExpiredHandler(() => {
   // Venció una sesión de soporte: se vuelve a la consola con los tokens propios del agente

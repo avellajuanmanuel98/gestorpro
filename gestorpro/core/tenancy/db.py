@@ -11,8 +11,12 @@ Capas de aislamiento implementadas aquí:
    distinto al activo.
 3. `save()` verifica que toda FK hacia otro TenantModel apunte al mismo tenant.
 
-`all_tenants` es el único acceso sin filtro. Su uso está reservado a la capa de
-plataforma y a la autenticación, y debe ser explícito y revisable en code review.
+4. Row-Level Security de PostgreSQL (rls.py) repite la regla dentro de la base.
+
+`all_tenants` es el único acceso sin filtro de la aplicación. Su uso está
+reservado a la capa de plataforma y a la autenticación, y debe ser explícito y
+revisable en code review. Aun así, PostgreSQL solo le devuelve filas de la
+empresa activa, o de todas si el código declaró `rls_bypass()`.
 """
 from django.conf import settings
 from django.db import models

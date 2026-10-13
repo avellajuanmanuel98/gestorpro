@@ -81,8 +81,8 @@ def test_audit_log_is_append_only_in_orm_and_database(ctx):
             entry.delete()
         with pytest.raises(AppendOnlyError):
             AuditLog.objects.update(summary='x')
-    # El trigger de PostgreSQL bloquea incluso SQL directo
-    with pytest.raises(Exception, match='solo inserción'), transaction.atomic():
+    # El trigger de PostgreSQL bloquea incluso SQL directo (dentro de la empresa, donde RLS deja ver las filas)
+    with tenant_context(ctx['t']), pytest.raises(Exception, match='solo inserción'), transaction.atomic():
         with connection.cursor() as cursor:
             cursor.execute("UPDATE audit_auditlog SET summary = 'x'")
 

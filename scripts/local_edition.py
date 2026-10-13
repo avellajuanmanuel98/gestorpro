@@ -49,6 +49,9 @@ ENV_FILE = HOME / 'gestorpro.env'
 DB_NAME = 'gestorpro'
 APP_ROLE = 'gestorpro'
 RESTORE_DB = 'gestorpro_restaurando'
+# Rol sin privilegios con el que la aplicación consulta (Row-Level Security, ver core/tenancy/rls.py).
+# El usuario de la app es dueño de las tablas (migraciones, copias) y puede cambiar a este rol.
+RLS_ROLE = 'gestorpro_rls'
 KEEP_BACKUPS = 30
 BACKUP_RE = re.compile(r'^gestorpro-(\d{8}-\d{6})(-[a-z-]+)?\.zip$')
 SETTINGS = 'config.settings.local_edition'
@@ -265,6 +268,9 @@ class Postgres:
         password = self.cfg['GESTORPRO_DB_PASSWORD'].replace("'", "''")
         if self.sql(f"SELECT 1 FROM pg_roles WHERE rolname = '{APP_ROLE}'") != '1':
             self.sql(f"CREATE ROLE {APP_ROLE} LOGIN PASSWORD '{password}'")
+        if self.sql(f"SELECT 1 FROM pg_roles WHERE rolname = '{RLS_ROLE}'") != '1':
+            self.sql(f'CREATE ROLE {RLS_ROLE} NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE')
+        self.sql(f'GRANT {RLS_ROLE} TO {APP_ROLE}')
         if not self.database_exists(DB_NAME):
             self.sql(f'CREATE DATABASE {DB_NAME} OWNER {APP_ROLE}')
 
@@ -553,6 +559,7 @@ def serve():
     step('Base de datos')
     pg = Postgres(cfg)
     pg.start()
+    pg.ensure_database()  # idempotente: también crea el rol de Row-Level Security en instalaciones anteriores
     say('  En marcha.')
     env = django_env(cfg)
     os.environ.update(env)
@@ -635,6 +642,7 @@ def restore():
     require_closed(cfg)
     pg = Postgres(cfg)
     pg.start()
+    pg.ensure_database()  # la copia trae permisos para el rol de Row-Level Security: debe existir
     candidates = list_backups(paths()['backups'])
     extra = cfg.get('GESTORPRO_COPIA_EXTRA', '').strip()
     if extra:
@@ -703,7 +711,9 @@ def update():
                            text=True, check=False).stdout.strip()
     if dirty:
         fail('Hay archivos del programa modificados en este equipo; no se actualiza para no perderlos:\n' + dirty)
-    Postgres(cfg).start()
+    pg = Postgres(cfg)
+    pg.start()
+    pg.ensure_database()
     before = version()
     step('1/4  Copia de seguridad antes de actualizar')
     say(f'  {make_backup(cfg, tag="antes-de-actualizar").name}')

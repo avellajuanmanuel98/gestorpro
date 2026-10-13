@@ -5,7 +5,7 @@ DEBUG = False
 PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']  # tests rápidos
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,
-    'DEFAULT_THROTTLE_RATES': {'auth': '10000/min'},
+    'DEFAULT_THROTTLE_RATES': {scope: '10000/min' for scope in REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']},
 }
 STORAGES = {
     'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'},

@@ -15,9 +15,12 @@ La **consola de plataforma** (`/platform`) es para el equipo de GestorPro, no pa
 **Quién entra:** solo usuarios con `is_platform_admin`. El acceso se da o se quita a una cuenta **existente**:
 
 ```bash
-python manage.py platform_admin persona@gestorpro.co           # dar acceso
-python manage.py platform_admin persona@gestorpro.co --revoke  # quitarlo
+python manage.py platform_admin persona@gestorpro.co              # dar acceso (muestra su clave 2FA una vez)
+python manage.py platform_admin persona@gestorpro.co --reset-2fa  # perdió el celular: clave nueva
+python manage.py platform_admin persona@gestorpro.co --revoke     # quitarlo
 ```
+
+Desde la Fase 12, el personal entra con contraseña **y** el código de una app autenticadora, en la app y en el admin de Django. La clave solo se crea con este comando (ver documento 14, sección 5).
 
 Nunca se crean usuarios ni contraseñas automáticamente (condición 13).
 

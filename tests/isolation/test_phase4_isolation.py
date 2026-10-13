@@ -3,6 +3,7 @@ import pytest
 
 from gestorpro.core.access.models import Membership, Role
 from gestorpro.core.tenancy.context import tenant_context
+from gestorpro.core.tenancy.rls import rls_bypass
 from tests import support as s
 
 pytestmark = [pytest.mark.isolation, pytest.mark.django_db]
@@ -36,7 +37,8 @@ def test_members_of_other_company_are_invisible_and_untouchable(two):
 def test_cannot_assign_or_invite_with_role_of_other_company(two):
     res = two['api'].post('/api/access/invitations/', {'email': 'x@x.co', 'role': two['role_b'].id}, format='json')
     assert res.status_code == 400
-    own = Membership.all_tenants.get(user__email='adm@a.co')
+    with rls_bypass():  # el test mira ambas empresas: acceso global declarado
+        own = Membership.all_tenants.get(user__email='adm@a.co')
     res = two['api'].patch(f'/api/access/members/{own.id}/', {'role': two['role_b'].id}, format='json')
     assert res.status_code in (400, 403)
 

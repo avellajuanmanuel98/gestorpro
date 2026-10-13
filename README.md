@@ -3,7 +3,6 @@
 **Mini-ERP SaaS para PYMEs** — clientes, inventario y facturación en una sola aplicación web, construida y desplegada de extremo a extremo.
 
 [![Demo](https://img.shields.io/badge/demo-en%20vivo-22c55e?style=flat-square)](https://gestorpro-lac.vercel.app)
-[![API Docs](https://img.shields.io/badge/API-Swagger-85EA2D?style=flat-square&logo=swagger&logoColor=black)](https://web-production-cd18a.up.railway.app/api/docs/)
 ![Django](https://img.shields.io/badge/Django-6.0-092E20?style=flat-square&logo=django)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)
@@ -22,7 +21,6 @@ Las PYMEs suelen gestionar clientes en una hoja de cálculo, inventario en otra 
 | | |
 |---|---|
 | **Aplicación** | https://gestorpro-lac.vercel.app |
-| **API + Swagger** | https://web-production-cd18a.up.railway.app/api/docs/ |
 
 > [!IMPORTANT]
 > La demo ya no expone credenciales públicas. Para probar la aplicación en local
@@ -48,7 +46,7 @@ Las PYMEs suelen gestionar clientes en una hoja de cálculo, inventario en otra 
 - **Inventario** — Productos y servicios con control de stock y alertas de stock bajo.
 - **Facturación** — Facturas y cotizaciones con líneas de detalle, cálculo automático de IVA y totales.
 - **Dashboard** — Métricas en tiempo real: cartera recaudada, cartera pendiente y documentos emitidos.
-- **API REST documentada** — Esquema OpenAPI generado automáticamente y Swagger UI en `/api/docs/`.
+- **API REST documentada** — Esquema OpenAPI generado automáticamente y Swagger UI en `/api/docs/` (en desarrollo, o con `API_DOCS_ENABLED=True`).
 
 ## Decisiones técnicas
 

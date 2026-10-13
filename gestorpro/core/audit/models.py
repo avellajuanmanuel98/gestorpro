@@ -79,6 +79,9 @@ class SecurityEvent(models.Model):
         PASSWORD_RESET_REQUESTED = 'password_reset_requested', 'Solicitud de nueva contraseña'
         PASSWORD_RESET_LINK = 'password_reset_link', 'Enlace de nueva contraseña generado'
         PASSWORD_RESET = 'password_reset', 'Contraseña restablecida con enlace'
+        LOGIN_LOCKED = 'login_locked', 'Inicio de sesión bloqueado por intentos fallidos'
+        MFA_FAILED = 'mfa_failed', 'Código de verificación en dos pasos incorrecto'
+        MFA_ENROLLED = 'mfa_enrolled', 'Verificación en dos pasos configurada'
 
     kind = models.CharField(max_length=30, choices=Kind.choices)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,

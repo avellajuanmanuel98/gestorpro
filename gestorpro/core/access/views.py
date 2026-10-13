@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from gestorpro.core import entitlements
 from gestorpro.core.audit import services as audit
 from gestorpro.core.audit.models import SecurityEvent
-from gestorpro.core.identity.tokens import issue_tokens
+from gestorpro.core.identity.tokens import token_response
 
 from . import services
 from .models import Invitation, Membership, Permission, Role
@@ -171,7 +171,7 @@ class AcceptInvitationView(APIView):
         serializer.is_valid(raise_exception=True)
         user, tenant_id = services.accept_invitation(**serializer.validated_data)
         audit.security_event(SecurityEvent.Kind.INVITATION_ACCEPTED, user=user, tenant_id=tenant_id)
-        return Response(issue_tokens(user, tenant_id), status=status.HTTP_201_CREATED)
+        return token_response(user, tenant_id, status.HTTP_201_CREATED)
 
 
 class MemberResetLinkView(APIView):

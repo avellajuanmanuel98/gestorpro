@@ -12,7 +12,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from gestorpro.core.access import support
-from gestorpro.core.access.services import active_memberships_for
+from gestorpro.core.access.services import active_membership_in
 from gestorpro.core.audit.context import bind_actor
 from gestorpro.core.tenancy.context import activate
 
@@ -35,7 +35,7 @@ class TenantJWTAuthentication(JWTAuthentication):
                 raise AuthenticationFailed('Token de soporte inválido.', code='support_invalid')
             activate(membership.tenant_id)
         elif tenant_id is not None:
-            membership = active_memberships_for(user).filter(tenant_id=tenant_id).first()
+            membership = active_membership_in(user, tenant_id)
             if membership is None:
                 raise AuthenticationFailed('Tu acceso a esta empresa ya no está activo.', code='membership_inactive')
             activate(membership.tenant_id)

@@ -54,8 +54,8 @@ export default function AcceptInvitationPage() {
               <Input label="Nombre" required autoFocus value={form.first_name} onChange={set('first_name')} />
               <Input label="Apellido" value={form.last_name} onChange={set('last_name')} />
             </div>
-            <Input label="Crea una contraseña" type="password" required minLength={8} autoComplete="new-password"
-                   value={form.password} onChange={set('password')} hint="Mínimo 8 caracteres." />
+            <Input label="Crea una contraseña" type="password" required minLength={12} autoComplete="new-password"
+                   value={form.password} onChange={set('password')} hint="Mínimo 12 caracteres." />
             <Input label="Confirmar contraseña" type="password" required autoComplete="new-password" value={form.password2} onChange={set('password2')} />
           </>
         )}

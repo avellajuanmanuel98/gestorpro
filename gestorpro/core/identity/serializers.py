@@ -66,11 +66,6 @@ class RegisterSerializer(serializers.Serializer):
 
 class SwitchTenantSerializer(serializers.Serializer):
     tenant_id = serializers.IntegerField()
-    refresh = serializers.CharField(required=False)
-
-
-class LogoutSerializer(serializers.Serializer):
-    refresh = serializers.CharField()
 
 
 class ChangePasswordSerializer(serializers.Serializer):

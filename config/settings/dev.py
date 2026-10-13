@@ -6,3 +6,4 @@ DEBUG = True
 if not EMAIL_ENABLED:  # noqa: F405
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
     EMAIL_ENABLED = True
+REFRESH_COOKIE_SECURE = False  # http://localhost sin HTTPS

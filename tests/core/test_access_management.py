@@ -15,7 +15,7 @@ pytestmark = pytest.mark.django_db
 @pytest.fixture
 def org():
     t = s.make_tenant('Panadería Equipo')
-    owner = Membership.all_tenants.get(tenant=t, role__code='OWNER').user
+    owner = s.globally(lambda: Membership.all_tenants.get(tenant=t, role__code='OWNER').user)
     admin = s.make_user(t, 'admin@eq.co', 'ADMIN')
     cashier = s.make_user(t, 'caja@eq.co', 'CASHIER')
     with tenant_context(t):
@@ -63,7 +63,7 @@ def test_invitation_flow_creates_account_and_membership(org):
 def test_token_is_not_stored_in_clear(org):
     res = invite(org['admin'], 'hash@eq.co', org['roles']['CASHIER'])
     token = res.data['invite_url'].rsplit('/', 1)[1]
-    assert not Invitation.all_tenants.filter(token_hash=token).exists()
+    assert not s.globally(lambda: Invitation.all_tenants.filter(token_hash=token).exists())
 
 
 def test_existing_account_must_prove_identity(org):
@@ -74,13 +74,14 @@ def test_existing_account_must_prove_identity(org):
     assert wrong.status_code == 400
     ok = APIClient().post('/api/auth/accept-invitation/', {'token': token, 'password': s.PASSWORD}, format='json')
     assert ok.status_code == 201
-    assert Membership.all_tenants.filter(user=existing).count() == 2  # ahora es multiempresa
+    assert s.globally(lambda: Membership.all_tenants.filter(user=existing).count()) == 2  # ahora es multiempresa
 
 
 def test_expired_and_revoked_invitations_are_rejected(org):
     res = invite(org['admin'], 'vence@eq.co', org['roles']['CASHIER'])
     token = res.data['invite_url'].rsplit('/', 1)[1]
-    Invitation.all_tenants.filter(pk=res.data['id']).update(expires_at=timezone.now() - datetime.timedelta(seconds=1))
+    s.globally(lambda: Invitation.all_tenants.filter(pk=res.data['id']).update(
+        expires_at=timezone.now() - datetime.timedelta(seconds=1)))
     assert APIClient().get(f'/api/auth/invitation/{token}/').status_code == 404
     res = invite(org['admin'], 'revoca@eq.co', org['roles']['CASHIER'])
     token = res.data['invite_url'].rsplit('/', 1)[1]
@@ -116,7 +117,7 @@ def test_owner_can_demote_another_owner_but_not_themselves(org):
     api = s.api_for(second_owner)
     assert api.patch(f'/api/access/members/{first.id}/', {'role': org['roles']['ADMIN'].id},
                      format='json').status_code == 200
-    me = Membership.all_tenants.get(user=second_owner)
+    me = s.globally(lambda: Membership.all_tenants.select_related('role').get(user=second_owner))
     assert api.patch(f'/api/access/members/{me.id}/', {'role': org['roles']['ADMIN'].id},
                      format='json').status_code == 403
 
@@ -172,7 +173,7 @@ def test_user_limit_of_plan_is_enforced():
     t = s.make_tenant('Pequeña', plan_code='starter')  # starter: 3 usuarios
     with tenant_context(t):
         cashier_role = Role.objects.get(code='CASHIER')
-    owner = Membership.all_tenants.get(tenant=t).user
+    owner = s.globally(lambda: Membership.all_tenants.get(tenant=t).user)
     api = _api(owner)
     assert invite(api, 'u2@p.co', cashier_role).status_code == 201
     assert invite(api, 'u3@p.co', cashier_role).status_code == 201
@@ -183,14 +184,14 @@ def test_user_limit_of_plan_is_enforced():
 
 def test_custom_roles_require_plan_feature():
     t = s.make_tenant('SinRoles', plan_code='starter')
-    api = _api(Membership.all_tenants.get(tenant=t).user)
+    api = _api(s.globally(lambda: Membership.all_tenants.get(tenant=t).user))
     res = api.post('/api/access/roles/', {'name': 'Hornero', 'permissions': ['catalog.view']}, format='json')
     assert res.status_code == 403
 
 
 def test_modules_outside_plan_are_blocked_in_backend():
     t = s.make_tenant('Basica', plan_code='starter')  # starter no incluye module.hr
-    api = _api(Membership.all_tenants.get(tenant=t).user)
+    api = _api(s.globally(lambda: Membership.all_tenants.get(tenant=t).user))
     assert api.get(s.ENDPOINTS['employees']).status_code == 403
     me = api.get('/api/auth/me/').data
     assert me['plan']['code'] == 'starter' and 'module.hr' not in me['features']

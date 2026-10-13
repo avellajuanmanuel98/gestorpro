@@ -133,7 +133,9 @@ Los archivos están en la carpeta `local\` del programa.
 | Nunca se destruye una base | Restaurar crea una base nueva y guarda la anterior. El único `DROP` permitido es el de la base **temporal** de una restauración fallida, y un test lo verifica |
 | PostgreSQL | Solo escucha en ese computador, con contraseña; la aplicación entra con un usuario sin privilegios de administrador |
 | Hosts permitidos | Solo `localhost`, el nombre del equipo y sus IP de la red local (se recalculan al arrancar); cualquier otro host se rechaza (400) |
-| Encabezados | `X-Frame-Options: DENY`, `nosniff` y `Referrer-Policy`, incluso en `index.html` (que sirve WhiteNoise) |
+| Encabezados | CSP estricta, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy` y `Permissions-Policy`, incluso en `index.html` (que sirve WhiteNoise) |
+| Row-Level Security (Fase 12) | La app consulta con el rol `gestorpro_rls`, que solo ve la empresa activa. `GestorPro.bat`, `actualizar.bat` y `restaurar-copia.bat` lo crean y se lo asignan al usuario de la app, también en instalaciones anteriores. Las copias se siguen haciendo como dueño de la base: salen completas |
+| Sesión | El token largo va en una cookie httpOnly (sin `Secure`: aquí no hay HTTPS) |
 
 **Limitación conocida:** sin HTTPS, la contraseña viaja sin cifrar por el wifi del local. Mitigaciones:
 - un wifi con contraseña WPA2 o WPA3;

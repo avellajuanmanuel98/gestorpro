@@ -1,4 +1,4 @@
-import apiClient, { tokenStorage } from './client'
+import apiClient from './client'
 import type { AuthTokens, PlanSummary, Session, Tenant } from '@/types'
 
 export interface RegisterPayload {
@@ -11,9 +11,20 @@ export interface RegisterPayload {
   vertical?: string
 }
 
+/** Personal de la plataforma: tras la contraseña falta el código de su app autenticadora. */
+export interface MfaChallenge {
+  mfa: 'verify'
+  mfa_token: string
+}
+
+export const isMfaChallenge = (r: AuthTokens | MfaChallenge): r is MfaChallenge => 'mfa' in r
+
 export const authApi = {
-  login: async (email: string, password: string): Promise<AuthTokens> =>
-    (await apiClient.post<AuthTokens>('/auth/login/', { email, password })).data,
+  login: async (email: string, password: string): Promise<AuthTokens | MfaChallenge> =>
+    (await apiClient.post<AuthTokens | MfaChallenge>('/auth/login/', { email, password })).data,
+
+  verifyMfa: async (mfaToken: string, code: string): Promise<AuthTokens> =>
+    (await apiClient.post<AuthTokens>('/auth/mfa/verify/', { mfa_token: mfaToken, code })).data,
 
   /** Crea cuenta + empresa y devuelve tokens (inicio de sesión inmediato). */
   register: async (payload: RegisterPayload): Promise<AuthTokens> =>
@@ -22,9 +33,7 @@ export const authApi = {
   me: async (): Promise<Session> => (await apiClient.get<Session>('/auth/me/')).data,
 
   switchTenant: async (tenantId: number): Promise<AuthTokens> =>
-    (await apiClient.post<AuthTokens>('/auth/switch-tenant/', {
-      tenant_id: tenantId, refresh: tokenStorage.refresh,
-    })).data,
+    (await apiClient.post<AuthTokens>('/auth/switch-tenant/', { tenant_id: tenantId })).data,
 
   /** Cierra la sesión de soporte de la plataforma (el token de soporte deja de servir). */
   endSupport: async (): Promise<void> => { await apiClient.post('/platform/support/end/') },
@@ -38,11 +47,8 @@ export const authApi = {
     await apiClient.post(`/auth/password/reset/${uid}/${token}/`, { password, password2 })
   },
 
-  /** Revoca el refresh token en el servidor. */
-  logout: async (): Promise<void> => {
-    const refresh = tokenStorage.refresh
-    if (refresh) await apiClient.post('/auth/logout/', { refresh })
-  },
+  /** Revoca el refresh token (cookie httpOnly) en el servidor y la borra. */
+  logout: async (): Promise<void> => { await apiClient.post('/auth/logout/') },
 }
 
 export const tenantApi = {

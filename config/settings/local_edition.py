@@ -40,3 +40,4 @@ if _log_file:
         'maxBytes': 5 * 1024 * 1024, 'backupCount': 5, 'encoding': 'utf-8',
     }
     LOGGING['root']['handlers'] = [*LOGGING['root']['handlers'], 'file']
+REFRESH_COOKIE_SECURE = False  # red local por HTTP: sin certificado no hay cookies "Secure"

@@ -38,6 +38,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     date_joined = models.DateTimeField(auto_now_add=True)
 
+    # Verificación en dos pasos (personal de la plataforma; ver identity/mfa.py)
+    totp_secret = models.CharField(max_length=64, blank=True, default='', editable=False)
+    totp_last_step = models.BigIntegerField(null=True, blank=True, editable=False)
+    totp_confirmed_at = models.DateTimeField(null=True, blank=True, editable=False)
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name']
 

@@ -4,7 +4,7 @@ Configuración común a todos los entornos.
 Entornos: dev.py (local), test.py (pytest/CI), prod.py (Railway).
 PostgreSQL es el único motor soportado: no hay fallback a SQLite, para que
 desarrollo, tests y producción se comporten igual (constraints, NUMERIC,
-bloqueos de filas, y en el futuro Row-Level Security).
+bloqueos de filas y Row-Level Security).
 """
 from datetime import timedelta
 from pathlib import Path
@@ -12,6 +12,7 @@ from pathlib import Path
 import dj_database_url
 from decouple import config
 from django.core.exceptions import ImproperlyConfigured
+from django.utils.csp import CSP, build_policy
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -84,6 +85,8 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'django.middleware.csp.ContentSecurityPolicyMiddleware',
+    'gestorpro.kernel.api.middleware.NoStoreApiMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     # Garantiza que el contexto de tenant nunca sobreviva entre peticiones
     'gestorpro.core.tenancy.middleware.TenantContextMiddleware',
@@ -174,10 +177,25 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'EXCEPTION_HANDLER': 'gestorpro.kernel.api.exceptions.exception_handler',
     'COERCE_DECIMAL_TO_STRING': True,
+    # Límites de uso: por IP sin sesión, por usuario con sesión; más estrictos en lo sensible
+    'DEFAULT_THROTTLE_CLASSES': (
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ),
     'DEFAULT_THROTTLE_RATES': {
-        'auth': config('THROTTLE_AUTH', default='10/min'),
+        'auth': config('THROTTLE_AUTH', default='10/min'),            # login, registro, contraseñas, invitaciones
+        'refresh': config('THROTTLE_REFRESH', default='30/min'),      # renovar la sesión
+        'sensitive': config('THROTTLE_SENSITIVE', default='10/min'),  # cambiar la contraseña con sesión
+        'anon': config('THROTTLE_ANON', default='120/min'),
+        'user': config('THROTTLE_USER', default='1200/min'),
     },
 }
+# Bloqueo por cuenta (core/identity/lockout.py)
+LOGIN_LOCKOUT_FAILURES = config('LOGIN_LOCKOUT_FAILURES', default=5, cast=int)
+LOGIN_LOCKOUT_MINUTES = config('LOGIN_LOCKOUT_MINUTES', default=15, cast=int)
+
+# Cookie httpOnly del refresh token (core/identity/tokens.py): Secure salvo en desarrollo y edición local
+REFRESH_COOKIE_SECURE = config('REFRESH_COOKIE_SECURE', default=True, cast=bool)
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
@@ -204,6 +222,8 @@ CSRF_TRUSTED_ORIGINS = config(
 ).split(',')
 
 
+# /api/docs/ y /api/schema/: siempre en desarrollo; en otros entornos solo si se habilita a propósito
+API_DOCS_ENABLED = config('API_DOCS_ENABLED', default=False, cast=bool)
 SPECTACULAR_SETTINGS = {
     'TITLE': 'GestorPro API',
     'DESCRIPTION': 'API REST multi-tenant de GestorPro',
@@ -212,7 +232,8 @@ SPECTACULAR_SETTINGS = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    # 12 caracteres como mínimo (OWASP ASVS 2.1.1); aplica a contraseñas nuevas, no a las ya guardadas
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 12}},
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
@@ -234,12 +255,33 @@ WHITENOISE_ROOT = BASE_DIR / 'frontend' / 'dist'
 WHITENOISE_INDEX_FILE = True
 
 
+# Content Security Policy: solo código y recursos del propio GestorPro. Sin scripts en
+# línea ni eval, sin marcos de otros sitios, sin enviar formularios a otro lado. Si
+# alguien lograra inyectar HTML, el navegador no ejecutaría su script ni lo dejaría
+# enviar datos afuera.
+SECURE_CSP = {
+    'default-src': [CSP.SELF],
+    'script-src': [CSP.SELF],
+    'style-src': [CSP.SELF],
+    'img-src': [CSP.SELF, 'data:', 'blob:'],
+    'font-src': [CSP.SELF, 'data:'],
+    'connect-src': [CSP.SELF],
+    'object-src': [CSP.NONE],
+    'base-uri': [CSP.SELF],
+    'form-action': [CSP.SELF],
+    'frame-ancestors': [CSP.NONE],
+}
+PERMISSIONS_POLICY = 'camera=(), microphone=(), geolocation=(), payment=(), usb=()'
+
+
 def _whitenoise_headers(headers, path, url):
-    # WhiteNoise sirve index.html sin pasar por los middlewares de Django: anti-clickjacking aquí también
+    # WhiteNoise sirve index.html sin pasar por los middlewares de Django: las mismas cabeceras aquí
     if path.endswith('.html'):
+        headers['Content-Security-Policy'] = build_policy(SECURE_CSP)
         headers['X-Frame-Options'] = 'DENY'
         headers['X-Content-Type-Options'] = 'nosniff'
         headers['Referrer-Policy'] = 'same-origin'
+        headers['Permissions-Policy'] = PERMISSIONS_POLICY
 
 
 WHITENOISE_ADD_HEADERS_FUNCTION = _whitenoise_headers

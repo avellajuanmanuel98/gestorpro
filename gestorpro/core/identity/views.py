@@ -1,35 +1,37 @@
 from django.contrib.auth.models import update_last_login
 from django.db import transaction
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
-from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from gestorpro.core import entitlements
-from gestorpro.core.access.services import active_memberships_for
+from gestorpro.core.access.services import active_membership_in, active_memberships_for
 from gestorpro.core.audit import services as audit
 from gestorpro.core.audit.context import bind_actor
 from gestorpro.core.audit.models import SecurityEvent
 from gestorpro.core.tenancy.context import tenant_context
 
+from . import lockout, mfa
 from .serializers import (
     ChangePasswordSerializer,
     LoginSerializer,
-    LogoutSerializer,
     RegisterSerializer,
     SwitchTenantSerializer,
     UserSerializer,
 )
-from .tokens import choose_tenant, issue_tokens
+from .tokens import choose_tenant, clear_refresh_cookie, refresh_from, same_origin, set_refresh_cookie, token_response
 
 
 def build_session(user, membership):
     """Estado de sesión que necesita el frontend para pintar la app."""
-    memberships = list(active_memberships_for(user))
+    memberships = active_memberships_for(user)
     ent = entitlements.for_tenant(membership.tenant_id) if membership else entitlements.NONE
     return {
         'user': UserSerializer(user).data,
@@ -68,7 +70,7 @@ def _audit_in_tenant(tenant_id, action, summary):
 
 
 def _login_response(user, http_status=status.HTTP_200_OK, event=SecurityEvent.Kind.LOGIN_SUCCEEDED):
-    tenant_id = choose_tenant(user, list(active_memberships_for(user)))
+    tenant_id = choose_tenant(user, active_memberships_for(user))
     if tenant_id is not None and user.last_tenant_id != tenant_id:
         user.last_tenant_id = tenant_id
         user.save(update_fields=['last_tenant'])
@@ -76,7 +78,7 @@ def _login_response(user, http_status=status.HTTP_200_OK, event=SecurityEvent.Ki
     bind_actor(user)
     audit.security_event(event, user=user, tenant_id=tenant_id)
     _audit_in_tenant(tenant_id, 'auth.login', f'{user.email} inició sesión')
-    return Response(issue_tokens(user, tenant_id), status=http_status)
+    return token_response(user, tenant_id, http_status)
 
 
 class LoginView(APIView):
@@ -87,11 +89,55 @@ class LoginView(APIView):
     throttle_scope = 'auth'
 
     def post(self, request):
+        email = lockout.normalize(request.data.get('email', ''))
+        if lockout.is_locked(email):  # ni siquiera se verifica la contraseña
+            audit.security_event(SecurityEvent.Kind.LOGIN_LOCKED, email=email)
+            return Response({'detail': f'Demasiados intentos fallidos con este correo. Espera '
+                                       f'{lockout.window().seconds // 60} minutos o usa "¿Olvidaste tu contraseña?".'},
+                            status=status.HTTP_429_TOO_MANY_REQUESTS)
         serializer = LoginSerializer(data=request.data, context={'request': request})
         if not serializer.is_valid():
-            audit.security_event(SecurityEvent.Kind.LOGIN_FAILED, email=str(request.data.get('email', '')))
+            audit.security_event(SecurityEvent.Kind.LOGIN_FAILED, email=email)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        return _login_response(serializer.validated_data['user'])
+        user = serializer.validated_data['user']
+        if mfa.required_for(user):  # personal de la plataforma: falta el código de su app
+            pending = mfa.challenge(user)
+            if pending is None:
+                return Response({'detail': 'Tu cuenta de plataforma necesita verificación en dos pasos. Quien '
+                                           'administra el servidor debe ejecutar: manage.py platform_admin '
+                                           f'{user.email}', 'code': 'mfa_not_enrolled'},
+                                status=status.HTTP_403_FORBIDDEN)
+            return Response(pending)
+        return _login_response(user)
+
+
+class MfaVerifyView(APIView):
+    """POST /api/auth/mfa/verify/ {mfa_token, code} → tokens, si el código de la app autenticadora es válido."""
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth'
+
+    def post(self, request):
+        user = mfa.user_from_token(request.data.get('mfa_token'))
+        if user is None:
+            return Response({'detail': 'La verificación venció. Vuelve a escribir tu contraseña.',
+                             'code': 'mfa_expired'}, status=status.HTTP_400_BAD_REQUEST)
+        if lockout.is_locked(user.email):
+            audit.security_event(SecurityEvent.Kind.LOGIN_LOCKED, user=user)
+            return Response({'detail': 'Demasiados intentos fallidos. Espera unos minutos.'},
+                            status=status.HTTP_429_TOO_MANY_REQUESTS)
+        with transaction.atomic():  # dos envíos simultáneos del mismo código: solo uno pasa
+            user = type(user).objects.select_for_update().get(pk=user.pk)
+            first_time = user.totp_confirmed_at is None
+            accepted = mfa.verify(user, str(request.data.get('code', '')))
+        if not accepted:
+            audit.security_event(SecurityEvent.Kind.MFA_FAILED, user=user)
+            return Response({'code': ['Código incorrecto o ya usado. Escribe el que muestra tu app ahora.']},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if first_time:
+            audit.security_event(SecurityEvent.Kind.MFA_ENROLLED, user=user)
+        return _login_response(user)
 
 
 class RegisterView(APIView):
@@ -132,33 +178,66 @@ class SwitchTenantView(APIView):
         serializer = SwitchTenantSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         tenant_id = serializer.validated_data['tenant_id']
-        if not active_memberships_for(request.user).filter(tenant_id=tenant_id).exists():
+        if active_membership_in(request.user, tenant_id) is None:
             return Response({'detail': 'No perteneces a esa empresa.'}, status=status.HTTP_403_FORBIDDEN)
-        _blacklist(serializer.validated_data.get('refresh'), request.user)
+        _blacklist(refresh_from(request), request.user)
         request.user.last_tenant_id = tenant_id
         request.user.save(update_fields=['last_tenant'])
         audit.security_event(SecurityEvent.Kind.TENANT_SWITCHED, user=request.user, tenant_id=tenant_id)
         _audit_in_tenant(tenant_id, 'auth.tenant_switched', f'{request.user.email} entró a la empresa')
-        return Response(issue_tokens(request.user, tenant_id))
+        return token_response(request.user, tenant_id)
 
 
 class LogoutView(APIView):
-    """POST /api/auth/logout/ → invalida el refresh token (no puede reutilizarse)."""
+    """POST /api/auth/logout/ → revoca el refresh token de la cookie (no puede reutilizarse) y la borra."""
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = LogoutSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        _blacklist(serializer.validated_data['refresh'], request.user)
+        _blacklist(refresh_from(request), request.user)
         tenant_id = request.membership.tenant_id if request.membership else None
         audit.security_event(SecurityEvent.Kind.LOGOUT, user=request.user, tenant_id=tenant_id)
         audit.record('auth.logout', summary=f'{request.user.email} cerró sesión')
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        clear_refresh_cookie(response)
+        return response
+
+
+class RefreshView(APIView):
+    """
+    POST /api/auth/token/refresh/ → access nuevo. El refresh llega SOLO por la
+    cookie httpOnly; rota en cada uso (el anterior queda revocado).
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'refresh'
+
+    def post(self, request):
+        if not same_origin(request):
+            return Response({'detail': 'Origen no permitido.'}, status=status.HTTP_403_FORBIDDEN)
+        raw = refresh_from(request)
+        serializer = TokenRefreshSerializer(data={'refresh': raw or ''})
+        try:
+            if not raw:
+                raise InvalidToken('Sin sesión.')
+            serializer.is_valid(raise_exception=True)
+        except (TokenError, InvalidToken, ValidationError):
+            response = Response({'detail': 'La sesión venció. Vuelve a entrar.', 'code': 'session_expired'},
+                                status=status.HTTP_401_UNAUTHORIZED)
+            clear_refresh_cookie(response)
+            return response
+        data = serializer.validated_data
+        response = Response({'access': data['access']})
+        if data.get('refresh'):
+            set_refresh_cookie(response, data['refresh'])
+        return response
 
 
 class ChangePasswordView(APIView):
     """POST /api/auth/change-password/ → cambia la contraseña y cierra las demás sesiones."""
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'sensitive'  # con una sesión robada no se puede probar la contraseña actual sin límite
 
     @transaction.atomic
     def post(self, request):
@@ -171,7 +250,7 @@ class ChangePasswordView(APIView):
         tenant_id = request.membership.tenant_id if request.membership else None
         audit.security_event(SecurityEvent.Kind.PASSWORD_CHANGED, user=request.user, tenant_id=tenant_id)
         audit.record('auth.password_changed', summary=f'{request.user.email} cambió su contraseña')
-        return Response(issue_tokens(request.user, tenant_id))
+        return token_response(request.user, tenant_id)
 
 
 def _blacklist(raw_refresh, user):

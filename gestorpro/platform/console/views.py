@@ -1,6 +1,7 @@
 """
 API de la consola de plataforma (/api/platform/). Solo personal de GestorPro
-(`is_platform_admin`). No usa contexto de empresa: consulta de forma explícita.
+(`is_platform_admin`). No usa contexto de empresa: consulta de forma explícita, con acceso global
+declarado (ver PlatformView).
 """
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
@@ -10,6 +11,7 @@ from rest_framework.views import APIView
 
 from gestorpro.core.access.permissions import IsPlatformAdmin
 from gestorpro.core.audit.context import client_ip
+from gestorpro.core.tenancy.rls import rls_bypass
 from gestorpro.platform.subscriptions.models import Plan
 
 from . import serializers as s
@@ -18,7 +20,24 @@ from .models import PlatformEvent
 
 
 class PlatformView(APIView):
+    """
+    La consola cruza empresas: después de autenticar y verificar que es personal
+    de plataforma (IsPlatformAdmin), la petición declara acceso global ante
+    Row-Level Security. Antes de esa verificación, no.
+    """
     permission_classes = [IsPlatformAdmin]
+    _global_access = None
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        self._global_access = rls_bypass()
+        self._global_access.__enter__()
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        if self._global_access is not None:
+            self._global_access.__exit__(None, None, None)
+            self._global_access = None
+        return super().finalize_response(request, response, *args, **kwargs)
 
     def ip(self):
         return client_ip(self.request)

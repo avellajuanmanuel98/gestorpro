@@ -108,9 +108,9 @@ export interface AuditEntry {
   ip: string | null
 }
 
+/** El refresh token no llega al JavaScript: viaja en una cookie httpOnly. */
 export interface AuthTokens {
   access: string
-  refresh: string
 }
 
 // ── Empresa ──────────────────────────────────────

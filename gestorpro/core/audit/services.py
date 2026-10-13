@@ -80,7 +80,7 @@ def record(action: str, *, summary: str, target=None, changes: dict | None = Non
 def security_event(kind: str, *, user=None, email: str = '', tenant_id: int | None = None):
     ctx = current()
     return SecurityEvent.objects.create(
-        kind=kind, user=user, email=(email or getattr(user, 'email', ''))[:254],
+        kind=kind, user=user, email=(email or getattr(user, 'email', '')).strip().lower()[:254],
         tenant_id_snapshot=tenant_id, ip=ctx.ip, user_agent=ctx.user_agent,
     )
 

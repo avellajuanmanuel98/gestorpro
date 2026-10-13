@@ -33,7 +33,7 @@ export default function ResetPasswordPage() {
     <AuthLayout title="Crea tu contraseña nueva" subtitle={`Para la cuenta ${check.data.email}.`}>
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); save.mutate() }}>
         <Input label="Contraseña nueva" type="password" autoComplete="new-password" required autoFocus value={password}
-               onChange={(e) => setPassword(e.target.value)} hint="Mínimo 8 caracteres; evita contraseñas comunes." />
+               onChange={(e) => setPassword(e.target.value)} hint="Mínimo 12 caracteres; evita contraseñas comunes." />
         <Input label="Repítela" type="password" autoComplete="new-password" required value={password2}
                onChange={(e) => setPassword2(e.target.value)} />
         {save.isError && <Alert>{getErrorMessage(save.error)}</Alert>}
