@@ -26,6 +26,7 @@ import sys
 import time
 import webbrowser
 from pathlib import Path
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / 'frontend'
@@ -201,9 +202,31 @@ def ensure_postgres(pg_bin: Path):
         say(f'  Base de datos "{DB_NAME}" creada.')
 
 
+def env_database_port() -> tuple[str, int] | None:
+    """(host, puerto) del DATABASE_URL del .env, si se puede leer."""
+    for line in ENV_FILE.read_text(encoding='utf-8', errors='replace').splitlines():
+        if line.strip().startswith('DATABASE_URL='):
+            url = urlsplit(line.split('=', 1)[1].strip())
+            try:
+                return (url.hostname or 'localhost'), (url.port or 5432)
+            except ValueError:
+                return None
+    return None
+
+
 def require_postgres():
     if not env_is_managed():
-        return  # el usuario gestiona su propio PostgreSQL (su .env)
+        # El usuario gestiona su propio PostgreSQL (su .env). Si apunta a este equipo y no hay
+        # nada escuchando, es casi siempre un .env de una instalación anterior.
+        target = env_database_port() if ENV_FILE.exists() else None
+        if target and target[0] in ('localhost', '127.0.0.1', '::1') and not port_in_use(target[1]):
+            fail(f'Tu archivo .env apunta a una base de datos en el puerto {target[1]} de este equipo, '
+                 f'pero no hay ninguna encendida ahí.\n'
+                 f'  Si ese .env es de una instalación anterior, cámbiale el nombre y vuelve a ejecutar\n'
+                 f'  instalar.bat: se creará una base propia de GestorPro en el puerto {PG_PORT}.\n'
+                 f'      ren .env .env.anterior\n'
+                 f'  Si es tu propio PostgreSQL, enciéndelo y vuelve a intentar.')
+        return
     pg_bin = find_pg_bin()
     if pg_bin is None:
         fail('No encontré PostgreSQL.\n'
