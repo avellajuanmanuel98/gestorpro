@@ -2,10 +2,11 @@ import { cn } from '@/lib/cn'
 
 /**
  * Marca: "Miga by GestorPro" para panaderías y "GestorPro" para el resto.
- * El símbolo es una forma simple (una "M" tinta con una miga de acento),
- * sin panes dibujados ni degradados.
+ * El símbolo es una forma simple (una "G" o una "M" tinta con una miga de
+ * acento), sin panes dibujados ni degradados. Por defecto, GestorPro: la "M"
+ * de Miga solo aparece dentro de una empresa que es panadería.
  */
-export function BrandMark({ isMiga = true, className }: { isMiga?: boolean; className?: string }) {
+export function BrandMark({ isMiga = false, className }: { isMiga?: boolean; className?: string }) {
   return (
     <svg viewBox="0 0 32 32" className={cn('w-7 h-7 shrink-0', className)} aria-hidden="true">
       <rect width="32" height="32" rx="8" fill="var(--primary)" />
