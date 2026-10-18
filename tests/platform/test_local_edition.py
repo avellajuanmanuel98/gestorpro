@@ -150,3 +150,27 @@ def test_start_update_and_restore_ensure_the_role_on_older_installs():
     for fn in ('def serve(', 'def update(', 'def restore('):
         body = source[source.index(f'\n{fn}') + 1:].split('\ndef ', 1)[0]
         assert 'ensure_database()' in body, fn
+
+
+@pytest.mark.django_db
+def test_support_access_is_created_on_purpose_with_2fa_and_without_superuser(monkeypatch, capsys):
+    """local\\acceso-soporte.bat: la cuenta de soporte se crea a mano, con verificación en dos pasos."""
+    import getpass
+
+    from gestorpro.core.identity.models import User
+
+    monkeypatch.setattr(le, 'require_installed', lambda: {})
+    monkeypatch.setattr(le, 'Postgres', lambda cfg: type('PG', (), {'start': lambda self: None})())
+    monkeypatch.setattr(le, 'django_env', lambda cfg: {})
+    monkeypatch.setattr(le, 'log_line', lambda text: None)
+    answers = iter(['Soporte@GestorPro.com', 'Juan'])
+    monkeypatch.setattr(le, 'ask', lambda prompt: next(answers))
+    passwords = iter(['corta', 'corta', 'Soporte-Local-2026', 'Soporte-Local-2026'])
+    monkeypatch.setattr(getpass, 'getpass', lambda prompt='': next(passwords))
+    le.support_access()
+    user = User.objects.get(email='soporte@gestorpro.com')
+    assert user.is_platform_admin and user.is_staff and not user.is_superuser
+    assert user.check_password('Soporte-Local-2026') and user.totp_secret
+    out = capsys.readouterr().out
+    assert 'otpauth://totp/GestorPro' in out and 'UNA sola vez' in out
+    assert (ROOT / 'local' / 'acceso-soporte.bat').read_text(encoding='utf-8').strip().endswith('pause')

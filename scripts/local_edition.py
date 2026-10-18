@@ -9,6 +9,7 @@ red local (caja, tablet, celular del dueño). Lo usan los .bat de la carpeta loc
     python scripts/local_edition.py actualizar   # copia + trae la nueva versión + migra
     python scripts/local_edition.py estado       # cómo está todo
     python scripts/local_edition.py contrasena   # restablecer la contraseña olvidada de un usuario
+    python scripts/local_edition.py soporte      # acceso de soporte de GestorPro (consola de plataforma, con 2FA)
 
 Todo vive en la carpeta de datos (por defecto %USERPROFILE%\\GestorPro-datos):
 
@@ -808,8 +809,56 @@ def reset_password():
     say(f'\nListo: {user.email} ya puede entrar con la nueva contraseña. Sus sesiones abiertas se cerraron.')
 
 
+def support_access():
+    """
+    Acceso de soporte de GestorPro a ESTA instalación (consola de plataforma). Lo crea a
+    propósito quien está frente al computador: el instalador nunca crea cuentas de
+    administrador. No es superusuario; entra con contraseña + código de una app
+    autenticadora (la clave se muestra una sola vez).
+    """
+    import getpass
+    cfg = require_installed()
+    Postgres(cfg).start()
+    os.environ.update(django_env(cfg))
+    import django
+    django.setup()
+    from django.contrib.auth import get_user_model, password_validation
+    from django.core.exceptions import ValidationError
+    from django.core.management import call_command
+
+    step('Acceso de soporte de GestorPro (consola de plataforma)')
+    say('  Es para el equipo de GestorPro, no para el personal de la panadería.')
+    User = get_user_model()
+    email = ask('Email de la cuenta de soporte').lower()
+    if '@' not in email:
+        fail('Escribe un email válido.')
+    user = User.objects.filter(email__iexact=email).first()
+    if user is None:
+        say('  Esa cuenta no existe en este GestorPro: se crea ahora.')
+        first_name = ask('Nombre') or 'Soporte'
+        candidate = User(email=email, first_name=first_name, last_name='GestorPro')
+        while True:
+            password = getpass.getpass('  Contraseña (mínimo 12 caracteres, no se ve al escribir): ')
+            if password != getpass.getpass('  Repítela: '):
+                say('  No coinciden. Intenta de nuevo.')
+                continue
+            try:
+                password_validation.validate_password(password, candidate)
+            except ValidationError as exc:
+                say('  ' + ' '.join(exc.messages))
+                continue
+            break
+        user = User.objects.create_user(email=email, password=password, first_name=first_name,
+                                        last_name='GestorPro')
+    else:
+        say('  La cuenta ya existe: conserva su contraseña.')
+    call_command('platform_admin', user.email)
+    log_line(f'Acceso de soporte habilitado para {user.email}')
+    say(f'\nListo. Abre GestorPro y entra con {user.email}: contraseña y luego el código de la app.')
+
+
 COMMANDS = {'instalar': install, 'iniciar': serve, 'copia': backup_now, 'restaurar': restore,
-            'actualizar': update, 'estado': status, 'contrasena': reset_password}
+            'actualizar': update, 'estado': status, 'contrasena': reset_password, 'soporte': support_access}
 
 if __name__ == '__main__':
     os.environ.setdefault('PYTHONUTF8', '1')

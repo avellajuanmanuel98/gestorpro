@@ -76,6 +76,7 @@ Los archivos están en la carpeta `local\` del programa.
 | `restaurar-copia.bat` | Vuelve a una copia anterior. Hay que cerrar GestorPro antes. |
 | `actualizar.bat` | Instala la versión nueva (hace una copia antes). Hay que cerrar GestorPro antes. |
 | `restablecer-contrasena.bat` | Contraseña olvidada: pide el email y la nueva contraseña, y cierra las sesiones abiertas de ese usuario. |
+| `acceso-soporte.bat` | Solo para el equipo de GestorPro: crea (o habilita) la cuenta de soporte de esta instalación para la consola de plataforma. No es superusuario y entra con contraseña + código de una app autenticadora, cuya clave se muestra una sola vez. El instalador nunca crea esta cuenta por su cuenta: cada instalación tiene su propia base, así que una cuenta creada en la instalación de pruebas no existe aquí. |
 
 **Desde la tablet o el celular:** se conectan al **mismo wifi** y abren la dirección que muestra la ventana de GestorPro (o `estado.bat`), por ejemplo `http://192.168.1.40:8000`. Conviene guardarla como acceso directo en la pantalla de inicio.
 
