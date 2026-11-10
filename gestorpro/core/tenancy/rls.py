@@ -42,7 +42,7 @@ from contextvars import ContextVar
 from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django.db import connections
+from django.db import DatabaseError, connections, transaction
 
 from .context import get_active_tenant_id
 
@@ -155,12 +155,20 @@ def _sync(execute, sql, params, many, context):
     return execute(sql, params, many, context)
 
 
+# ¿Puede la sesión hacer SET ROLE al rol? Desde PostgreSQL 16 "ser miembro" no basta: quien crea un rol
+# con CREATEROLE (p. ej. el usuario dueño en Neon) queda como administrador del rol, pero sin permiso
+# de usarlo. Por eso se pregunta por SET en 16+ (y por MEMBER en versiones anteriores, que no lo tienen).
+CAN_SET_ROLE_SQL = (
+    "SELECT pg_has_role(session_user, %s, CASE WHEN current_setting('server_version_num')::int >= 160000 "
+    "THEN 'SET' ELSE 'MEMBER' END) FROM pg_roles WHERE rolname = %s"
+)
+
+
 def on_connection_created(sender, connection, **kwargs):
     if connection.vendor != 'postgresql':
         return
     with connection.connection.cursor() as cursor:
-        cursor.execute('SELECT pg_has_role(session_user, %s, %s) FROM pg_roles WHERE rolname = %s',
-                       [APP_ROLE, 'MEMBER', APP_ROLE])
+        cursor.execute(CAN_SET_ROLE_SQL, [APP_ROLE, APP_ROLE])
         row = cursor.fetchone()
     connection._gestorpro_rls_can_use_role = bool(row and row[0])
     connection._gestorpro_rls_state = None
@@ -191,6 +199,15 @@ def install(using='default') -> None:
         cursor.execute('SELECT 1 FROM pg_roles WHERE rolname = %s', [APP_ROLE])
         role_exists = cursor.fetchone() is not None
         if role_exists:
+            cursor.execute(CAN_SET_ROLE_SQL, [APP_ROLE, APP_ROLE])
+            if not cursor.fetchone()[0]:
+                # Dueño sin superusuario que creó el rol (PostgreSQL 16+, Neon y otros servicios
+                # gestionados): se da a sí mismo el permiso de usarlo. Si no puede, se avisa abajo.
+                try:
+                    with transaction.atomic(using=using):
+                        cursor.execute(f'GRANT {APP_ROLE} TO CURRENT_USER')
+                except DatabaseError:
+                    pass
             # Lectura y escritura de filas; nunca TRUNCATE, DDL ni dueño de nada
             cursor.execute(f'GRANT USAGE ON SCHEMA public TO {APP_ROLE}')
             cursor.execute(f'GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {APP_ROLE}')

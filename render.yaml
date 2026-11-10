@@ -1,0 +1,32 @@
+# Despliegue GRATIS en Render (la app). La base de datos va en Neon (gratis, no vence).
+# Paso a paso: docs/miga/15-despliegue-gratis.md
+#
+# En Render: New > Blueprint > este repositorio. Pide un solo dato: DATABASE_URL, la cadena de
+# conexión DIRECTA de Neon (sin "-pooler"). La SECRET_KEY la genera Render.
+services:
+  - type: web
+    name: gestorpro
+    runtime: python
+    plan: free
+    region: virginia  # misma zona que la base en Neon (AWS us-east-1): menos latencia
+    branch: main
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    # Migraciones al arrancar: el plan gratis no tiene comando previo al despliegue. Si no hay
+    # nada nuevo tardan un par de segundos. migrate también crea el rol de Row-Level Security.
+    startCommand: >-
+      python manage.py migrate --noinput &&
+      gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 60
+    healthCheckPath: /api/health/
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.0
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: DEFAULT_PLAN_CODE
+        value: business
+      - key: CASH_DIFFERENCE_TOLERANCE
+        value: "5000"

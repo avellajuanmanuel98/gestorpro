@@ -193,3 +193,25 @@ def test_platform_log_is_immutable(staff, shop):
         event.save()
     with pytest.raises(ValueError):
         event.delete()
+
+
+def test_platform_admin_can_create_the_account_on_purpose(monkeypatch):
+    """Nube sin consola (Render gratis): la cuenta de soporte se crea desde el comando, con 2FA."""
+    import getpass
+    import io
+
+    from django.core.management import call_command
+
+    from gestorpro.core.identity.models import User
+
+    monkeypatch.setattr('builtins.input', lambda prompt='': 'Juan')
+    answers = iter(['corta', 'corta', 'Soporte-Nube-2026', 'Soporte-Nube-2026'])
+    monkeypatch.setattr(getpass, 'getpass', lambda prompt='': next(answers))
+    out = io.StringIO()
+    call_command('platform_admin', 'Soporte@GestorPro.co', '--create', stdout=out)
+    user = User.objects.get(email='soporte@gestorpro.co')
+    assert user.is_platform_admin and user.is_staff and not user.is_superuser
+    assert user.check_password('Soporte-Nube-2026') and user.totp_secret
+    assert 'otpauth://' in out.getvalue()
+    with pytest.raises(Exception, match='--create'):
+        call_command('platform_admin', 'nadie@gestorpro.co', stdout=io.StringIO())

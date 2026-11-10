@@ -128,7 +128,15 @@ if not DATABASE_URL.startswith(('postgres://', 'postgresql://')):
         'DATABASE_URL debe apuntar a PostgreSQL (postgres://...). '
         'En local: docker compose up -d db'
     )
-DATABASES = {'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)}
+# Row-Level Security fija el rol y la empresa en la SESIÓN de PostgreSQL: un pooler en modo transacción
+# (PgBouncer, el "-pooler" de Neon) mezclaría sesiones de distintas peticiones. Conexión directa siempre.
+if '-pooler.' in DATABASE_URL or 'pgbouncer=true' in DATABASE_URL:
+    raise ImproperlyConfigured(
+        'DATABASE_URL apunta a un pooler de conexiones. Usa la conexión directa de PostgreSQL '
+        '(en Neon: desactiva "Connection pooling" al copiar la cadena de conexión).'
+    )
+# Conexiones persistentes con verificación: si la base se suspendió (Neon gratis), se reconecta sola
+DATABASES = {'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, conn_health_checks=True)}
 
 
 AUTH_USER_MODEL = 'identity.User'

@@ -8,9 +8,11 @@ from django.views.static import serve
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from gestorpro.capabilities.hr.views import HRReportView
+from gestorpro.kernel.api.health import health
 from gestorpro.platform.admin_panel.site import platform_admin_site
 
 api = [
+    path('health/', health, name='health'),
     # Core
     path('auth/', include('gestorpro.core.identity.urls')),
     path('platform/', include('gestorpro.platform.console.urls')),
