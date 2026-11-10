@@ -76,7 +76,7 @@ export default function InvoiceDetail({ id, onClose }: { id: number; onClose: ()
           <tbody className="divide-y divide-line">
             {invoice.lines.map((l) => (
               <tr key={l.id}>
-                <td className="px-3 py-2 text-ink">{l.product_name}<span className="block text-[11px] text-ink-subtle">IVA {Number(l.tax_rate)} %</span></td>
+                <td className="px-3 py-2 text-ink">{l.product_name}<span className="block text-[0.6875rem] text-ink-subtle">IVA {Number(l.tax_rate)} %</span></td>
                 <td className="px-3 py-2 text-right num">{Number(l.quantity).toLocaleString('es-CO')}</td>
                 <td className="px-3 py-2 text-right num">{formatCOP(l.unit_price)}</td>
                 <td className="px-3 py-2 text-right num text-ink">{formatCOP(l.line_total)}</td>

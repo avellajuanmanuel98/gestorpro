@@ -62,7 +62,7 @@ function SaleDetail({ id, onClose }: { id: number; onClose: () => void }) {
           <tbody className="divide-y divide-line">
             {sale.lines.map((l) => (
               <tr key={l.id}>
-                <td className="px-3 py-2 text-ink">{l.item_name}<span className="block text-[11px] text-ink-subtle">{formatCOP(l.unit_price)} c/u{Number(l.tax_rate) > 0 && ` · IVA ${Number(l.tax_rate)} %`}</span></td>
+                <td className="px-3 py-2 text-ink">{l.item_name}<span className="block text-[0.6875rem] text-ink-subtle">{formatCOP(l.unit_price)} c/u{Number(l.tax_rate) > 0 && ` · IVA ${Number(l.tax_rate)} %`}</span></td>
                 <td className="px-3 py-2 text-right num">{formatQty(l.quantity, l.unit_symbol)}</td>
                 <td className="px-3 py-2 text-right num">{formatCOP(l.line_total)}</td>
               </tr>

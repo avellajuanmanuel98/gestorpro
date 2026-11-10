@@ -24,8 +24,8 @@ export default function Brand({ vertical, compact = false }: { vertical?: string
       <BrandMark isMiga={isMiga} />
       {!compact && (
         <div className="leading-none min-w-0">
-          <p className="text-[15px] font-semibold tracking-tight text-ink">{isMiga ? 'Miga' : 'GestorPro'}</p>
-          {isMiga && <p className="mt-0.5 text-[10px] font-medium tracking-wide text-ink-subtle">by GestorPro</p>}
+          <p className="text-[0.9375rem] font-semibold tracking-tight text-ink">{isMiga ? 'Miga' : 'GestorPro'}</p>
+          {isMiga && <p className="mt-0.5 text-[0.625rem] font-medium tracking-wide text-ink-subtle">by GestorPro</p>}
         </div>
       )}
     </div>

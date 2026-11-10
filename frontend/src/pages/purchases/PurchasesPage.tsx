@@ -128,7 +128,7 @@ function PurchaseDetail({ id }: { id: number }) {
                 <td className="px-3 py-2 text-ink">{l.item_name}</td>
                 <td className="px-3 py-2 text-right num">{formatQty(l.quantity, l.unit_symbol)} × {formatUnitCost(l.unit_cost)}</td>
                 <td className="px-3 py-2 text-right num">{formatQty(l.base_quantity, l.item_unit_symbol)}
-                  <span className="block text-[11px] text-ink-subtle">{formatUnitCost(l.base_unit_cost)} / {l.item_unit_symbol}</span></td>
+                  <span className="block text-[0.6875rem] text-ink-subtle">{formatUnitCost(l.base_unit_cost)} / {l.item_unit_symbol}</span></td>
                 <td className="px-3 py-2 text-right num">{formatCOP(l.total)}</td>
               </tr>
             ))}

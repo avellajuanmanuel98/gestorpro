@@ -62,7 +62,7 @@ function ProductGrid({ onAdd }: { onAdd: (item: POSItem) => void }) {
           <input ref={searchRef} value={term} onChange={(e) => setTerm(e.target.value)} autoFocus
                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFromSearch() } }}
                  aria-label="Buscar producto" placeholder="Buscar producto o código  (F2)"
-                 className="w-full h-12 pl-10 pr-3 rounded-xl border border-line-strong bg-surface text-[15px] text-ink placeholder:text-ink-subtle focus:outline-none focus:ring-2 focus:ring-[var(--focus)]" />
+                 className="w-full h-12 pl-10 pr-3 rounded-xl border border-line-strong bg-surface text-[0.9375rem] text-ink placeholder:text-ink-subtle focus:outline-none focus:ring-2 focus:ring-[var(--focus)]" />
         </div>
         <div role="tablist" aria-label="Categorías" className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
           {[{ id: 'all' as const, name: 'Todo' }, ...(catalog.data?.categories ?? [])].map((c) => (
@@ -96,7 +96,7 @@ function ProductGrid({ onAdd }: { onAdd: (item: POSItem) => void }) {
                     <span className="text-base font-semibold text-ink num">{formatCOP(item.price_with_tax)}
                       {item.unit !== 'und' && <span className="text-xs font-normal text-ink-subtle"> /{item.unit_symbol}</span>}</span>
                     {item.tracks_stock && (
-                      <span className={cn('text-[11px] num', out ? 'text-warning' : 'text-ink-subtle')}>
+                      <span className={cn('text-[0.6875rem] num', out ? 'text-warning' : 'text-ink-subtle')}>
                         {out ? 'Sin registro' : formatQty(item.stock, item.unit_symbol)}
                       </span>
                     )}

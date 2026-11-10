@@ -61,7 +61,7 @@ export interface StatusSpec {
 export default function StatusMark({ status, className }: { status: StatusSpec; className?: string }) {
   const quiet = status.glyph === 'hollow'
   return (
-    <span className={cn('inline-flex items-center gap-1.5 text-[13px] whitespace-nowrap',
+    <span className={cn('inline-flex items-center gap-1.5 text-[0.8125rem] whitespace-nowrap',
                         quiet ? 'text-ink-muted' : 'text-ink', className)}>
       <StatusGlyphIcon glyph={status.glyph} tone={status.tone} />
       {status.label}
@@ -97,7 +97,7 @@ const barTone: Record<StatusTone, string> = {
  */
 export function LifecycleMark({ status, className }: { status: LifecycleSpec; className?: string }) {
   return (
-    <span className={cn('inline-flex items-center gap-2 text-[13px] whitespace-nowrap',
+    <span className={cn('inline-flex items-center gap-2 text-[0.8125rem] whitespace-nowrap',
                         status.voided ? 'text-ink-muted' : 'text-ink', className)}>
       <span className="relative inline-flex items-center gap-[3px]" aria-hidden="true">
         {[1, 2, 3].map((n) => {
@@ -133,7 +133,7 @@ export function StatusStamp({ status, className }: { status: LifecycleSpec; clas
   return (
     <span className={cn(
       'inline-block -rotate-3 select-none rounded-[6px] border-2 px-2.5 py-1',
-      'text-[11px] font-bold uppercase tracking-[0.18em]',
+      'text-[0.6875rem] font-bold uppercase tracking-[0.18em]',
       status.step === 1 && !status.voided ? 'border-dashed' : 'border-double border-[3px]',
       stampTone[status.tone], className,
     )}>

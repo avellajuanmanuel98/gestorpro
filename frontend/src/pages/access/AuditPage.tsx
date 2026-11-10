@@ -90,7 +90,7 @@ export default function AuditPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-surface-muted/60 border-b border-line">
-                <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                <tr className="text-left text-[0.6875rem] font-semibold uppercase tracking-wider text-ink-muted">
                   <th className="px-6 py-3 w-8" /><th className="px-2 py-3">Fecha</th>
                   <th className="px-6 py-3">Usuario</th><th className="px-6 py-3">Acción</th>
                 </tr>
@@ -113,7 +113,7 @@ export default function AuditPage() {
                         <td className="px-6 py-3 text-ink">{entry.actor_label}</td>
                         <td className="px-6 py-3">
                           <p className="text-ink">{entry.summary}</p>
-                          <p className="text-[11px] font-mono text-ink-subtle">{entry.action}</p>
+                          <p className="text-[0.6875rem] font-mono text-ink-subtle">{entry.action}</p>
                         </td>
                       </tr>
                       {open && (
@@ -121,7 +121,7 @@ export default function AuditPage() {
                           <td />
                           <td colSpan={3} className="px-2 py-3 space-y-2">
                             <Changes entry={entry} />
-                            {entry.ip && <p className="text-[11px] text-ink-subtle">IP {entry.ip}</p>}
+                            {entry.ip && <p className="text-[0.6875rem] text-ink-subtle">IP {entry.ip}</p>}
                           </td>
                         </tr>
                       )}

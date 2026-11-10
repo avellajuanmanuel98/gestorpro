@@ -25,8 +25,8 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <div className="h-16 flex items-center gap-2.5 px-5 shrink-0">
         <BrandMark isMiga={false} />
         <div className="leading-none">
-          <p className="text-[15px] font-semibold tracking-tight text-ink">GestorPro</p>
-          <p className="mt-0.5 text-[10px] font-medium tracking-wide text-accent">PLATAFORMA</p>
+          <p className="text-[0.9375rem] font-semibold tracking-tight text-ink">GestorPro</p>
+          <p className="mt-0.5 text-[0.625rem] font-medium tracking-wide text-accent">PLATAFORMA</p>
         </div>
       </div>
       <nav aria-label="Plataforma" className="flex-1 overflow-y-auto px-3 pb-4">

@@ -50,8 +50,10 @@ export default function DataTable<T>({
         empty
       ) : (
         <>
-          {/* Escritorio */}
-          <table className="hidden md:table w-full text-sm">
+          {/* Escritorio: si no cabe (pantalla pequeña o letra grande) se desplaza a lo ancho,
+              y las acciones de la fila quedan siempre visibles a la derecha */}
+          <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-sm">
             <caption className="sr-only">{caption}</caption>
             <thead>
               <tr className="border-b border-line bg-surface-muted/60">
@@ -62,7 +64,11 @@ export default function DataTable<T>({
                     {c.header}
                   </th>
                 ))}
-                {rowActions && <th scope="col" className="px-5 py-2.5"><span className="sr-only">Acciones</span></th>}
+                {rowActions && (
+                  <th scope="col" className="sticky right-0 bg-surface-muted px-5 py-2.5">
+                    <span className="sr-only">Acciones</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -76,7 +82,8 @@ export default function DataTable<T>({
                     </td>
                   ))}
                   {rowActions && (
-                    <td className="px-5 py-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <td className="sticky right-0 bg-surface group-hover:bg-surface-muted px-5 py-3 text-right whitespace-nowrap"
+                        onClick={(e) => e.stopPropagation()}>
                       {rowActions(row)}
                     </td>
                   )}
@@ -84,6 +91,7 @@ export default function DataTable<T>({
               ))}
             </tbody>
           </table>
+          </div>
 
           {/* Móvil */}
           <ul className="md:hidden divide-y divide-line">

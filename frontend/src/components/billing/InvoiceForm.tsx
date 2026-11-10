@@ -137,7 +137,7 @@ export default function InvoiceForm({ onSuccess, onCancel }: { onSuccess: () => 
                      onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })} />
               <div className="text-right text-sm num pb-2 text-ink">
                 {formatCOP(preview[index].base + preview[index].tax)}
-                <span className="block text-[11px] text-ink-subtle">IVA {preview[index].rate} %</span>
+                <span className="block text-[0.6875rem] text-ink-subtle">IVA {preview[index].rate} %</span>
               </div>
               <button type="button" onClick={() => setLines((prev) => prev.filter((l) => l.key !== line.key))}
                       disabled={lines.length === 1} aria-label={`Quitar línea ${index + 1}`}
@@ -170,7 +170,7 @@ export default function InvoiceForm({ onSuccess, onCancel }: { onSuccess: () => 
           <div className="flex justify-between pt-2 border-t border-line text-base font-semibold text-ink">
             <dt>Total estimado</dt><dd className="num">{formatCOP(total)}</dd>
           </div>
-          <p className="text-[11px] text-ink-subtle text-right">El total definitivo lo calcula el sistema al guardar.</p>
+          <p className="text-[0.6875rem] text-ink-subtle text-right">El total definitivo lo calcula el sistema al guardar.</p>
         </dl>
       </div>
 

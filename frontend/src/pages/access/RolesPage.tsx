@@ -98,7 +98,7 @@ function RoleEditor({ role, catalog, onDone }: { role: Role | null; catalog: Per
                       <span className="text-ink">
                         {p.description}
                         {!canGrant(p.code) && p.available && !readOnly && (
-                          <span className="block text-[11px] text-ink-subtle">Tú no tienes este permiso</span>
+                          <span className="block text-[0.6875rem] text-ink-subtle">Tú no tienes este permiso</span>
                         )}
                       </span>
                     </label>

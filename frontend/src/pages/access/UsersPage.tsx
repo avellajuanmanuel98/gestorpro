@@ -167,7 +167,7 @@ export default function UsersPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-surface-muted/60 border-b border-line">
-                <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                <tr className="text-left text-[0.6875rem] font-semibold uppercase tracking-wider text-ink-muted">
                   <th className="px-6 py-3">Usuario</th>
                   <th className="px-6 py-3">Rol</th>
                   <th className="px-6 py-3">Estado</th>

@@ -194,7 +194,7 @@ export function ProfitTab({ period }: { period: PeriodQuery }) {
                   </button>
                 )
               })}
-              <p className="col-span-2 flex justify-between text-[11px] text-ink-subtle"><span>Arriba: más utilidad por unidad · ← menos vendido</span><span>más vendido →</span></p>
+              <p className="col-span-2 flex justify-between text-[0.6875rem] text-ink-subtle"><span>Arriba: más utilidad por unidad · ← menos vendido</span><span>más vendido →</span></p>
             </div>
           )}
         </Card>

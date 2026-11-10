@@ -2,14 +2,16 @@ import { useState } from 'react'
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowLeftRight, BarChart2, Boxes, Building2, FileText, History, KeyRound, LayoutDashboard,
-  CreditCard, LogOut, Menu, Moon, ShieldCheck, Sun, Truck, UserCheck, UserCog, Users, Wheat, X, ShoppingCart, Wallet, ReceiptText, Factory, Flame, ChefHat, PackagePlus,
+  ArrowLeftRight, BarChart2, Boxes, Building2, ChevronDown, FileText, History, KeyRound, LayoutDashboard,
+  CreditCard, LogOut, Menu, Moon, ShieldCheck, Sun, Truck, Type, UserCheck, UserCog, Users, Wheat, X, ShoppingCart,
+  Wallet, ReceiptText, Factory, Flame, ChefHat, PackagePlus, Sparkles,
 } from 'lucide-react'
 import Brand from '@/components/brand/Brand'
 import PlanBanner from '@/components/platform/PlanBanner'
 import SupportBanner from '@/components/platform/SupportBanner'
 import { cn } from '@/lib/cn'
 import { useAuthStore, useCan, useHasFeature, useHasModule } from '@/store/authStore'
+import { TEXT_SIZES, useDisplayStore } from '@/store/displayStore'
 import { useThemeStore } from '@/store/themeStore'
 
 // ── Navegación ────────────────────────────────────────────────────────────────
@@ -71,6 +73,9 @@ const navGroups: { label: string; items: NavItem[] }[] = [
   },
 ]
 
+// Modo fácil: lo de todos los días, arriba y sin grupos. El resto, en "Más opciones".
+const DAILY = ['/dashboard', '/pos', '/cash', '/sales', '/inventory', '/reports']
+
 const routeLabels: Record<string, string> = Object.fromEntries(
   navGroups.flatMap((g) => g.items.map((i) => [i.to, i.label])),
 )
@@ -125,6 +130,30 @@ function TenantSwitcher() {
   )
 }
 
+const footerBtn = 'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-ink-muted hover:bg-surface-muted hover:text-ink transition-colors'
+
+function NavList({ items, onNavigate, big = false }: { items: NavItem[]; onNavigate?: () => void; big?: boolean }) {
+  return (
+    <ul className={big ? 'space-y-1' : 'space-y-0.5'}>
+      {items.map(({ to, icon: Icon, label }) => (
+        <li key={to}>
+          <NavLink to={to} onClick={onNavigate}
+            className={({ isActive }) => cn(
+              'relative flex items-center rounded-lg transition-colors',
+              big ? 'gap-3 px-3 py-3 text-base' : 'gap-2.5 px-2.5 py-2 text-sm',
+              isActive
+                ? 'bg-primary-soft text-primary-ink font-medium before:absolute before:left-0 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-accent'
+                : 'text-ink-muted hover:bg-surface-muted hover:text-ink',
+            )}>
+            <Icon size={big ? 20 : 16} className="shrink-0" />
+            <span className="truncate">{label}</span>
+          </NavLink>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const session = useAuthStore((s) => s.session)
   const logout = useAuthStore((s) => s.logout)
@@ -132,6 +161,9 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const hasFeature = useHasFeature()
   const hasModule = useHasModule()
   const { theme, toggleTheme } = useThemeStore()
+  const { textSize, nextTextSize, easyMode, setEasyMode } = useDisplayStore()
+  const [showMore, setShowMore] = useState(false)
+  const [showDisplay, setShowDisplay] = useState(false)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -147,6 +179,9 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         && (!i.module || hasModule(i.module)))
       .map((i) => (i.genericLabel && session?.tenant?.vertical !== 'bakery' ? { ...i, label: i.genericLabel } : i)) }))
     .filter((g) => g.items.length > 0)
+  const visible = groups.flatMap((g) => g.items)
+  const daily = DAILY.map((to) => visible.find((i) => i.to === to)).filter((i): i is NavItem => Boolean(i))
+  const others = visible.filter((i) => !DAILY.includes(i.to))
 
   return (
     <div className="flex flex-col h-full">
@@ -156,25 +191,24 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <TenantSwitcher />
 
       <nav aria-label="Principal" className="flex-1 overflow-y-auto px-3 pb-4 space-y-5">
-        {groups.map((group) => (
+        {easyMode ? (
+          <>
+            <NavList items={daily} onNavigate={onNavigate} big />
+            {others.length > 0 && (
+              <div>
+                <button type="button" onClick={() => setShowMore((v) => !v)} aria-expanded={showMore}
+                        className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-sm text-ink-muted hover:bg-surface-muted hover:text-ink">
+                  <span>Más opciones</span>
+                  <ChevronDown size={16} className={cn('transition-transform', showMore && 'rotate-180')} />
+                </button>
+                {showMore && <div className="mt-1"><NavList items={others} onNavigate={onNavigate} /></div>}
+              </div>
+            )}
+          </>
+        ) : groups.map((group) => (
           <div key={group.label}>
-            <p className="px-2.5 mb-1 text-[11px] font-medium text-ink-subtle">{group.label}</p>
-            <ul className="space-y-0.5">
-              {group.items.map(({ to, icon: Icon, label }) => (
-                <li key={to}>
-                  <NavLink to={to} onClick={onNavigate}
-                    className={({ isActive }) => cn(
-                      'relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-colors',
-                      isActive
-                        ? 'bg-primary-soft text-primary-ink font-medium before:absolute before:left-0 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-accent'
-                        : 'text-ink-muted hover:bg-surface-muted hover:text-ink',
-                    )}>
-                    <Icon size={16} className="shrink-0" />
-                    <span className="truncate">{label}</span>
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
+            <p className="px-2.5 mb-1 text-[0.6875rem] font-medium text-ink-subtle">{group.label}</p>
+            <NavList items={group.items} onNavigate={onNavigate} />
           </div>
         ))}
       </nav>
@@ -186,11 +220,25 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <ShieldCheck size={16} /> Consola de plataforma
           </NavLink>
         )}
-        <button type="button" onClick={toggleTheme}
-                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-ink-muted hover:bg-surface-muted hover:text-ink transition-colors">
-          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-          {theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+        <button type="button" onClick={() => setShowDisplay((v) => !v)} aria-expanded={showDisplay} className={footerBtn}>
+          <Type size={16} /> <span className="flex-1 text-left">Pantalla</span>
+          <ChevronDown size={14} className={cn('transition-transform', showDisplay && 'rotate-180')} />
         </button>
+        {showDisplay && (
+          <div className="pl-2 space-y-1">
+            <button type="button" onClick={nextTextSize} title="Cambia el tamaño de toda la pantalla" className={footerBtn}>
+              Letra: {TEXT_SIZES.find((t) => t.id === textSize)?.label}
+            </button>
+            <button type="button" onClick={() => setEasyMode(!easyMode)} aria-pressed={easyMode}
+                    title="Menú corto con lo de todos los días y botones con palabras" className={footerBtn}>
+              <Sparkles size={16} /> {easyMode ? 'Modo fácil: activado' : 'Activar modo fácil'}
+            </button>
+            <button type="button" onClick={toggleTheme} className={footerBtn}>
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              {theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+            </button>
+          </div>
+        )}
         <div className="flex items-center gap-2.5 px-2.5 py-2">
           <Avatar name={session?.user.full_name} />
           <div className="flex-1 min-w-0">

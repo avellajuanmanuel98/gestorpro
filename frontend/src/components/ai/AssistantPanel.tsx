@@ -334,7 +334,7 @@ export default function AssistantPanel({ onClose }: AssistantPanelProps) {
             </div>
             {/* Quick suggestions */}
             <div className="w-full space-y-2">
-              <p className="text-[11px] font-medium text-ink-subtle uppercase tracking-wider">
+              <p className="text-[0.6875rem] font-medium text-ink-subtle uppercase tracking-wider">
                 Sugerencias
               </p>
               <div className="grid grid-cols-1 gap-1.5">
@@ -424,7 +424,7 @@ export default function AssistantPanel({ onClose }: AssistantPanelProps) {
             </button>
           )}
         </div>
-        <p className="text-[10px] text-ink-subtle text-center mt-1.5">
+        <p className="text-[0.625rem] text-ink-subtle text-center mt-1.5">
           Enter para enviar · Shift+Enter para nueva línea
         </p>
       </div>

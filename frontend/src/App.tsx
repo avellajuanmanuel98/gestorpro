@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore, useCan, useHasFeature, useHasModule } from '@/store/authStore'
 import AssistantButton from '@/components/ai/AssistantButton'
+import { useDisplayStore } from '@/store/displayStore'
 import Toaster from '@/components/ui/Toaster'
 
 // Páginas
@@ -66,7 +67,9 @@ function App() {
   const refreshSession  = useAuthStore((s) => s.refreshSession)
   const can = useCan()
   const hasFeature = useHasFeature()
-  const canUseAssistant = can('assistant.use') && hasFeature('module.assistant')
+  const easyMode = useDisplayStore((st) => st.easyMode)
+  // En modo fácil no se muestra el botón flotante del asistente: una cosa menos en pantalla, y no tapa tablas
+  const canUseAssistant = can('assistant.use') && hasFeature('module.assistant') && !easyMode
 
   // Al abrir la app, la sesión (empresa activa, rol y permisos) se vuelve a
   // pedir al servidor: lo guardado en el navegador puede estar desactualizado.
