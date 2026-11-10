@@ -6,6 +6,7 @@ import { formatDateTime } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
 
 /**
+ * Tamaños en px A PROPÓSITO: el papel mide 80 mm y no debe crecer con la letra grande de la pantalla.
  * Ticket de venta para impresora térmica de 80 mm (se imprime con window.print;
  * los estilos de impresión ocultan todo lo demás). No es una factura
  * electrónica: la integración con la DIAN es una fase posterior.
@@ -13,9 +14,9 @@ import { formatCOP } from '@/lib/money'
 export default function Receipt({ sale }: { sale: Sale }) {
   const { data: tenant } = useQuery({ queryKey: ['tenant'], queryFn: tenantApi.current, staleTime: 300_000 })
   return (
-    <div className="print-ticket font-mono text-[0.75rem] leading-snug text-black bg-white p-3 w-[300px] mx-auto">
+    <div className="print-ticket font-mono text-[12px] leading-snug text-black bg-white p-3 w-[300px] mx-auto">
       <div className="text-center space-y-0.5">
-        <p className="font-bold text-[0.875rem]">{tenant?.legal_name || tenant?.name}</p>
+        <p className="font-bold text-[14px]">{tenant?.legal_name || tenant?.name}</p>
         {tenant?.tax_id && <p>NIT {tenant.tax_id}</p>}
         {tenant?.address && <p>{tenant.address}{tenant.city ? `, ${tenant.city}` : ''}</p>}
         {tenant?.phone && <p>Tel. {tenant.phone}</p>}
@@ -38,14 +39,14 @@ export default function Receipt({ sale }: { sale: Sale }) {
       <p className="flex justify-between"><span>{Number(sale.tax_total) > 0 ? "Base sin IVA" : "Subtotal"}</span><span>{formatCOP(sale.subtotal)}</span></p>
       {Number(sale.tax_total) > 0 && <p className="flex justify-between"><span>IVA</span><span>{formatCOP(sale.tax_total)}</span></p>}
       {Number(sale.discount) > 0 && <p className="flex justify-between"><span>Descuento</span><span>−{formatCOP(sale.discount)}</span></p>}
-      <p className="flex justify-between font-bold text-[0.875rem]"><span>TOTAL</span><span>{formatCOP(sale.total)}</span></p>
+      <p className="flex justify-between font-bold text-[14px]"><span>TOTAL</span><span>{formatCOP(sale.total)}</span></p>
       {sale.payments.map((p) => (
         <p key={p.id} className="flex justify-between"><span>{p.method_name}</span><span>{formatCOP(p.tendered)}</span></p>
       ))}
       {Number(sale.change_given) > 0 && <p className="flex justify-between"><span>Cambio</span><span>{formatCOP(sale.change_given)}</span></p>}
       <div className="my-2 border-t border-dashed border-black" />
       <p className="text-center">¡Gracias por su compra!</p>
-      <p className="text-center text-[0.625rem] mt-1">Comprobante de venta. No es factura electrónica.</p>
+      <p className="text-center text-[10px] mt-1">Comprobante de venta. No es factura electrónica.</p>
     </div>
   )
 }
