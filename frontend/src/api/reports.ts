@@ -2,9 +2,11 @@ import apiClient from './client'
 
 // ── Tipos de respuesta ────────────────────────────────────────────────────────
 
+// Importes como string decimal exacto (ver lib/money.ts)
 export interface MonthlyTrendPoint {
+  month: string
   mes:   string
-  total: number
+  total: string
   count: number
 }
 
@@ -12,12 +14,12 @@ export interface StatusBreakdown {
   status: string
   label:  string
   count:  number
-  total:  number
+  total:  string
 }
 
 export interface TopClient {
   name:  string
-  total: number
+  total: string
   count: number
 }
 
@@ -27,25 +29,33 @@ export interface BillingReport {
   top_clients:      TopClient[]
 }
 
-export interface CategoryStock {
-  categoria:  string
-  stock:      number
-  productos:  number
+export interface CategoryValue {
+  categoria: string
+  grupo:     'productos' | 'ingredientes'
+  items:     number
+  /** Valor a costo; null si el usuario no puede ver costos */
+  valor:     string | null
 }
 
-export interface LowStockProduct {
+export interface LowStockItem {
+  id:            number
   name:          string
   code:          string
-  stock:         number
-  minimum_stock: number
+  stock:         string
+  minimum_stock: string
+  unit:          string
 }
 
 export interface InventoryReport {
-  by_category:      CategoryStock[]
-  low_stock:        LowStockProduct[]
-  total_productos:  number
-  total_servicios:  number
-  valor_inventario: number
+  by_category:        CategoryValue[]
+  low_stock:          LowStockItem[]
+  total_productos:    number
+  total_ingredientes: number
+  /** Valores a COSTO (existencia × costo por unidad); null sin permiso `catalog.view_costs` */
+  valor_productos:    string | null
+  valor_ingredientes: string | null
+  valor_inventario:   string | null
+  valor_inventario_base: 'cost'
 }
 
 export interface DepartmentCount {

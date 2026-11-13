@@ -1,0 +1,176 @@
+"""Edición local: copias de seguridad, configuración segura y licencia sin vencimiento."""
+import datetime
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / 'scripts'))
+import local_edition as le  # noqa: E402
+
+D = datetime.datetime
+
+
+# ── Copias de seguridad ─────────────────────────────────────────────────────
+
+def test_backup_is_due_once_a_day_after_the_configured_hour():
+    assert le.backup_due(None, D(2026, 10, 10, 8), 21)                        # nunca se hizo
+    assert not le.backup_due(D(2026, 10, 9, 21, 5), D(2026, 10, 10, 8), 21)   # la de anoche sirve
+    assert le.backup_due(D(2026, 10, 9, 21, 5), D(2026, 10, 10, 21, 1), 21)   # ya pasó la hora de hoy
+    assert not le.backup_due(D(2026, 10, 10, 21, 2), D(2026, 10, 10, 23), 21)
+    assert le.backup_due(D(2026, 10, 8, 20), D(2026, 10, 10, 8), 21)          # equipo apagado: más de 26 h
+
+
+def test_rotation_keeps_the_newest_and_never_touches_other_files(tmp_path):
+    for day in range(1, 8):
+        (tmp_path / f'gestorpro-202610{day:02d}-210000.zip').write_bytes(b'x')
+    (tmp_path / 'gestorpro-20261003-120000-antes-de-actualizar.zip').write_bytes(b'x')
+    (tmp_path / 'fotos-de-la-panaderia.zip').write_bytes(b'x')
+    (tmp_path / 'gestorpro-notas.txt').write_text('mías')
+    removed = le.rotate(tmp_path, keep=3)
+    kept = sorted(p.name for p in le.list_backups(tmp_path))
+    assert kept == ['gestorpro-20261005-210000.zip', 'gestorpro-20261006-210000.zip', 'gestorpro-20261007-210000.zip']
+    assert len(removed) == 5
+    assert (tmp_path / 'fotos-de-la-panaderia.zip').exists() and (tmp_path / 'gestorpro-notas.txt').exists()
+
+
+def test_backups_are_listed_newest_first_with_their_time(tmp_path):
+    for name in ('gestorpro-20261001-210000.zip', 'gestorpro-20261009-073000-manual.zip',
+                 'gestorpro-20261005-210000.zip'):
+        (tmp_path / name).write_bytes(b'x')
+    names = [p.name for p in le.list_backups(tmp_path)]
+    assert names[0] == 'gestorpro-20261009-073000-manual.zip'
+    assert le.backup_time(tmp_path / names[0]) == D(2026, 10, 9, 7, 30)
+    assert le.backup_name(D(2026, 10, 9, 7, 30, 5), 'manual') == 'gestorpro-20261009-073005-manual.zip'
+
+
+def test_restore_requires_the_exact_confirmation_word():
+    assert le.confirmed('RESTAURAR') and le.confirmed('  RESTAURAR ')
+    assert not any(le.confirmed(x) for x in ('', 's', 'si', 'restaurar', 'RESTAURAR YA'))
+
+
+# ── Configuración ───────────────────────────────────────────────────────────
+
+def test_generated_configuration_has_strong_secrets_and_no_demo_data(tmp_path):
+    values = le.new_env_values()
+    assert len(values['SECRET_KEY']) >= 64
+    assert values['GESTORPRO_DB_PASSWORD'] != values['GESTORPRO_PG_SUPERUSER_PASSWORD']
+    assert len(values['GESTORPRO_DB_PASSWORD']) >= 24
+    assert le.new_env_values()['SECRET_KEY'] != values['SECRET_KEY']
+    path = tmp_path / 'gestorpro.env'
+    path.write_text(le.render_env(values), encoding='utf-8')
+    assert le.read_env(path) == values
+    le.write_env_value('GESTORPRO_COPIA_EXTRA', r'E:\Copias GestorPro', path)
+    assert le.read_env(path)['GESTORPRO_COPIA_EXTRA'] == r'E:\Copias GestorPro'
+    assert 'DEBUG' not in path.read_text() and 'Demo' not in path.read_text()
+
+
+def test_allowed_hosts_cover_this_computer_and_the_local_network_only():
+    hosts = le.allowed_hosts('CAJA-FAVORITA', ['192.168.1.40'])
+    assert hosts == ['localhost', '127.0.0.1', 'caja-favorita', 'caja-favorita.local', '192.168.1.40']
+    assert '*' not in hosts
+
+
+def _settings(env_extra):
+    code = ('import django, json; django.setup(); from django.conf import settings as s; '
+            'print(json.dumps([s.DEBUG, s.SECURE_SSL_REDIRECT, s.SERVE_MEDIA, s.X_FRAME_OPTIONS, '
+            's.SESSION_COOKIE_SECURE, str(s.MEDIA_ROOT)]))')
+    env = {**os.environ, 'DJANGO_SETTINGS_MODULE': 'config.settings.local_edition',
+           'DATABASE_URL': 'postgres://x@localhost/x', **env_extra}
+    return subprocess.run([sys.executable, '-c', code], cwd=ROOT, env=env, capture_output=True, text=True)
+
+
+def test_local_settings_are_production_grade_except_https():
+    result = _settings({'SECRET_KEY': 'k' * 64, 'GESTORPRO_MEDIA_ROOT': '/datos/archivos'})
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == '[false, false, true, "DENY", false, "/datos/archivos"]'
+
+
+def test_local_settings_refuse_a_weak_secret_key():
+    result = _settings({'SECRET_KEY': 'corta'})
+    assert result.returncode != 0 and 'SECRET_KEY' in result.stderr
+
+
+# ── Licencia ────────────────────────────────────────────────────────────────
+
+@pytest.mark.django_db
+def test_set_plan_no_end_makes_a_license_that_never_expires():
+    from django.core.management import call_command
+
+    from gestorpro.platform.subscriptions.models import Subscription
+    from tests import support as s
+    tenant = s.make_tenant('Licencia Local', plan_code='starter')
+    sub = Subscription.objects.get(tenant=tenant)
+    assert sub.status == Subscription.Status.TRIALING and sub.trial_ends_at is not None
+    call_command('set_plan', tenant.slug, 'business', '--active', '--no-end')
+    sub.refresh_from_db()
+    assert (sub.plan.code, sub.status, sub.trial_ends_at, sub.current_period_end) == (
+        'business', Subscription.Status.ACTIVE, None, None)
+
+
+def test_a_new_lan_ip_is_accepted_without_restarting(monkeypatch, settings):
+    """Si el router le cambia la IP al computador, la tablet sigue entrando (sin 400 por host no permitido)."""
+    settings.ALLOWED_HOSTS = ['localhost', '192.168.1.40']
+    settings.CSRF_TRUSTED_ORIGINS = ['http://192.168.1.40:8000']
+    ips = iter([['192.168.1.40'], ['192.168.1.57']])
+    monkeypatch.setattr(le, 'lan_ips', lambda: next(ips))
+    monkeypatch.setattr(le, 'log_line', lambda text: None)
+
+    class OneTick:
+        calls = 0
+
+        def wait(self, seconds):
+            self.calls += 1
+            return self.calls > 1
+
+    le.network_watch(8000, OneTick())
+    assert '192.168.1.57' in settings.ALLOWED_HOSTS
+    assert 'http://192.168.1.57:8000' in settings.CSRF_TRUSTED_ORIGINS
+
+
+def test_the_database_setup_gives_the_app_the_row_level_security_role():
+    """El usuario de la app es dueño (migraciones, copias) y consulta como `gestorpro_rls` (RLS)."""
+    pg = le.Postgres.__new__(le.Postgres)
+    pg.cfg = {'GESTORPRO_DB_PASSWORD': 'x'}
+    statements = []
+    pg.sql = lambda statement, db='postgres': statements.append(statement) or ''
+    pg.database_exists = lambda name: False
+    pg.ensure_database()
+    joined = '\n'.join(statements)
+    assert f'CREATE ROLE {le.RLS_ROLE} NOLOGIN NOSUPERUSER NOBYPASSRLS' in joined
+    assert f'GRANT {le.RLS_ROLE} TO {le.APP_ROLE}' in joined
+    assert 'SUPERUSER' not in joined.replace('NOSUPERUSER', '')
+
+
+def test_start_update_and_restore_ensure_the_role_on_older_installs():
+    source = (ROOT / 'scripts' / 'local_edition.py').read_text(encoding='utf-8')
+    for fn in ('def serve(', 'def update(', 'def restore('):
+        body = source[source.index(f'\n{fn}') + 1:].split('\ndef ', 1)[0]
+        assert 'ensure_database()' in body, fn
+
+
+@pytest.mark.django_db
+def test_support_access_is_created_on_purpose_with_2fa_and_without_superuser(monkeypatch, capsys):
+    """local\\acceso-soporte.bat: la cuenta de soporte se crea a mano, con verificación en dos pasos."""
+    import getpass
+
+    from gestorpro.core.identity.models import User
+
+    monkeypatch.setattr(le, 'require_installed', lambda: {})
+    monkeypatch.setattr(le, 'Postgres', lambda cfg: type('PG', (), {'start': lambda self: None})())
+    monkeypatch.setattr(le, 'django_env', lambda cfg: {})
+    monkeypatch.setattr(le, 'log_line', lambda text: None)
+    answers = iter(['Soporte@GestorPro.com', 'Juan'])
+    monkeypatch.setattr(le, 'ask', lambda prompt: next(answers))
+    passwords = iter(['corta', 'corta', 'Soporte-Local-2026', 'Soporte-Local-2026'])
+    monkeypatch.setattr(getpass, 'getpass', lambda prompt='': next(passwords))
+    le.support_access()
+    user = User.objects.get(email='soporte@gestorpro.com')
+    assert user.is_platform_admin and user.is_staff and not user.is_superuser
+    assert user.check_password('Soporte-Local-2026') and user.totp_secret
+    out = capsys.readouterr().out
+    assert 'otpauth://totp/GestorPro' in out and 'UNA sola vez' in out
+    assert (ROOT / 'local' / 'acceso-soporte.bat').read_text(encoding='utf-8').strip().endswith('pause')

@@ -1,38 +1,140 @@
-// ── Auth ─────────────────────────────────────────
+// ── Sesión ───────────────────────────────────────
 export interface User {
   id: number
   email: string
   first_name: string
   last_name: string
   full_name: string
-  role: 'admin' | 'employee'
   avatar: string | null
+  is_platform_admin: boolean
   date_joined: string
 }
 
-// ── Empresa ──────────────────────────────────────
-export interface Company {
+export interface SessionTenant {
   id: number
   name: string
   slug: string
-  plan: 'free' | 'starter' | 'pro'
+  vertical: 'generic' | 'bakery'
+  /** Módulos opcionales encendidos: 'production', 'waste' (el backend los exige) */
+  modules: string[]
+}
+
+export interface Session {
+  user: User
+  tenant: SessionTenant | null
+  role: { code: string; name: string } | null
+  /** Solo para adaptar la UI. El backend valida cada permiso. */
+  permissions: string[]
+  memberships: { tenant_id: number; tenant_name: string; role: string }[]
+  /** Plan y funcionalidades: solo para la UI; el backend las valida. */
+  plan: PlanInfo | null
+  features: string[]
+  /** Sesión de soporte de la plataforma (solo lectura) */
+  support: { session: number; reason: string; expires_at: string; agent: string } | null
+}
+
+export interface PlanInfo {
+  code: string | null
+  name: string | null
+  status: 'trialing' | 'active' | 'past_due' | 'canceled' | null
+  trial_ends_at: string | null
+}
+
+export interface PlanSummary {
+  plan: PlanInfo
+  features: string[]
+  limits: { key: string; label: string; used: number; limit: number | null }[]
+}
+
+// ── Usuarios, roles y auditoría ──────────────────
+export interface RoleSummary {
+  id: number
+  code: string
+  name: string
+}
+
+export interface Member {
+  id: number
+  email: string
+  full_name: string
+  role: RoleSummary
+  is_owner: boolean
+  status: 'active' | 'invited' | 'suspended'
+  last_login: string | null
+  created_at: string
+}
+
+export interface Invitation {
+  id: number
+  email: string
+  role: RoleSummary
+  status: 'pending' | 'accepted' | 'expired' | 'revoked'
+  expires_at: string
+  invited_by: string | null
+  created_at: string
+  /** Solo en la respuesta de creación: el enlace no se puede volver a consultar */
+  invite_url?: string
+}
+
+export interface Role {
+  id: number
+  code: string
+  name: string
+  is_system: boolean
+  grants_all: boolean
+  /** ['*'] para el propietario */
+  permissions: string[]
+  members_count: number
+}
+
+export interface PermissionDef {
+  code: string
+  module: string
+  description: string
+  /** false si el módulo no está incluido en el plan */
+  available: boolean
+}
+
+export interface AuditEntry {
+  id: number
+  created_at: string
+  actor: number | null
+  actor_label: string
+  action: string
+  entity_type: string
+  entity_id: string
+  summary: string
+  changes: Record<string, [unknown, unknown]>
+  ip: string | null
+}
+
+/** El refresh token no llega al JavaScript: viaja en una cookie httpOnly. */
+export interface AuthTokens {
+  access: string
+}
+
+// ── Empresa ──────────────────────────────────────
+export interface Tenant {
+  id: number
+  name: string
+  legal_name: string
+  slug: string
+  tax_id: string
+  vertical: 'generic' | 'bakery'
+  modules: string[]
+  status: 'active' | 'suspended'
   email: string
   phone: string
   address: string
   city: string
-  nit: string
   logo: string | null
-  is_active: boolean
+  timezone: string
+  currency: string
   created_at: string
 }
 
-export interface AuthTokens {
-  access: string
-  refresh: string
-}
-
 // ── Clientes ─────────────────────────────────────
-export interface Client {
+export interface Customer {
   id: number
   document_type: 'CC' | 'NIT' | 'CE' | 'PP'
   document_number: string
@@ -52,36 +154,62 @@ export interface Client {
 }
 
 // ── Inventario ───────────────────────────────────
+export type CategoryKind = 'product' | 'ingredient'
+
 export interface Category {
   id: number
   name: string
   description: string
-  products_count: number
+  kind: CategoryKind
+  items_count: number
   created_at: string
 }
 
-export interface Product {
+/** Unidad de medida global (g, kg, l, und…). */
+export interface Unit {
+  code: string
+  name: string
+  symbol: string
+  dimension: 'mass' | 'volume' | 'count'
+  factor: string
+}
+
+/**
+ * Producto elaborado, reventa, servicio o ingrediente. Cantidades y dinero
+ * llegan como string (Decimal exacto). Los campos de costo solo llegan si el
+ * usuario tiene `catalog.view_costs`.
+ */
+export type ItemKind = 'finished_good' | 'resale' | 'raw_material' | 'service'
+
+export interface Item {
   id: number
   name: string
   code: string
-  description: string
-  product_type: 'product' | 'service'
+  description?: string
+  kind: ItemKind
   category: number | null
-  category_name: string
+  category_name: string | null
+  unit: string
+  unit_symbol: string
+  is_sellable: boolean
   price: string
   tax_rate: string
-  price_with_tax: string
-  stock: number
-  minimum_stock: number
+  avg_cost?: string
+  margin_pct?: string | null
+  stock: string
+  minimum_stock: string
   is_low_stock: boolean
+  stock_value?: string
+  consume_on_sale: boolean
   is_active: boolean
-  created_by: string
-  created_at: string
-  updated_at: string
+  created_by?: string
+  created_at?: string
+  updated_at?: string
 }
 
 // ── Facturación ──────────────────────────────────
-export interface InvoiceItem {
+/** Línea calculada por el servidor (precio e impuesto vienen del catálogo). */
+export interface InvoiceLine {
   id: number
   product: number
   product_name: string
@@ -89,9 +217,17 @@ export interface InvoiceItem {
   quantity: string
   unit_price: string
   tax_rate: string
-  line_total: string
+  line_subtotal: string
   tax_amount: string
-  line_total_with_tax: string
+  line_total: string
+}
+
+/** Lo que el cliente puede pedir al crear/editar. Los importes los calcula el backend. */
+export interface InvoiceLineInput {
+  product: number
+  quantity: string | number
+  unit_price?: string | number
+  description?: string
 }
 
 export interface Invoice {
@@ -99,8 +235,8 @@ export interface Invoice {
   number: string
   invoice_type: 'quote' | 'invoice'
   status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
-  client: number
-  client_name: string
+  customer: number
+  customer_name: string
   issue_date: string
   due_date: string
   subtotal: string
@@ -108,10 +244,16 @@ export interface Invoice {
   discount: string
   total: string
   notes: string
-  items: InvoiceItem[]
+  lines: InvoiceLine[]
   created_by: string
   created_at: string
   updated_at: string
+}
+
+export type InvoiceInput = Pick<Invoice, 'number' | 'invoice_type' | 'customer' | 'issue_date' | 'due_date' | 'notes'> & {
+  status?: Invoice['status']
+  discount?: string | number
+  items?: InvoiceLineInput[]
 }
 
 export interface BillingSummary {
@@ -137,7 +279,8 @@ export interface Employee {
   position: string
   department: 'admin' | 'sales' | 'operations' | 'finance' | 'it' | 'hr' | 'other'
   hire_date: string
-  salary: string | null
+  /** Ausente si el usuario no tiene el permiso hr.view_salary */
+  salary?: string | null
   status: 'active' | 'inactive'
   notes: string
   created_by: string
@@ -166,9 +309,12 @@ export interface Supplier {
 }
 
 // ── Paginación ───────────────────────────────────
-// Django devuelve esta estructura en todos los listados
+// Todos los listados del backend devuelven esta estructura
 export interface PaginatedResponse<T> {
   count: number
+  page: number
+  page_size: number
+  total_pages: number
   next: string | null
   previous: string | null
   results: T[]

@@ -1,194 +1,253 @@
 import { useState } from 'react'
-import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import {
-  LayoutDashboard, Users, FileText, Building2, LogOut,
-  Menu, X, UserCheck, Truck, BarChart2, Boxes,
-  Moon, Sun, ChevronRight, Bell,
+  ArrowLeftRight, BarChart2, Boxes, Building2, ChevronDown, FileText, History, KeyRound, LayoutDashboard,
+  CreditCard, LogOut, Menu, Moon, ShieldCheck, Sun, Truck, Type, UserCheck, UserCog, Users, Wheat, X, ShoppingCart,
+  Wallet, ReceiptText, Factory, Flame, ChefHat, PackagePlus, Sparkles,
 } from 'lucide-react'
-import { useAuthStore } from '@/store/authStore'
+import Brand from '@/components/brand/Brand'
+import PlanBanner from '@/components/platform/PlanBanner'
+import SupportBanner from '@/components/platform/SupportBanner'
+import { cn } from '@/lib/cn'
+import { useAuthStore, useCan, useHasFeature, useHasModule } from '@/store/authStore'
+import { TEXT_SIZES, useDisplayStore } from '@/store/displayStore'
 import { useThemeStore } from '@/store/themeStore'
 
-// ── Navigation config ─────────────────────────────────────────────────────────
+// ── Navegación ────────────────────────────────────────────────────────────────
+// `permission` y `feature` solo adaptan la UI: el backend exige ambos.
 
-const navGroups = [
+interface NavItem {
+  to: string
+  icon: React.ElementType
+  label: string
+  permission?: string
+  feature?: string
+  /** Módulo opcional de la empresa (core/tenancy/modules.py) */
+  module?: string
+  /** Etiqueta para empresas que NO son panadería (p. ej. Ingredientes → Insumos) */
+  genericLabel?: string
+}
+
+const navGroups: { label: string; items: NavItem[] }[] = [
   {
-    label: 'Principal',
+    label: 'Operación',
     items: [
-      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard'   },
-      { to: '/clients',   icon: Users,           label: 'Clientes'    },
-      { to: '/invoices',  icon: FileText,        label: 'Facturación' },
-      { to: '/inventory', icon: Boxes,           label: 'Inventario'  },
+      { to: '/dashboard', icon: LayoutDashboard, label: 'Inicio' },
+      { to: '/pos', icon: ShoppingCart, label: 'Vender', permission: 'sales.sell' },
+      { to: '/cash', icon: Wallet, label: 'Caja', permission: 'cash.operate' },
+      { to: '/sales', icon: ReceiptText, label: 'Ventas', permission: 'sales.view' },
+      { to: '/production', icon: Factory, label: 'Producción', permission: 'production.view', module: 'production' },
+      { to: '/waste', icon: Flame, label: 'Mermas', permission: 'waste.register', module: 'waste' },
     ],
   },
   {
-    label: 'Recursos',
+    label: 'Inventario',
     items: [
-      { to: '/employees', icon: UserCheck, label: 'Empleados'   },
-      { to: '/suppliers', icon: Truck,     label: 'Proveedores' },
-      { to: '/reports',   icon: BarChart2, label: 'Reportes'    },
+      { to: '/inventory', icon: Boxes, label: 'Productos', permission: 'catalog.view' },
+      { to: '/ingredients', icon: Wheat, label: 'Ingredientes', permission: 'catalog.view', genericLabel: 'Insumos' },
+      { to: '/recipes', icon: ChefHat, label: 'Recetas', permission: 'recipes.view', module: 'production' },
+      { to: '/purchases', icon: PackagePlus, label: 'Compras', permission: 'purchases.view' },
+      { to: '/movements', icon: ArrowLeftRight, label: 'Movimientos', permission: 'inventory.view' },
+    ],
+  },
+  {
+    label: 'Gestión',
+    items: [
+      { to: '/clients', icon: Users, label: 'Clientes', permission: 'customers.view' },
+      { to: '/invoices', icon: FileText, label: 'Facturación', permission: 'billing.view' },
+      { to: '/suppliers', icon: Truck, label: 'Proveedores', permission: 'suppliers.view' },
+      { to: '/employees', icon: UserCheck, label: 'Personal', permission: 'hr.view', feature: 'module.hr' },
+      { to: '/reports', icon: BarChart2, label: 'Reportes', permission: 'reports.view' },
     ],
   },
   {
     label: 'Configuración',
     items: [
-      { to: '/company', icon: Building2, label: 'Mi Empresa' },
+      { to: '/company', icon: Building2, label: 'Empresa', permission: 'tenant.view' },
+      { to: '/settings/pos', icon: CreditCard, label: 'Caja y pagos', permission: 'tenant.manage' },
+      { to: '/users', icon: UserCog, label: 'Usuarios', permission: 'access.view' },
+      { to: '/roles', icon: KeyRound, label: 'Roles', permission: 'access.view' },
+      { to: '/audit', icon: History, label: 'Auditoría', permission: 'audit.view' },
     ],
   },
 ]
 
-// Labels for the page header breadcrumb
-const routeLabels: Record<string, string> = {
-  '/dashboard': 'Dashboard',
-  '/clients':   'Clientes',
-  '/invoices':  'Facturación',
-  '/inventory': 'Inventario',
-  '/employees': 'Empleados',
-  '/suppliers': 'Proveedores',
-  '/reports':   'Reportes',
-  '/company':   'Mi Empresa',
+// Modo fácil: lo de todos los días, arriba y sin grupos. El resto, en "Más opciones".
+const DAILY = ['/dashboard', '/pos', '/cash', '/sales', '/inventory', '/reports']
+
+const routeLabels: Record<string, string> = Object.fromEntries(
+  navGroups.flatMap((g) => g.items.map((i) => [i.to, i.label])),
+)
+
+function initials(name?: string) {
+  return (name ?? '?').split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase() || '?'
 }
 
-// ── Avatar ────────────────────────────────────────────────────────────────────
+function Avatar({ name }: { name?: string }) {
+  return (
+    <span className="w-8 h-8 rounded-full bg-surface-muted border border-line text-ink-muted text-xs font-semibold flex items-center justify-center shrink-0">
+      {initials(name)}
+    </span>
+  )
+}
 
-function Avatar({ name, size = 'sm' }: { name?: string; size?: 'sm' | 'md' }) {
-  const initials = name
-    ? name
-        .split(' ')
-        .slice(0, 2)
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase()
-    : '?'
+function TenantSwitcher() {
+  const session = useAuthStore((s) => s.session)
+  const switchTenant = useAuthStore((s) => s.switchTenant)
+  const queryClient = useQueryClient()
+  const [switching, setSwitching] = useState(false)
+  if (!session?.tenant || session.support) return null
+  const others = session.memberships.filter((m) => m.tenant_id !== session.tenant?.id)
 
-  const sizeClass = size === 'md' ? 'w-9 h-9 text-sm' : 'w-7 h-7 text-xs'
+  const handleSwitch = async (tenantId: number) => {
+    setSwitching(true)
+    try {
+      await switchTenant(tenantId)
+      queryClient.clear() // ningún dato en caché de la empresa anterior
+    } finally {
+      setSwitching(false)
+    }
+  }
 
   return (
-    <div
-      className={[
-        sizeClass,
-        'rounded-full flex items-center justify-center font-semibold shrink-0',
-        'bg-gradient-to-br from-indigo-500 to-violet-600 text-white',
-        'ring-2 ring-white dark:ring-zinc-900 shadow-sm',
-      ].join(' ')}
-    >
-      {initials}
+    <div className="mx-3 mb-4 rounded-lg border border-line bg-surface-muted/50 px-3 py-2.5">
+      <p className="text-sm font-medium text-ink truncate" title={session.tenant.name}>{session.tenant.name}</p>
+      <p className="text-xs text-ink-muted truncate">{session.role?.name}{session.plan?.name ? ` · Plan ${session.plan.name}` : ''}</p>
+      {others.length > 0 && (
+        <label className="mt-2 flex items-center gap-1.5 text-xs text-ink-muted">
+          <ArrowLeftRight size={12} className="shrink-0" />
+          <span className="sr-only">Cambiar de empresa</span>
+          <select value="" disabled={switching}
+                  onChange={(e) => e.target.value && void handleSwitch(Number(e.target.value))}
+                  className="w-full bg-transparent focus:outline-none cursor-pointer">
+            <option value="">Cambiar de empresa…</option>
+            {others.map((m) => <option key={m.tenant_id} value={m.tenant_id}>{m.tenant_name}</option>)}
+          </select>
+        </label>
+      )}
     </div>
   )
 }
 
-// ── Sidebar content ───────────────────────────────────────────────────────────
+const footerBtn = 'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-ink-muted hover:bg-surface-muted hover:text-ink transition-colors'
 
-function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
-  const { user, logout }   = useAuthStore()
+function NavList({ items, onNavigate, big = false }: { items: NavItem[]; onNavigate?: () => void; big?: boolean }) {
+  return (
+    <ul className={big ? 'space-y-1' : 'space-y-0.5'}>
+      {items.map(({ to, icon: Icon, label }) => (
+        <li key={to}>
+          <NavLink to={to} onClick={onNavigate}
+            className={({ isActive }) => cn(
+              'relative flex items-center rounded-lg transition-colors',
+              big ? 'gap-3 px-3 py-3 text-base' : 'gap-2.5 px-2.5 py-2 text-sm',
+              isActive
+                ? 'bg-primary-soft text-primary-ink font-medium before:absolute before:left-0 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-accent'
+                : 'text-ink-muted hover:bg-surface-muted hover:text-ink',
+            )}>
+            <Icon size={big ? 20 : 16} className="shrink-0" />
+            <span className="truncate">{label}</span>
+          </NavLink>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const session = useAuthStore((s) => s.session)
+  const logout = useAuthStore((s) => s.logout)
+  const can = useCan()
+  const hasFeature = useHasFeature()
+  const hasModule = useHasModule()
   const { theme, toggleTheme } = useThemeStore()
+  const { textSize, nextTextSize, easyMode, setEasyMode } = useDisplayStore()
+  const [showMore, setShowMore] = useState(false)
+  const [showDisplay, setShowDisplay] = useState(false)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout() // revoca el refresh token en el servidor
+    queryClient.clear()
     navigate('/login')
   }
 
+  const groups = navGroups
+    .map((g) => ({ ...g, items: g.items
+      .filter((i) => (!i.permission || can(i.permission)) && (!i.feature || hasFeature(i.feature))
+        && (!i.module || hasModule(i.module)))
+      .map((i) => (i.genericLabel && session?.tenant?.vertical !== 'bakery' ? { ...i, label: i.genericLabel } : i)) }))
+    .filter((g) => g.items.length > 0)
+  const visible = groups.flatMap((g) => g.items)
+  const daily = DAILY.map((to) => visible.find((i) => i.to === to)).filter((i): i is NavItem => Boolean(i))
+  const others = visible.filter((i) => !DAILY.includes(i.to))
+
   return (
     <div className="flex flex-col h-full">
-
-      {/* ── Logo ── */}
-      <div className="h-14 flex items-center px-5 shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm shadow-indigo-500/30">
-            <span className="text-white text-xs font-bold">G</span>
-          </div>
-          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-            GestorPro
-          </span>
-        </div>
+      <div className="h-16 flex items-center px-5 shrink-0">
+        <Brand vertical={session?.tenant?.vertical} />
       </div>
+      <TenantSwitcher />
 
-      {/* ── Navigation ── */}
-      <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-5">
-        {navGroups.map((group) => (
+      <nav aria-label="Principal" className="flex-1 overflow-y-auto px-3 pb-4 space-y-5">
+        {easyMode ? (
+          <>
+            <NavList items={daily} onNavigate={onNavigate} big />
+            {others.length > 0 && (
+              <div>
+                <button type="button" onClick={() => setShowMore((v) => !v)} aria-expanded={showMore}
+                        className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-sm text-ink-muted hover:bg-surface-muted hover:text-ink">
+                  <span>Más opciones</span>
+                  <ChevronDown size={16} className={cn('transition-transform', showMore && 'rotate-180')} />
+                </button>
+                {showMore && <div className="mt-1"><NavList items={others} onNavigate={onNavigate} /></div>}
+              </div>
+            )}
+          </>
+        ) : groups.map((group) => (
           <div key={group.label}>
-            <p className="px-2.5 mb-1 text-[10px] font-semibold tracking-widest uppercase text-zinc-400 dark:text-zinc-600">
-              {group.label}
-            </p>
-            <div className="space-y-0.5">
-              {group.items.map(({ to, icon: Icon, label }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  onClick={onNavClick}
-                  className={({ isActive }) =>
-                    [
-                      'relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium',
-                      'transition-all duration-150 group',
-                      isActive
-                        ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-400 nav-item-active'
-                        : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/80 dark:hover:text-zinc-100',
-                    ].join(' ')
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      <Icon
-                        size={16}
-                        className={[
-                          'shrink-0 transition-colors',
-                          isActive
-                            ? 'text-indigo-600 dark:text-indigo-400'
-                            : 'text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300',
-                        ].join(' ')}
-                      />
-                      <span className="truncate">{label}</span>
-                    </>
-                  )}
-                </NavLink>
-              ))}
-            </div>
+            <p className="px-2.5 mb-1 text-[0.6875rem] font-medium text-ink-subtle">{group.label}</p>
+            <NavList items={group.items} onNavigate={onNavigate} />
           </div>
         ))}
       </nav>
 
-      {/* ── Bottom: user + theme toggle ── */}
-      <div className="shrink-0 border-t border-zinc-200 dark:border-zinc-800 p-3 space-y-1">
-
-        {/* Theme toggle */}
-        <button
-          onClick={toggleTheme}
-          className={[
-            'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium',
-            'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900',
-            'dark:text-zinc-400 dark:hover:bg-zinc-800/80 dark:hover:text-zinc-100',
-            'transition-all duration-150',
-          ].join(' ')}
-        >
-          {theme === 'dark' ? (
-            <Sun size={16} className="text-zinc-400 shrink-0" />
-          ) : (
-            <Moon size={16} className="text-zinc-400 shrink-0" />
-          )}
-          <span>{theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}</span>
+      <div className="shrink-0 border-t border-line p-3 space-y-1">
+        {session?.user.is_platform_admin && !session.support && (
+          <NavLink to="/platform" onClick={onNavigate}
+                   className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-ink-muted hover:bg-surface-muted hover:text-ink transition-colors">
+            <ShieldCheck size={16} /> Consola de plataforma
+          </NavLink>
+        )}
+        <button type="button" onClick={() => setShowDisplay((v) => !v)} aria-expanded={showDisplay} className={footerBtn}>
+          <Type size={16} /> <span className="flex-1 text-left">Pantalla</span>
+          <ChevronDown size={14} className={cn('transition-transform', showDisplay && 'rotate-180')} />
         </button>
-
-        {/* User card */}
-        <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors cursor-default group">
-          <Avatar name={user?.full_name} size="sm" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate leading-none mb-0.5">
-              {user?.full_name ?? 'Usuario'}
-            </p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-500 truncate">
-              {user?.email}
-            </p>
+        {showDisplay && (
+          <div className="pl-2 space-y-1">
+            <button type="button" onClick={nextTextSize} title="Cambia el tamaño de toda la pantalla" className={footerBtn}>
+              Letra: {TEXT_SIZES.find((t) => t.id === textSize)?.label}
+            </button>
+            <button type="button" onClick={() => setEasyMode(!easyMode)} aria-pressed={easyMode}
+                    title="Menú corto con lo de todos los días y botones con palabras" className={footerBtn}>
+              <Sparkles size={16} /> {easyMode ? 'Modo fácil: activado' : 'Activar modo fácil'}
+            </button>
+            <button type="button" onClick={toggleTheme} className={footerBtn}>
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              {theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+            </button>
           </div>
-          <button
-            onClick={handleLogout}
-            title="Cerrar sesión"
-            className={[
-              'p-1 rounded-md opacity-0 group-hover:opacity-100 transition-all',
-              'text-zinc-400 hover:text-red-600 hover:bg-red-50',
-              'dark:hover:text-red-400 dark:hover:bg-red-950/40',
-            ].join(' ')}
-          >
-            <LogOut size={14} />
+        )}
+        <div className="flex items-center gap-2.5 px-2.5 py-2">
+          <Avatar name={session?.user.full_name} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-ink truncate leading-tight">{session?.user.full_name || 'Usuario'}</p>
+            <p className="text-xs text-ink-muted truncate">{session?.user.email}</p>
+          </div>
+          <button type="button" onClick={() => void handleLogout()} aria-label="Cerrar sesión" title="Cerrar sesión"
+                  className="p-1.5 rounded-lg text-ink-subtle hover:text-danger hover:bg-danger-soft transition-colors">
+            <LogOut size={15} />
           </button>
         </div>
       </div>
@@ -196,88 +255,50 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
   )
 }
 
-// ── Main Layout ───────────────────────────────────────────────────────────────
-
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
-  const user = useAuthStore((s) => s.user)
-
-  const currentLabel = routeLabels[location.pathname] ?? 'GestorPro'
+  const vertical = useAuthStore((s) => s.session?.tenant?.vertical)
+  const currentLabel = routeLabels[location.pathname] ?? ''
+  // En el POS el menú lateral se oculta hasta pantallas anchas: el mostrador necesita todo el espacio
+  const focusMode = location.pathname === '/pos'
+  const session = useAuthStore((s) => s.session)
+  // Personal de la plataforma sin empresa: su lugar es la consola
+  if (session && !session.tenant && session.user.is_platform_admin) return <Navigate to="/platform" replace />
 
   return (
-    <div className="flex h-screen bg-zinc-50 dark:bg-zinc-950 overflow-hidden transition-colors duration-300">
-
-      {/* ── Desktop sidebar ── */}
-      <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 transition-colors duration-300">
-        <SidebarContent />
+    <div className="flex h-screen bg-canvas overflow-hidden">
+      <aside className={`${focusMode ? 'hidden xl:flex' : 'hidden md:flex'} w-64 shrink-0 flex-col border-r border-line bg-surface`}>
+        <Sidebar />
       </aside>
 
-      {/* ── Mobile drawer ── */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
-            onClick={() => setSidebarOpen(false)}
-          />
-          {/* Panel */}
-          <aside className="animate-slide-left absolute left-0 top-0 h-full w-64 bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 flex flex-col shadow-2xl">
-            <div className="absolute top-3 right-3">
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <SidebarContent onNavClick={() => setSidebarOpen(false)} />
+        <div className={`fixed inset-0 z-40 ${focusMode ? 'xl:hidden' : 'md:hidden'}`}>
+          <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={() => setSidebarOpen(false)} />
+          <aside className="absolute left-0 top-0 h-full w-72 bg-surface border-r border-line flex flex-col animate-slide-in">
+            <button type="button" onClick={() => setSidebarOpen(false)} aria-label="Cerrar menú"
+                    className="absolute top-4 right-3 p-1.5 rounded-lg text-ink-muted hover:bg-surface-muted">
+              <X size={16} />
+            </button>
+            <Sidebar onNavigate={() => setSidebarOpen(false)} />
           </aside>
         </div>
       )}
 
-      {/* ── Main content ── */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-
-        {/* ── Top header ── */}
-        <header className="h-14 shrink-0 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-4 md:px-6 gap-3 transition-colors duration-300">
-
-          {/* Mobile hamburger */}
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="md:hidden p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-          >
+      <div className="flex-1 flex flex-col min-w-0">
+        <SupportBanner />
+        <PlanBanner />
+        <header className={`${focusMode ? 'xl:hidden' : 'md:hidden'} h-14 shrink-0 bg-surface border-b border-line flex items-center gap-3 px-4`}>
+          <button type="button" onClick={() => setSidebarOpen(true)} aria-label="Abrir menú"
+                  className="p-1.5 -ml-1.5 rounded-lg text-ink-muted hover:bg-surface-muted">
             <Menu size={18} />
           </button>
-
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-1.5 text-sm">
-            <span className="hidden md:block text-zinc-400 dark:text-zinc-600 font-medium">GestorPro</span>
-            <ChevronRight size={14} className="hidden md:block text-zinc-300 dark:text-zinc-700" />
-            <span className="font-semibold text-zinc-900 dark:text-zinc-100">{currentLabel}</span>
-          </div>
-
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* Right actions */}
-          <div className="flex items-center gap-2">
-            {/* Notifications bell (placeholder) */}
-            <button className="relative p-2 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 transition-colors">
-              <Bell size={16} />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-indigo-500 rounded-full" />
-            </button>
-
-            {/* Avatar (desktop only) */}
-            <div className="hidden md:block">
-              <Avatar name={user?.full_name} size="sm" />
-            </div>
-          </div>
+          <Brand vertical={vertical} compact />
+          <span className="text-sm font-medium text-ink truncate">{currentLabel}</span>
         </header>
 
-        {/* ── Page content ── */}
         <main className="flex-1 overflow-auto">
-          <div className="page-enter">
+          <div key={location.pathname} className="page-enter">
             <Outlet />
           </div>
         </main>

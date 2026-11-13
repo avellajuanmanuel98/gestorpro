@@ -10,9 +10,7 @@
  *   data: {"type": "error", "message": "..."}
  */
 
-// En desarrollo usa localhost:8000, en producción usa VITE_API_URL (Railway)
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-const API_BASE = `${BASE_URL}/api`
+import { API_BASE_URL, refreshAccessToken, tokenStorage } from './client'
 
 interface StreamCallbacks {
   onDelta:  (text: string) => void
@@ -25,9 +23,7 @@ export async function streamAssistantMessage(
   callbacks: StreamCallbacks,
   signal?: AbortSignal
 ): Promise<void> {
-  const token = localStorage.getItem('access_token')
-
-  const response = await fetch(`${API_BASE}/assistant/chat/`, {
+  const send = (token: string | null) => fetch(`${API_BASE_URL}/assistant/chat/`, {
     method:  'POST',
     headers: {
       'Content-Type':  'application/json',
@@ -37,9 +33,19 @@ export async function streamAssistantMessage(
     signal,
   })
 
+  let response = await send(tokenStorage.access)
+  if (response.status === 401) {
+    try {
+      response = await send(await refreshAccessToken())
+    } catch {
+      callbacks.onError('Tu sesión expiró. Vuelve a iniciar sesión.')
+      return
+    }
+  }
+
   if (!response.ok) {
     const err = await response.json().catch(() => ({}))
-    callbacks.onError(err?.error ?? `Error del servidor (${response.status})`)
+    callbacks.onError(err?.error ?? err?.detail ?? `Error del servidor (${response.status})`)
     return
   }
 
