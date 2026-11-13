@@ -13,6 +13,7 @@
 | **Notas cuando se saca efectivo** (pago a un proveedor, una compra) | Ya existían **Ingreso**, **Gasto** y **Retiro** en Caja, con motivo obligatorio. Ahora hay **motivos de un toque** (Pago a proveedor, Compra de insumos, Domicilio, Servicios; en Retiro: Consignación al banco, Caja fuerte, Retiro personal) que se pueden completar ("Pago a proveedor: harina"). El botón se llama **Gasto o pago**. Al **cerrar la caja** se ve la lista del efectivo que salió en el turno, con hora, quién y motivo. |
 | **Mostrar todos los billetes al cobrar** | Al cobrar en efectivo aparecen **todos** los billetes ($100.000, $50.000, $20.000, $10.000, $5.000, $2.000 y $1.000) y **Exacto**. Los billetes **se suman**: si el cliente paga con $50.000 + $20.000, se tocan los dos. El primer toque reemplaza el total propuesto. El **cambio a entregar** se ve en grande. |
 | **Que se abra el cajón al cobrar** | **Ticket al cobrar: automático** (menú *Pantalla e impresora*, por computador): al confirmar el pago se imprime el ticket sin pedir clic. Con el cajón conectado a la impresora y el driver configurado (abajo), **cobrar abre el cajón**. Además, **Abrir cajón** (en Vender y en Caja) imprime un ticket corto, con fecha y usuario, que abre el cajón sin vender. |
+| **Sonido de monedas al abrir la caja** | Suena al confirmar un cobro y al tocar **Abrir cajón**. Se sintetiza en el navegador (sin archivos de audio de terceros). Se apaga por computador en **Pantalla e impresora → Sonido de monedas**; viene encendido. Depende del volumen del computador. |
 
 ## Instalación del cajón (una vez, en el computador de la caja)
 
@@ -39,6 +40,7 @@ El cajón **no se conecta al computador**: va con un cable tipo teléfono (RJ11/
 - `frontend/src/lib/pos.ts`: `CASH_BILLS` y `receivedAfterBill` (con tests en `pos.test.ts`).
 - `frontend/src/pages/cash/CashPage.tsx`: motivos de un toque, salidas en el cierre, Abrir cajón.
 - `frontend/src/lib/cashDrawer.ts`: ticket corto para abrir el cajón.
+- `frontend/src/lib/coinSound.ts`: sonido de monedas (Web Audio).
 - `frontend/src/pages/pos/PosPage.tsx`: ticket automático al cobrar y Abrir cajón.
 - `frontend/src/store/displayStore.ts` y `frontend/src/layouts/AppLayout.tsx`: preferencia *Ticket al cobrar*.
 - `tests/e2e/test_sale_to_report.py`: el recorrido del día ahora cobra con billetes y paga a un proveedor con efectivo antes de cerrar la caja cuadrada.

@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeftRight, BarChart2, Boxes, Building2, ChevronDown, FileText, History, KeyRound, LayoutDashboard,
   CreditCard, LogOut, Menu, Moon, ShieldCheck, Sun, Truck, Type, UserCheck, UserCog, Users, Wheat, X, ShoppingCart,
-  Wallet, ReceiptText, Factory, Flame, ChefHat, PackagePlus, Printer, Sparkles,
+  Wallet, ReceiptText, Factory, Flame, ChefHat, PackagePlus, Printer, Sparkles, Volume2, VolumeX,
 } from 'lucide-react'
 import Brand from '@/components/brand/Brand'
 import PlanBanner from '@/components/platform/PlanBanner'
@@ -161,7 +161,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const hasFeature = useHasFeature()
   const hasModule = useHasModule()
   const { theme, toggleTheme } = useThemeStore()
-  const { textSize, nextTextSize, easyMode, setEasyMode, autoPrint, setAutoPrint } = useDisplayStore()
+  const { textSize, nextTextSize, easyMode, setEasyMode, autoPrint, setAutoPrint, coinSound, setCoinSound } = useDisplayStore()
   const [showMore, setShowMore] = useState(false)
   const [showDisplay, setShowDisplay] = useState(false)
   const navigate = useNavigate()
@@ -236,6 +236,10 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <button type="button" onClick={() => setAutoPrint(!autoPrint)} aria-pressed={autoPrint}
                     title="Al cobrar se imprime el ticket solo (y, si el cajón está conectado a la impresora, se abre)" className={footerBtn}>
               <Printer size={16} /> {autoPrint ? 'Ticket al cobrar: automático' : 'Ticket al cobrar: manual'}
+            </button>
+            <button type="button" onClick={() => setCoinSound(!coinSound)} aria-pressed={coinSound}
+                    title="Suena al cobrar y al abrir el cajón" className={footerBtn}>
+              {coinSound ? <Volume2 size={16} /> : <VolumeX size={16} />} {coinSound ? 'Sonido de monedas: sí' : 'Sonido de monedas: no'}
             </button>
             <button type="button" onClick={toggleTheme} className={footerBtn}>
               {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}

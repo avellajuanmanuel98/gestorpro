@@ -1,3 +1,6 @@
+import { playCoins } from './coinSound'
+import { useDisplayStore } from '@/store/displayStore'
+
 /**
  * Abrir el cajón monedero sin vender (dar cambio, guardar un billete).
  *
@@ -7,6 +10,7 @@
  * deja constancia en papel de quién abrió el cajón y cuándo.
  */
 export function openCashDrawer(userName: string) {
+  if (useDisplayStore.getState().coinSound) playCoins()
   const ticket = document.createElement('div')
   ticket.className = 'print-ticket print-only font-mono text-[12px] leading-snug text-black bg-white'
   ticket.setAttribute('aria-hidden', 'true')

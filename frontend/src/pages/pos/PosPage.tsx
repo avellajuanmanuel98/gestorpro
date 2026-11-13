@@ -16,6 +16,7 @@ import { formatQty } from '@/lib/catalog'
 import { cn } from '@/lib/cn'
 import { formatDateTime } from '@/lib/dates'
 import { openCashDrawer } from '@/lib/cashDrawer'
+import { playCoins } from '@/lib/coinSound'
 import { formatCOP } from '@/lib/money'
 import { cartTotals, fromCents, isWholeUnit, lineTotals, stepQuantity } from '@/lib/pos'
 import { useAuthStore, useCan } from '@/store/authStore'
@@ -240,6 +241,7 @@ export default function PosPage() {
                       canDiscount={can('sales.discount')} onClose={() => setCharging(false)}
                       onPaid={(sale) => {
                         setCharging(false); setDone(sale); clear()
+                        if (useDisplayStore.getState().coinSound) playCoins()  // el cajón se abre con el ticket
                         void queryClient.invalidateQueries({ queryKey: ['pos-catalog'] })
                         void queryClient.invalidateQueries({ queryKey: ['cash-current'] })
                         void queryClient.invalidateQueries({ queryKey: ['sales'] })
