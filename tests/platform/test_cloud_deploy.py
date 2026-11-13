@@ -69,3 +69,12 @@ def test_health_endpoint_needs_no_session_and_touches_no_data(client, django_ass
         res = client.get('/api/health/')
     assert res.status_code == 200 and res.json() == {'ok': True}
     assert client.post('/api/health/').status_code == 405
+
+
+def test_link_preview_uses_an_absolute_image_that_is_served(client):
+    # WhatsApp y Facebook solo muestran la vista previa con la dirección completa de la imagen
+    html = (ROOT / 'frontend' / 'index.html').read_text(encoding='utf-8')
+    assert 'property="og:image" content="https://' in html and 'twitter:card" content="summary_large_image' in html
+    res = client.get('/og-image.jpg')
+    assert res.status_code == 200 and res['Content-Type'] == 'image/jpeg'
+    assert len(b''.join(res.streaming_content)) < 300_000  # WhatsApp descarta imágenes pesadas
