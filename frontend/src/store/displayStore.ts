@@ -8,6 +8,9 @@ import { persist } from 'zustand/middleware'
  * - Tamaño de letra: escala la raíz del documento. Todo lo que mide en rem
  *   (textos, botones, campos, espacios) crece parejo, sin desarmar el diseño.
  * - Modo fácil: menú corto con lo de todos los días y botones con palabras.
+ * - Ticket automático: al cobrar se imprime el ticket sin pedir clic. Con el cajón monedero
+ *   conectado a la impresora (y "abrir cajón al imprimir" en su driver), cobrar abre el cajón.
+ * - Sonido de monedas: suena al cobrar y al abrir el cajón.
  */
 export type TextSize = 'normal' | 'grande' | 'muy-grande'
 
@@ -25,9 +28,13 @@ export function applyTextSize(size: TextSize) {
 interface DisplayState {
   textSize: TextSize
   easyMode: boolean
+  autoPrint: boolean
+  coinSound: boolean
   setTextSize: (size: TextSize) => void
   nextTextSize: () => void
   setEasyMode: (on: boolean) => void
+  setAutoPrint: (on: boolean) => void
+  setCoinSound: (on: boolean) => void
 }
 
 export const useDisplayStore = create<DisplayState>()(
@@ -35,6 +42,8 @@ export const useDisplayStore = create<DisplayState>()(
     (set, get) => ({
       textSize: 'normal',
       easyMode: false,
+      autoPrint: false,
+      coinSound: true,
       setTextSize: (textSize) => {
         applyTextSize(textSize)
         set({ textSize })
@@ -44,6 +53,8 @@ export const useDisplayStore = create<DisplayState>()(
         get().setTextSize(TEXT_SIZES[(i + 1) % TEXT_SIZES.length].id)
       },
       setEasyMode: (easyMode) => set({ easyMode }),
+      setAutoPrint: (autoPrint) => set({ autoPrint }),
+      setCoinSound: (coinSound) => set({ coinSound }),
     }),
     {
       name: 'gestorpro-display',

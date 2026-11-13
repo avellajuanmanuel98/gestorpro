@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, Minus, Plus, Printer, Search, ShoppingBasket, Trash2, Wallet } from 'lucide-react'
+import { CheckCircle2, Inbox, Minus, Plus, Printer, Search, ShoppingBasket, Trash2, Wallet } from 'lucide-react'
 import { customersApi } from '@/api/customers'
 import { cashApi, salesApi, type POSItem, type Sale } from '@/api/pos'
 import OpenSessionCard from '@/components/pos/OpenSessionCard'
@@ -15,10 +15,13 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { formatQty } from '@/lib/catalog'
 import { cn } from '@/lib/cn'
 import { formatDateTime } from '@/lib/dates'
+import { openCashDrawer } from '@/lib/cashDrawer'
+import { playCoins } from '@/lib/coinSound'
 import { formatCOP } from '@/lib/money'
 import { cartTotals, fromCents, isWholeUnit, lineTotals, stepQuantity } from '@/lib/pos'
-import { useCan } from '@/store/authStore'
+import { useAuthStore, useCan } from '@/store/authStore'
 import { useCartStore } from '@/store/cartStore'
+import { useDisplayStore } from '@/store/displayStore'
 
 const normalize = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
@@ -115,6 +118,7 @@ function Cart({ sessionLabel, onCharge }: { sessionLabel: string; onCharge: () =
   const { lines, customer, setQuantity, remove, setCustomer, clear } = useCartStore()
   const totals = cartTotals(lines)
   const count = lines.reduce((n, l) => n + (isWholeUnit(l.unit) ? Number(l.quantity) : 1), 0)
+  const userName = useAuthStore((st) => st.session?.user.full_name ?? '')
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-surface border border-line rounded-2xl">
@@ -123,6 +127,10 @@ function Cart({ sessionLabel, onCharge }: { sessionLabel: string; onCharge: () =
           <h2 className="text-base font-semibold text-ink">Venta actual</h2>
           <Link to="/cash" className="text-xs text-ink-muted hover:text-ink inline-flex items-center gap-1"><Wallet size={13} />{sessionLabel}</Link>
         </div>
+        <button type="button" onClick={() => openCashDrawer(userName)} title="Imprime un ticket corto que abre el cajón monedero"
+                className="w-full h-9 rounded-lg border border-line-strong text-sm text-ink hover:bg-surface-muted inline-flex items-center justify-center gap-1.5">
+          <Inbox size={15} /> Abrir cajón
+        </button>
         <Combobox label="Cliente" value={customer} onChange={setCustomer} search={searchCustomers} queryKey="pos-customers"
                   placeholder="Consumidor final" />
       </div>
@@ -177,6 +185,17 @@ function Cart({ sessionLabel, onCharge }: { sessionLabel: string; onCharge: () =
 }
 
 function SaleDone({ sale, onNext }: { sale: Sale; onNext: () => void }) {
+  const autoPrint = useDisplayStore((st) => st.autoPrint)
+  const printed = useRef(false)
+  useEffect(() => {
+    // Ticket automático: se imprime al mostrar la venta (una sola vez, aunque el efecto se repita)
+    if (!autoPrint || printed.current) return
+    const timer = window.setTimeout(() => {  // deja pintar el ticket antes de imprimir
+      printed.current = true
+      window.print()
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [autoPrint])
   return (
     <Modal title="Venta registrada" isOpen onClose={onNext} size="md">
       <div className="space-y-5">
@@ -222,6 +241,7 @@ export default function PosPage() {
                       canDiscount={can('sales.discount')} onClose={() => setCharging(false)}
                       onPaid={(sale) => {
                         setCharging(false); setDone(sale); clear()
+                        if (useDisplayStore.getState().coinSound) playCoins()  // el cajón se abre con el ticket
                         void queryClient.invalidateQueries({ queryKey: ['pos-catalog'] })
                         void queryClient.invalidateQueries({ queryKey: ['cash-current'] })
                         void queryClient.invalidateQueries({ queryKey: ['sales'] })

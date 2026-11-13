@@ -31,14 +31,16 @@ export function cartTotals(lines: CartLine[], discount = '0') {
 }
 
 /** Billetes con los que el cliente probablemente pagará (sugerencias de efectivo). */
-export function quickCashOptions(totalCents: number): number[] {
-  const bills = [2000, 5000, 10000, 20000, 50000, 100000].map((b) => b * 100)
-  const options = new Set<number>([totalCents])
-  for (const bill of bills) {
-    const rounded = Math.ceil(totalCents / bill) * bill
-    if (rounded > totalCents) options.add(rounded)
-  }
-  return [...options].sort((a, b) => a - b).slice(0, 5)
+/** Billetes (y la moneda de mil) para cobrar en efectivo con un toque, de mayor a menor. */
+export const CASH_BILLS = [100000, 50000, 20000, 10000, 5000, 2000, 1000]
+
+/**
+ * Lo recibido tras tocar un billete. Los billetes se SUMAN (el cliente paga con uno de
+ * 50.000 y otro de 20.000: 70.000), salvo el primer toque sobre el valor que el sistema
+ * propuso (el total exacto): ese lo reemplaza.
+ */
+export function receivedAfterBill(currentCents: number, billPesos: number, replace: boolean): number {
+  return (replace ? 0 : currentCents) + billPesos * 100
 }
 
 /** Lo que se vende por unidad va en enteros; por peso o volumen admite decimales. */

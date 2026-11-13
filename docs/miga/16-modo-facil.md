@@ -8,7 +8,7 @@
 
 ## Qué hace
 
-Se activa en el menú lateral, en **Pantalla**. Queda guardado **en ese computador**, no en la cuenta: lo configura una vez quien instala.
+Se activa en el menú lateral, en **Pantalla e impresora**. Queda guardado **en ese computador**, no en la cuenta: lo configura una vez quien instala.
 
 | Opción | Efecto |
 |---|---|

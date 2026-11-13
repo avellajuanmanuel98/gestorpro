@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { cartTotals, newClientId, quickCashOptions, stepQuantity, toCents, type CartLine } from './pos'
+import { cartTotals, newClientId, CASH_BILLS, receivedAfterBill, stepQuantity, toCents, type CartLine } from './pos'
 
 const line = (over: Partial<CartLine>): CartLine => ({
   itemId: 1, name: 'x', unit: 'und', unitSymbol: 'und', price: '2000.00', taxRate: '0', quantity: '1', ...over,
@@ -20,8 +20,16 @@ describe('POS: vista previa', () => {
     expect(toCents('0.1') + toCents('0.2')).toBe(30)
   })
 
-  it('sugiere billetes para pagar en efectivo', () => {
-    expect(quickCashOptions(toCents('13140'))).toEqual([1314000, 1400000, 1500000, 2000000, 5000000])
+  it('ofrece todos los billetes de Colombia, de mayor a menor', () => {
+    expect(CASH_BILLS).toEqual([100000, 50000, 20000, 10000, 5000, 2000, 1000])
+  })
+
+  it('los billetes tocados se suman; el primero reemplaza el valor propuesto', () => {
+    const total = toCents('13140')
+    let received = receivedAfterBill(total, 50000, true)  // reemplaza el exacto propuesto
+    expect(received).toBe(toCents('50000'))
+    received = receivedAfterBill(received, 20000, false)   // y luego suma
+    expect(received).toBe(toCents('70000'))
   })
 
   it('las unidades suben de 1 en 1 y el peso de 0,25 en 0,25', () => {
