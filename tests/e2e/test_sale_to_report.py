@@ -1,7 +1,8 @@
 """
 Fase 11: el recorrido crítico de un día, de punta a punta en el navegador:
 
-    cajero abre caja → vende → cierra caja cuadrada
+    cajero abre caja → vende cobrando con billetes → paga a un proveedor con efectivo
+    → cierra caja cuadrada
     → la dueña ve la existencia descontada en el libro de inventario
     → y la venta en el tablero de Inicio, con las cifras exactas.
 """
@@ -55,11 +56,16 @@ def test_a_day_from_the_register_to_the_dashboard(bakery, new_page):
     page.get_by_label('Base inicial en efectivo').fill('100000')
     page.get_by_role('button', name='Abrir caja').click()
 
-    # 2. Vende 3 panes de bono en efectivo
+    # 2. Vende 3 panes de bono: el cliente paga con un billete de $5.000 y otro de $2.000
     for _ in range(3):
         page.get_by_role('button', name=re.compile('Pan de bono')).first.click()
     page.get_by_role('button', name=re.compile('^Cobrar')).click()
-    page.get_by_role('button', name='Confirmar pago').click()
+    pay = page.get_by_role('dialog', name='Cobrar')
+    pay.get_by_role('button', name='Sumar billete de $ 5.000').click()  # reemplaza el exacto propuesto
+    pay.get_by_role('button', name='Sumar billete de $ 2.000').click()  # y se suma
+    expect(pay.get_by_label('Recibido en efectivo')).to_have_value('7000')
+    expect(pay.get_by_text('Cambio a entregar')).to_be_visible()
+    pay.get_by_role('button', name='Confirmar pago').click()
     dialog = page.get_by_role('dialog', name='Venta registrada')
     dialog.wait_for()
     dialog.get_by_role('button', name='Nueva venta').click()
@@ -67,23 +73,35 @@ def test_a_day_from_the_register_to_the_dashboard(bakery, new_page):
     with tenant_context(bakery['t']):
         sale = Sale.objects.get()
         assert sale.total == Decimal('6000') and sale.lines.get().unit_price == Decimal('2000')
+        assert sale.change_given == Decimal('1000')
 
-    # 3. Cierra la caja contando 1 × $100.000 y 3 × $2.000: cuadra exacto
+    # 3. Paga $10.000 a un proveedor con el efectivo de la caja, con el motivo de un toque
     page.goto('/cash')
+    page.get_by_role('button', name='Gasto o pago').click()
+    expense = page.get_by_role('dialog')
+    expense.get_by_label('Valor').fill('10000')
+    expense.get_by_role('button', name='Pago a proveedor').click()
+    expense.get_by_role('textbox', name='Motivo').fill('Pago a proveedor: harina')
+    expense.get_by_role('button', name='Guardar').click()
+    expense.wait_for(state='detached')
+
+    # 4. Cierra la caja: 100.000 + 6.000 − 10.000 = 96.000 (4 × $20.000, 3 × $5.000, 1 × $1.000)
     page.get_by_role('button', name='Cerrar caja').first.click()
     close = page.get_by_role('dialog')
-    close.get_by_label('Cantidad de $ 100.000').fill('1')
-    close.get_by_label('Cantidad de $ 2.000').fill('3')
+    expect(close.get_by_text('Gasto · Pago a proveedor: harina')).to_be_visible()  # lo que salió, a la vista
+    close.get_by_label('Cantidad de $ 20.000').fill('4')
+    close.get_by_label('Cantidad de $ 5.000').fill('3')
+    close.get_by_label('Cantidad de $ 1.000').fill('1')
     close.get_by_role('button', name='Cerrar caja').click()
     close.wait_for(state='detached')
 
     with tenant_context(bakery['t']):
         session = CashSession.objects.get()
         assert session.status == CashSession.Status.CLOSED
-        assert session.expected_amount == session.counted_amount == Decimal('106000')
+        assert session.expected_amount == session.counted_amount == Decimal('96000')
         assert session.difference == 0
 
-    # 4. La dueña ve la salida en el libro de inventario, con el saldo correcto
+    # 5. La dueña ve la salida en el libro de inventario, con el saldo correcto
     owner = new_page()
     login(owner, bakery['owner'].email)
     owner.wait_for_url('**/dashboard')
@@ -95,7 +113,7 @@ def test_a_day_from_the_register_to_the_dashboard(bakery, new_page):
     with tenant_context(bakery['t']):
         assert Item.objects.get(pk=bakery['pan'].pk).stock == Decimal('17')
 
-    # 5. Y el tablero muestra exactamente esa venta: $ 6.000 en 1 transacción, ticket de $ 6.000
+    # 6. Y el tablero muestra exactamente esa venta: $ 6.000 en 1 transacción, ticket de $ 6.000
     owner.goto('/dashboard')
     expect(kpi(owner, 'Ventas hoy')).to_have_text(re.compile(r'^\$\s6\.000$'))
     expect(kpi(owner, 'Transacciones')).to_have_text('1')

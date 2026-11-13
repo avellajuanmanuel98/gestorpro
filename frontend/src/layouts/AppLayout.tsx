@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeftRight, BarChart2, Boxes, Building2, ChevronDown, FileText, History, KeyRound, LayoutDashboard,
   CreditCard, LogOut, Menu, Moon, ShieldCheck, Sun, Truck, Type, UserCheck, UserCog, Users, Wheat, X, ShoppingCart,
-  Wallet, ReceiptText, Factory, Flame, ChefHat, PackagePlus, Sparkles,
+  Wallet, ReceiptText, Factory, Flame, ChefHat, PackagePlus, Printer, Sparkles,
 } from 'lucide-react'
 import Brand from '@/components/brand/Brand'
 import PlanBanner from '@/components/platform/PlanBanner'
@@ -161,7 +161,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const hasFeature = useHasFeature()
   const hasModule = useHasModule()
   const { theme, toggleTheme } = useThemeStore()
-  const { textSize, nextTextSize, easyMode, setEasyMode } = useDisplayStore()
+  const { textSize, nextTextSize, easyMode, setEasyMode, autoPrint, setAutoPrint } = useDisplayStore()
   const [showMore, setShowMore] = useState(false)
   const [showDisplay, setShowDisplay] = useState(false)
   const navigate = useNavigate()
@@ -221,7 +221,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </NavLink>
         )}
         <button type="button" onClick={() => setShowDisplay((v) => !v)} aria-expanded={showDisplay} className={footerBtn}>
-          <Type size={16} /> <span className="flex-1 text-left">Pantalla</span>
+          <Type size={16} /> <span className="flex-1 text-left">Pantalla e impresora</span>
           <ChevronDown size={14} className={cn('transition-transform', showDisplay && 'rotate-180')} />
         </button>
         {showDisplay && (
@@ -232,6 +232,10 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <button type="button" onClick={() => setEasyMode(!easyMode)} aria-pressed={easyMode}
                     title="Menú corto con lo de todos los días y botones con palabras" className={footerBtn}>
               <Sparkles size={16} /> {easyMode ? 'Modo fácil: activado' : 'Activar modo fácil'}
+            </button>
+            <button type="button" onClick={() => setAutoPrint(!autoPrint)} aria-pressed={autoPrint}
+                    title="Al cobrar se imprime el ticket solo (y, si el cajón está conectado a la impresora, se abre)" className={footerBtn}>
+              <Printer size={16} /> {autoPrint ? 'Ticket al cobrar: automático' : 'Ticket al cobrar: manual'}
             </button>
             <button type="button" onClick={toggleTheme} className={footerBtn}>
               {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}

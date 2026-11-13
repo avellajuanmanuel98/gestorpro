@@ -9,7 +9,7 @@ import Modal from '@/components/ui/Modal'
 import { cn } from '@/lib/cn'
 import { getErrorMessage } from '@/lib/errors'
 import { formatCOP } from '@/lib/money'
-import { cartTotals, fromCents, newClientId, quickCashOptions, toCents, type CartLine } from '@/lib/pos'
+import { cartTotals, fromCents, CASH_BILLS, newClientId, receivedAfterBill, toCents, type CartLine } from '@/lib/pos'
 
 const ICONS: Record<PaymentMethod['kind'], typeof Banknote> = {
   cash: Banknote, card: CreditCard, wallet: Smartphone, transfer: Landmark,
@@ -35,6 +35,9 @@ export default function PaymentModal({ lines, customerId, methods, canDiscount, 
   const [discount, setDiscount] = useState('')
   const totals = cartTotals(lines, parseAmount(discount))
   const [rows, setRows] = useState<Row[]>([{ methodId: cashMethod.id, amount: toInput(totals.total) }])
+  // true mientras lo recibido es el valor que propuso el sistema (el total exacto): el primer billete
+  // tocado lo reemplaza; los siguientes se suman
+  const [proposed, setProposed] = useState(true)
 
   const methodOf = (id: number) => methods.find((m) => m.id === id)!
   const tendered = rows.reduce((s, r) => s + toCents(parseAmount(r.amount) || 0), 0)
@@ -48,8 +51,16 @@ export default function PaymentModal({ lines, customerId, methods, canDiscount, 
   const setRow = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)))
   const pickMethod = (method: PaymentMethod) => {
     // Con un solo pago, cambiar de medio cobra el total exacto por ese medio
-    if (single) setRows([{ methodId: method.id, amount: toInput(totals.total) }])
+    if (single) {
+      setRows([{ methodId: method.id, amount: toInput(totals.total) }])
+      setProposed(true)
+    }
   }
+  const tapBill = (bill: number) => {
+    setRow(0, { amount: toInput(receivedAfterBill(toCents(parseAmount(rows[0].amount) || 0), bill, proposed)) })
+    setProposed(false)
+  }
+  const setExact = () => { setRow(0, { amount: toInput(totals.total) }); setProposed(true) }
 
   const pay = useMutation({
     mutationFn: () => salesApi.create({
@@ -103,7 +114,7 @@ export default function PaymentModal({ lines, customerId, methods, canDiscount, 
                 <div className="flex-1">
                   <Input label={method.kind === 'cash' ? 'Recibido en efectivo' : `Valor en ${method.name}`} inputMode="numeric"
                          className="h-11 text-lg num" value={row.amount} autoFocus={i === 0}
-                         onChange={(e) => setRow(i, { amount: e.target.value })} />
+                         onChange={(e) => { setRow(i, { amount: e.target.value }); setProposed(false) }} />
                 </div>
                 {!single && (
                   <button type="button" aria-label="Quitar pago" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}
@@ -115,13 +126,24 @@ export default function PaymentModal({ lines, customerId, methods, canDiscount, 
             )
           })}
           {single && methodOf(rows[0].methodId).kind === 'cash' && (
-            <div className="flex flex-wrap gap-2">
-              {quickCashOptions(totals.total).map((cents, idx) => (
-                <button key={cents} type="button" onClick={() => setRow(0, { amount: toInput(cents) })}
-                        className="h-10 px-3.5 rounded-lg border border-line-strong text-sm text-ink hover:bg-surface-muted num">
-                  {idx === 0 ? 'Exacto' : formatCOP(fromCents(cents))}
+            <div className="space-y-2">
+              <p className="text-xs text-ink-muted">Toca los billetes que te entregan: se suman.</p>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {CASH_BILLS.map((bill) => (
+                  <button key={bill} type="button" onClick={() => tapBill(bill)} aria-label={`Sumar billete de ${formatCOP(bill)}`}
+                          className="h-12 rounded-xl border border-line-strong bg-surface text-base font-semibold text-ink hover:bg-surface-muted active:bg-primary-soft num">
+                    {formatCOP(bill)}
+                  </button>
+                ))}
+                <button type="button" onClick={setExact}
+                        className="h-12 rounded-xl border border-primary bg-primary-soft text-base font-semibold text-primary-ink hover:opacity-90">
+                  Exacto
                 </button>
-              ))}
+              </div>
+              <button type="button" onClick={() => { setRow(0, { amount: '' }); setProposed(false) }}
+                      className="text-sm text-ink-muted hover:text-danger">
+                Borrar lo recibido
+              </button>
             </div>
           )}
           <button type="button" className="text-sm text-primary-ink hover:underline inline-flex items-center gap-1"
@@ -136,7 +158,10 @@ export default function PaymentModal({ lines, customerId, methods, canDiscount, 
                  onChange={(e) => {
                    setDiscount(e.target.value)
                    // Con un solo pago, el valor a cobrar sigue al nuevo total
-                   if (single) setRow(0, { amount: toInput(cartTotals(lines, parseAmount(e.target.value)).total) })
+                   if (single) {
+                     setRow(0, { amount: toInput(cartTotals(lines, parseAmount(e.target.value)).total) })
+                     setProposed(true)
+                   }
                  }} hint="Valor en pesos sobre el total." />
         )}
 

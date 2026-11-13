@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDownLeft, ArrowUpRight, History, Lock, Plus } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, History, Inbox, Lock, Plus } from 'lucide-react'
 import { cashApi, type CashSession, type CashSessionDetail } from '@/api/pos'
 import OpenSessionCard from '@/components/pos/OpenSessionCard'
 import Alert from '@/components/ui/Alert'
@@ -16,13 +16,14 @@ import { Skeleton, SkeletonText } from '@/components/ui/Skeleton'
 import StatusMark from '@/components/ui/StatusMark'
 import Tabs from '@/components/ui/Tabs'
 import Textarea from '@/components/ui/Textarea'
+import { openCashDrawer } from '@/lib/cashDrawer'
 import { cn } from '@/lib/cn'
 import { formatDateTime, formatTime } from '@/lib/dates'
 import { getErrorMessage } from '@/lib/errors'
 import { formatCOP } from '@/lib/money'
 import { DENOMINATIONS, fromCents, toCents } from '@/lib/pos'
 import { SESSION_STATUS } from '@/lib/status'
-import { useCan } from '@/store/authStore'
+import { useAuthStore, useCan } from '@/store/authStore'
 import { toast } from '@/store/toastStore'
 import { useVocabulary } from '@/lib/vocabulary'
 
@@ -30,8 +31,15 @@ const parseAmount = (v: string) => v.replace(/\./g, '').replace(',', '.')
 type MovementType = 'income' | 'expense' | 'withdrawal'
 const MOVEMENT_COPY: Record<MovementType, { title: string; hint: string; placeholder: string }> = {
   income: { title: 'Registrar ingreso', hint: 'Dinero que entra al cajón sin ser una venta.', placeholder: 'Ej.: base adicional' },
-  expense: { title: 'Registrar gasto', hint: 'Pagos hechos con el efectivo de la caja.', placeholder: '' },
+  expense: { title: 'Registrar gasto o pago', hint: 'Efectivo que sale del cajón para pagar algo: un proveedor, insumos, un domicilio.', placeholder: '' },
   withdrawal: { title: 'Registrar retiro', hint: 'Efectivo que se saca del cajón (consignación, caja fuerte).', placeholder: 'Ej.: consignación al banco' },
+}
+
+// Motivos de un toque: llenan el campo y se pueden completar (ej.: "Pago a proveedor: harina")
+const QUICK_REASONS: Record<MovementType, string[]> = {
+  income: ['Base adicional', 'Cambio (sencillo)'],
+  expense: ['Pago a proveedor', 'Compra de insumos', 'Domicilio', 'Servicios'],
+  withdrawal: ['Consignación al banco', 'Caja fuerte', 'Retiro personal'],
 }
 
 function Difference({ value }: { value: string | null }) {
@@ -61,7 +69,19 @@ function MovementForm({ session, type, onDone }: { session: CashSessionDetail; t
     <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); save.mutate() }}>
       <p className="text-sm text-ink-muted">{MOVEMENT_COPY[type].hint}</p>
       <Input label="Valor" required autoFocus inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} />
-      <Input label="Motivo" required placeholder={type === 'expense' ? v.examples.expense : MOVEMENT_COPY[type].placeholder} value={reason} onChange={(e) => setReason(e.target.value)} />
+      <div className="space-y-2">
+        <div role="group" className="flex flex-wrap gap-2" aria-label="Motivos frecuentes">
+          {QUICK_REASONS[type].map((label) => (
+            <button key={label} type="button" onClick={() => setReason(label)} aria-pressed={reason === label}
+                    className={cn('h-9 px-3 rounded-lg border text-sm transition-colors',
+                      reason === label ? 'border-primary bg-primary-soft text-primary-ink font-medium' : 'border-line-strong text-ink hover:bg-surface-muted')}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <Input label="Motivo" required maxLength={200} hint="Puedes completarlo: a quién se le pagó o qué se compró."
+               placeholder={type === 'expense' ? v.examples.expense : MOVEMENT_COPY[type].placeholder} value={reason} onChange={(e) => setReason(e.target.value)} />
+      </div>
       {save.isError && <Alert tone="danger">{getErrorMessage(save.error)}</Alert>}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onDone}>Cancelar</Button>
@@ -96,8 +116,24 @@ function CloseForm({ session, onDone }: { session: CashSessionDetail; onDone: ()
     },
   })
 
+  const outflows = session.movements.filter((m) => m.type === 'expense' || m.type === 'withdrawal')
+
   return (
     <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); close.mutate() }}>
+      {outflows.length > 0 && (
+        <div className="rounded-xl border border-line">
+          <p className="px-4 pt-3 text-sm font-medium text-ink">Efectivo que salió en este turno</p>
+          <ul className="divide-y divide-line">
+            {outflows.map((m) => (
+              <li key={m.id} className="flex items-center gap-3 px-4 py-2 text-sm">
+                <span className="flex-1 min-w-0 truncate text-ink">{m.type_label} · {m.reason}</span>
+                <span className="text-xs text-ink-muted">{formatTime(m.created_at)} · {m.created_by_name}</span>
+                <span className="num font-medium text-warning">−{formatCOP(Math.abs(Number(m.amount)))}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div>
         <p className="text-sm font-medium text-ink mb-2">Cuenta el efectivo del cajón</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -191,6 +227,7 @@ function CurrentTab() {
   const session = useQuery({ queryKey: ['cash-current'], queryFn: cashApi.current })
   const [movement, setMovement] = useState<MovementType | null>(null)
   const [closing, setClosing] = useState(false)
+  const userName = useAuthStore((st) => st.session?.user.full_name ?? '')
   if (session.isLoading) return <Skeleton height={320} />
   if (!session.data) return <OpenSessionCard title="No tienes la caja abierta" />
   const s = session.data
@@ -200,8 +237,9 @@ function CurrentTab() {
         <p className="text-sm text-ink-muted"><strong className="text-ink">{s.register_name}</strong> · abierta por {s.opened_by_name} el {formatDateTime(s.opened_at)}</p>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" icon={<Plus size={15} />} onClick={() => setMovement('income')}>Ingreso</Button>
-          <Button variant="outline" onClick={() => setMovement('expense')}>Gasto</Button>
+          <Button variant="outline" onClick={() => setMovement('expense')}>Gasto o pago</Button>
           <Button variant="outline" onClick={() => setMovement('withdrawal')}>Retiro</Button>
+          <Button variant="outline" icon={<Inbox size={15} />} onClick={() => openCashDrawer(userName)}>Abrir cajón</Button>
           <Button icon={<Lock size={15} />} onClick={() => setClosing(true)}>Cerrar caja</Button>
         </div>
       </div>
