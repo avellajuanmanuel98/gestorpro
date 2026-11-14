@@ -38,3 +38,9 @@ def test_api_responses_carry_the_policy_too():
 def test_api_docs_are_not_published_outside_development():
     assert Client().get('/api/docs/').status_code == 404
     assert Client().get('/api/schema/').status_code == 404
+
+
+def test_csp_only_lets_the_page_talk_to_itself_and_the_local_drawer_connector(client):
+    res = client.get('/api/health/')
+    connect = next(d for d in _csp(res).split(';') if d.strip().startswith('connect-src'))
+    assert connect.split()[1:] == ["'self'", 'http://127.0.0.1:17777']

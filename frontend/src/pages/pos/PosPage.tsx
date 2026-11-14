@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { formatQty } from '@/lib/catalog'
 import { cn } from '@/lib/cn'
 import { formatDateTime, formatTime } from '@/lib/dates'
-import { openCashDrawer, printDrawerSlip } from '@/lib/cashDrawer'
+import { openCashDrawer, openDrawer } from '@/lib/cashDrawer'
 import { playCoins } from '@/lib/coinSound'
 import { formatCOP } from '@/lib/money'
 import { cartTotals, fromCents, isWholeUnit, lineTotals, stepQuantity } from '@/lib/pos'
@@ -127,7 +127,7 @@ function Cart({ sessionLabel, onCharge }: { sessionLabel: string; onCharge: () =
           <h2 className="text-base font-semibold text-ink">Venta actual</h2>
           <Link to="/cash" className="text-xs text-ink-muted hover:text-ink inline-flex items-center gap-1"><Wallet size={13} />{sessionLabel}</Link>
         </div>
-        <button type="button" onClick={() => openCashDrawer(userName)} title="Imprime un ticket corto que abre el cajón monedero"
+        <button type="button" onClick={() => openCashDrawer(userName)} title="Abre el cajón monedero (sin papel si el Conector de Miga está instalado)"
                 className="w-full h-9 rounded-lg border border-line-strong text-sm text-ink hover:bg-surface-muted inline-flex items-center justify-center gap-1.5">
           <Inbox size={15} /> Abrir cajón
         </button>
@@ -194,7 +194,7 @@ function SaleDone({ sale, onNext }: { sale: Sale; onNext: () => void }) {
     const timer = window.setTimeout(() => {  // deja pintar el ticket antes de imprimir
       printed.current = true
       if (saleAction === 'ticket') window.print()
-      else printDrawerSlip(`${sale.number} · ${formatTime(sale.created_at)} · ${formatCOP(sale.total)}`)
+      else void openDrawer(`${sale.number} · ${formatTime(sale.created_at)} · ${formatCOP(sale.total)}`)
     }, 300)
     return () => window.clearTimeout(timer)
   }, [saleAction, sale])

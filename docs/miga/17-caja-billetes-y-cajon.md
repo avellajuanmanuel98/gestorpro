@@ -47,6 +47,22 @@ El cajón **no se conecta al computador**: va con un cable tipo teléfono (RJ11/
 - `frontend/src/store/displayStore.ts` y `frontend/src/layouts/AppLayout.tsx`: preferencia *Ticket al cobrar*.
 - `tests/e2e/test_sale_to_report.py`: el recorrido del día ahora cobra con billetes y paga a un proveedor con efectivo antes de cerrar la caja cuadrada.
 
+## Conector de Miga: abrir el cajón sin papel
+
+Una página web no puede mandarle a la impresora el comando directo de "abrir cajón" (ESC p): solo puede imprimir, y el driver abre el cajón al imprimir. Por eso "solo abrir cajón" imprimía una línea mínima. El programa de caja anterior sí mandaba el comando directo, y la familia pidió lo mismo.
+
+El **Conector de Miga** (`conector/`) es un script de PowerShell, sin instalar nada más, que corre en el equipo de la caja:
+
+- Escucha **solo en 127.0.0.1:17777**, de modo que nadie en la red lo ve.
+- Atiende `POST /cajon` (abre el cajón) y `GET /estado`. Solo acepta pedidos de la dirección de Miga.
+- Manda el comando en crudo (RAW, por la API de impresión de Windows) a "Generic / Text Only" o, si no existe, a POS-80C.
+
+Miga lo llama al cobrar y en el botón **Abrir cajón**. Si no responde en 1,5 s, imprime la línea de respaldo, así que el cajón nunca se queda sin abrir. En **Pantalla e impresora** se ve "Conector del cajón: funcionando / no instalado". La CSP permite `connect-src http://127.0.0.1:17777` y ninguna otra dirección externa.
+
+**Instalar:** descargar `https://gestorpro-rxy5.onrender.com/conector/MigaConector.zip`, extraerlo y dar doble clic en `instalar-conector.bat`. No pide administrador: copia a `%LOCALAPPDATA%\MigaConector` y deja un lanzador invisible en Inicio. La primera vez, Chrome pide permiso de "red local / dispositivos": **Permitir**. Para comprobar que corre, abrir `http://127.0.0.1:17777/estado`. Registro en `conector.log`.
+
+Probado con un conector simulado en el navegador real (`tests/e2e/test_cash_drawer_connector.py`): con conector, cero impresiones y `POST /cajon`; sin él, la línea de respaldo. **El script de Windows no se ha podido ejecutar aquí, sin Windows: la primera prueba es en la caja.**
+
 ## Probado en La Favorita
 
 Impresora **Digital POS DIG-K200L** (USB, 80 mm, 72 mm útiles), driver *POS Printer Driver V7.17* → **POS-80C**. En *Propiedades de impresora → Configuración del dispositivo*: **Cash Select: Cash Drawer #1 Before Printing**, **Cutter Select: Form[Cut]**. En Windows 11 hubo que desactivar el *Modo de impresión protegida*.
