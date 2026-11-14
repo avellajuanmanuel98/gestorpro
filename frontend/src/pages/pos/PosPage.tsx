@@ -6,7 +6,7 @@ import { customersApi } from '@/api/customers'
 import { cashApi, salesApi, type POSItem, type Sale } from '@/api/pos'
 import OpenSessionCard from '@/components/pos/OpenSessionCard'
 import PaymentModal from '@/components/pos/PaymentModal'
-import Receipt from '@/components/pos/Receipt'
+import Receipt, { PrintableReceipt } from '@/components/pos/Receipt'
 import Button from '@/components/ui/Button'
 import Combobox from '@/components/ui/Combobox'
 import EmptyState from '@/components/ui/EmptyState'
@@ -210,6 +210,7 @@ function SaleDone({ sale, onNext }: { sale: Sale; onNext: () => void }) {
           ) : <p className="text-2xl font-semibold text-ink num pt-2">{formatCOP(sale.total)}</p>}
         </div>
         <div className="max-h-64 overflow-y-auto rounded-xl border border-line bg-white"><Receipt sale={sale} /></div>
+        <PrintableReceipt sale={sale} />
         <div className="grid grid-cols-2 gap-3">
           <Button variant="outline" size="lg" icon={<Printer size={16} />} onClick={() => window.print()}>Imprimir ticket</Button>
           <Button size="lg" autoFocus onClick={onNext}>Nueva venta</Button>
