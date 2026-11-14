@@ -273,7 +273,8 @@ SECURE_CSP = {
     'style-src': [CSP.SELF],
     'img-src': [CSP.SELF, 'data:', 'blob:'],
     'font-src': [CSP.SELF, 'data:'],
-    'connect-src': [CSP.SELF],
+    # + el Conector de Miga en el propio equipo de la caja (abre el cajón sin imprimir)
+    'connect-src': [CSP.SELF, 'http://127.0.0.1:17777'],
     'object-src': [CSP.NONE],
     'base-uri': [CSP.SELF],
     'form-action': [CSP.SELF],

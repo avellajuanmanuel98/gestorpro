@@ -1,18 +1,25 @@
 import { playCoins } from './coinSound'
+import { openDrawerViaConnector } from './connector'
 import { useDisplayStore } from '@/store/displayStore'
 
 /**
  * El cajón no se conecta al computador: va con un cable RJ11 a la impresora de tickets, y se
  * abre cuando la impresora imprime con la opción "abrir cajón" activa en su driver de Windows.
- * Una página web no puede mandar la señal directa, así que para abrirlo se imprime una línea
- * mínima (que además deja constancia en papel de cuándo y por qué se abrió).
+ * Una página web no puede mandar la señal directa: si el Conector de Miga está instalado en el
+ * equipo, él la manda y el cajón se abre SIN papel; si no, se imprime una línea mínima.
  */
+
+/** Abre el cajón: por el conector (sin papel) o, si no está, imprimiendo `fallbackText`. */
+export async function openDrawer(fallbackText: string) {
+  if (await openDrawerViaConnector()) return
+  printDrawerSlip(fallbackText)
+}
 
 /** Botón "Abrir cajón": abrirlo sin vender (dar cambio, guardar un billete). */
 export function openCashDrawer(userName: string) {
   if (useDisplayStore.getState().coinSound) playCoins()
   const now = new Date().toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })
-  printDrawerSlip(`Apertura de cajón · ${now} · ${userName}`)
+  void openDrawer(`Apertura de cajón · ${now} · ${userName}`)
 }
 
 /**

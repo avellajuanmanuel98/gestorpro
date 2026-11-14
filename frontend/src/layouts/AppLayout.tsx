@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -10,6 +10,7 @@ import Brand from '@/components/brand/Brand'
 import PlanBanner from '@/components/platform/PlanBanner'
 import SupportBanner from '@/components/platform/SupportBanner'
 import { cn } from '@/lib/cn'
+import { connectorAvailable } from '@/lib/connector'
 import { useAuthStore, useCan, useHasFeature, useHasModule } from '@/store/authStore'
 import { SALE_ACTIONS, TEXT_SIZES, useDisplayStore } from '@/store/displayStore'
 import { useThemeStore } from '@/store/themeStore'
@@ -162,8 +163,16 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const hasModule = useHasModule()
   const { theme, toggleTheme } = useThemeStore()
   const { textSize, nextTextSize, easyMode, setEasyMode, saleAction, nextSaleAction, coinSound, setCoinSound } = useDisplayStore()
+  const [connector, setConnector] = useState<boolean | null>(null)
   const [showMore, setShowMore] = useState(false)
   const [showDisplay, setShowDisplay] = useState(false)
+  useEffect(() => {
+    // Al abrir el panel, ver si el Conector de Miga (abre el cajón sin papel) está corriendo
+    if (!showDisplay) return
+    let alive = true
+    void connectorAvailable().then((ok) => { if (alive) setConnector(ok) })
+    return () => { alive = false }
+  }, [showDisplay])
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -234,13 +243,18 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               <Sparkles size={16} /> {easyMode ? 'Modo fácil: activado' : 'Activar modo fácil'}
             </button>
             <button type="button" onClick={nextSaleAction}
-                    title="Qué pasa al confirmar el pago. El cajón se abre cuando la impresora imprime: con 'solo abrir cajón' sale una línea mínima en vez del ticket" className={footerBtn}>
+                    title="Qué pasa al confirmar el pago. Con 'solo abrir cajón' se abre el cajón sin el ticket (sin papel con el Conector de Miga)" className={footerBtn}>
               <Printer size={16} /> {SALE_ACTIONS.find((a) => a.id === saleAction)?.label}
             </button>
             <button type="button" onClick={() => setCoinSound(!coinSound)} aria-pressed={coinSound}
                     title="Suena al cobrar y al abrir el cajón" className={footerBtn}>
               {coinSound ? <Volume2 size={16} /> : <VolumeX size={16} />} {coinSound ? 'Sonido de monedas: sí' : 'Sonido de monedas: no'}
             </button>
+            {saleAction === 'drawer' && connector !== null && (
+              <p className="px-2.5 pb-1 text-xs text-ink-muted" title="Programa del computador que abre el cajón sin imprimir">
+                {connector ? 'Conector del cajón: funcionando (sin papel)' : 'Conector del cajón: no instalado (imprime una tirita)'}
+              </p>
+            )}
             <button type="button" onClick={toggleTheme} className={footerBtn}>
               {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
               {theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}

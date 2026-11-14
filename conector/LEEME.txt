@@ -1,0 +1,26 @@
+CONECTOR DE MIGA - abrir el cajon sin imprimir
+================================================
+
+Para que sirve
+  Al confirmar un pago, Miga abre el cajon monedero SIN imprimir nada.
+  El ticket solo sale si el cliente lo pide (boton "Imprimir ticket").
+
+Instalar (una sola vez, en el computador de la caja)
+  1. Descomprime este ZIP (clic derecho > Extraer todo).
+  2. Doble clic en "instalar-conector.bat".
+     Si Windows muestra "Windows protegio su PC": Mas informacion > Ejecutar de todas formas.
+  3. Debe decir "Listo: el Conector de Miga esta funcionando".
+  4. En Miga (icono GestorPro del escritorio), en "Pantalla e impresora",
+     deja "Al cobrar: solo abrir cajon".
+  5. La primera vez que cobres, Chrome puede preguntar si Miga puede
+     acceder a dispositivos de este equipo o red local: Permitir.
+
+Comprobar que esta corriendo
+  Abre en el navegador: http://127.0.0.1:17777/estado
+  Debe decir: "ok": true
+
+Si el conector no esta corriendo, Miga sigue abriendo el cajon como antes
+(imprimiendo una tirita), asi que la caja nunca se queda sin abrir.
+
+Quitarlo: doble clic en "desinstalar-conector.bat".
+Registro de lo que hace: %LOCALAPPDATA%\MigaConector\conector.log
