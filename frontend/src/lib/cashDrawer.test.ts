@@ -32,4 +32,12 @@ describe('ticket para abrir el cajón', () => {
     win.timers.forEach((t) => t())
     expect(removals).toBe(1)
   })
+  it('avisa al terminar, para quitar la marca que oculta el ticket de la venta', () => {
+    const win = fakeWindow()
+    let done = 0
+    printThenRemove({ remove: () => {} }, { appendChild: () => {} }, win as never, () => { done++ })
+    expect(done).toBe(0)
+    win.listeners.afterprint()
+    expect(done).toBe(1)
+  })
 })

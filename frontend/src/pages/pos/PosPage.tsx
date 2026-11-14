@@ -14,8 +14,8 @@ import Modal from '@/components/ui/Modal'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { formatQty } from '@/lib/catalog'
 import { cn } from '@/lib/cn'
-import { formatDateTime } from '@/lib/dates'
-import { openCashDrawer } from '@/lib/cashDrawer'
+import { formatDateTime, formatTime } from '@/lib/dates'
+import { openCashDrawer, printDrawerSlip } from '@/lib/cashDrawer'
 import { playCoins } from '@/lib/coinSound'
 import { formatCOP } from '@/lib/money'
 import { cartTotals, fromCents, isWholeUnit, lineTotals, stepQuantity } from '@/lib/pos'
@@ -185,17 +185,19 @@ function Cart({ sessionLabel, onCharge }: { sessionLabel: string; onCharge: () =
 }
 
 function SaleDone({ sale, onNext }: { sale: Sale; onNext: () => void }) {
-  const autoPrint = useDisplayStore((st) => st.autoPrint)
+  const saleAction = useDisplayStore((st) => st.saleAction)
   const printed = useRef(false)
   useEffect(() => {
-    // Ticket automático: se imprime al mostrar la venta (una sola vez, aunque el efecto se repita)
-    if (!autoPrint || printed.current) return
+    // Al cobrar: ticket completo (que abre el cajón) o solo una línea que abre el cajón.
+    // Una sola vez, aunque el efecto se repita.
+    if (saleAction === 'manual' || printed.current) return
     const timer = window.setTimeout(() => {  // deja pintar el ticket antes de imprimir
       printed.current = true
-      window.print()
+      if (saleAction === 'ticket') window.print()
+      else printDrawerSlip(`${sale.number} · ${formatTime(sale.created_at)} · ${formatCOP(sale.total)}`)
     }, 300)
     return () => window.clearTimeout(timer)
-  }, [autoPrint])
+  }, [saleAction, sale])
   return (
     <Modal title="Venta registrada" isOpen onClose={onNext} size="md">
       <div className="space-y-5">
