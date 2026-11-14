@@ -16,10 +16,26 @@ export function openCashDrawer(userName: string) {
   ticket.setAttribute('aria-hidden', 'true')
   const now = new Date().toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })
   ticket.textContent = `Apertura de cajón · ${now} · ${userName}`
-  document.body.appendChild(ticket)
-  try {
-    window.print()
-  } finally {
-    ticket.remove()
+  printThenRemove(ticket, document.body, window)
+}
+
+/**
+ * Imprime `el` y lo quita DESPUÉS de imprimir. Con Chrome en modo "imprimir sin preguntar"
+ * (--kiosk-printing), window.print() vuelve enseguida y la página se imprime más tarde: si el
+ * ticket se quitaba al volver, salía una hoja en blanco, la impresora no imprimía nada y el
+ * cajón no se abría. Se quita en "afterprint" (o al minuto, por si ese evento no llega).
+ */
+export function printThenRemove(
+  el: { remove: () => void },
+  parent: { appendChild: (el: never) => unknown },
+  win: Pick<Window, 'print' | 'addEventListener' | 'setTimeout'>,
+) {
+  parent.appendChild(el as never)
+  let removed = false
+  const cleanup = () => {
+    if (!removed) { removed = true; el.remove() }
   }
+  win.addEventListener('afterprint', cleanup, { once: true })
+  win.setTimeout(cleanup, 60_000)
+  win.print()
 }
