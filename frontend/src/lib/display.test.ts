@@ -34,4 +34,13 @@ describe('Pantalla: tamaño de letra y modo fácil', () => {
     useDisplayStore.getState().setEasyMode(false)
     expect(useDisplayStore.getState().easyMode).toBe(false)
   })
+  it('"Al cobrar" recorre: nada automático → solo abrir cajón → ticket y cajón', () => {
+    useDisplayStore.setState({ saleAction: 'manual' })
+    const seen = [useDisplayStore.getState().saleAction]
+    for (let i = 0; i < 3; i++) {
+      useDisplayStore.getState().nextSaleAction()
+      seen.push(useDisplayStore.getState().saleAction)
+    }
+    expect(seen).toEqual(['manual', 'drawer', 'ticket', 'manual'])
+  })
 })

@@ -11,7 +11,7 @@ import PlanBanner from '@/components/platform/PlanBanner'
 import SupportBanner from '@/components/platform/SupportBanner'
 import { cn } from '@/lib/cn'
 import { useAuthStore, useCan, useHasFeature, useHasModule } from '@/store/authStore'
-import { TEXT_SIZES, useDisplayStore } from '@/store/displayStore'
+import { SALE_ACTIONS, TEXT_SIZES, useDisplayStore } from '@/store/displayStore'
 import { useThemeStore } from '@/store/themeStore'
 
 // ── Navegación ────────────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const hasFeature = useHasFeature()
   const hasModule = useHasModule()
   const { theme, toggleTheme } = useThemeStore()
-  const { textSize, nextTextSize, easyMode, setEasyMode, autoPrint, setAutoPrint, coinSound, setCoinSound } = useDisplayStore()
+  const { textSize, nextTextSize, easyMode, setEasyMode, saleAction, nextSaleAction, coinSound, setCoinSound } = useDisplayStore()
   const [showMore, setShowMore] = useState(false)
   const [showDisplay, setShowDisplay] = useState(false)
   const navigate = useNavigate()
@@ -233,9 +233,9 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                     title="Menú corto con lo de todos los días y botones con palabras" className={footerBtn}>
               <Sparkles size={16} /> {easyMode ? 'Modo fácil: activado' : 'Activar modo fácil'}
             </button>
-            <button type="button" onClick={() => setAutoPrint(!autoPrint)} aria-pressed={autoPrint}
-                    title="Al cobrar se imprime el ticket solo (y, si el cajón está conectado a la impresora, se abre)" className={footerBtn}>
-              <Printer size={16} /> {autoPrint ? 'Ticket al cobrar: automático' : 'Ticket al cobrar: manual'}
+            <button type="button" onClick={nextSaleAction}
+                    title="Qué pasa al confirmar el pago. El cajón se abre cuando la impresora imprime: con 'solo abrir cajón' sale una línea mínima en vez del ticket" className={footerBtn}>
+              <Printer size={16} /> {SALE_ACTIONS.find((a) => a.id === saleAction)?.label}
             </button>
             <button type="button" onClick={() => setCoinSound(!coinSound)} aria-pressed={coinSound}
                     title="Suena al cobrar y al abrir el cajón" className={footerBtn}>

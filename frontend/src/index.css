@@ -200,4 +200,6 @@
   body * { visibility: hidden !important; }
   .print-ticket, .print-ticket * { visibility: visible !important; }
   .print-ticket { position: absolute; left: 0; top: 0; width: 70mm !important; padding: 1mm 1.5mm !important; overflow-wrap: anywhere; }
+  /* Abrir el cajón imprime solo su línea, aunque haya un ticket de venta en la página */
+  body.printing-drawer .print-ticket:not(.drawer-slip) { display: none !important; }
 }
