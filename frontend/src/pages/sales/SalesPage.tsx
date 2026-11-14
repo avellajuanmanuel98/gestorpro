@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer, Receipt as ReceiptIcon } from 'lucide-react'
 import { salesApi, type SaleSummary } from '@/api/pos'
-import Receipt from '@/components/pos/Receipt'
+import { PrintableReceipt } from '@/components/pos/Receipt'
 import Alert from '@/components/ui/Alert'
 import Button from '@/components/ui/Button'
 import DataTable, { type Column } from '@/components/ui/DataTable'
@@ -81,7 +81,7 @@ function SaleDetail({ id, onClose }: { id: number; onClose: () => void }) {
         {Number(sale.change_given) > 0 && <div className="flex justify-between text-ink-muted"><dt>Cambio</dt><dd className="num">{formatCOP(sale.change_given)}</dd></div>}
       </dl>
 
-      <div className="print-only"><Receipt sale={sale} /></div>
+      <PrintableReceipt sale={sale} />
       {voiding ? (
         <form className="space-y-3 rounded-xl border border-danger/40 bg-danger-soft/40 p-4"
               onSubmit={(e) => { e.preventDefault(); voidSale.mutate() }}>
