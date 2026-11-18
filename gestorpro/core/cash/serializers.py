@@ -65,13 +65,17 @@ class CashSessionDetailSerializer(CashSessionSerializer):
         read_only_fields = fields
 
     def get_summary(self, obj):
-        from gestorpro.core.sales.models import Payment, Sale
+        from gestorpro.core.sales.models import Payment, Sale, SaleLine
 
         by_type = {r['type']: r['t'] for r in obj.movements.values('type').annotate(t=Sum('amount'))}
         completed = obj.sales.filter(status=Sale.Status.COMPLETED)
         totals = completed.aggregate(count=Count('id'), total=Sum('total'))
         by_method = (Payment.objects.filter(sale__cash_session=obj, sale__status=Sale.Status.COMPLETED)
                      .values('method__name', 'method__kind').annotate(total=Sum('amount')).order_by('-total'))
+        # Productos vendidos en el turno (sin anuladas): lo que se lleva al cierre de caja
+        products = (SaleLine.objects.filter(sale__cash_session=obj, sale__status=Sale.Status.COMPLETED)
+                    .values('item_id', 'item_name', 'unit_symbol')
+                    .annotate(quantity=Sum('quantity'), total=Sum('line_total')).order_by('-total', 'item_name'))
         return {
             'opening': money_str(obj.opening_amount),
             'cash_sales': money_str(by_type.get('sale', ZERO)),
@@ -85,6 +89,10 @@ class CashSessionDetailSerializer(CashSessionSerializer):
             'voided_count': obj.sales.filter(status=Sale.Status.VOIDED).count(),
             'by_method': [{'method': r['method__name'], 'kind': r['method__kind'], 'total': money_str(r['total'])}
                           for r in by_method],
+            'products_sold': [{'item': r['item_id'], 'name': r['item_name'], 'unit_symbol': r['unit_symbol'],
+                               'quantity': format(r['quantity'].normalize(), 'f'),  # "10", no "1E+1"
+                               'total': money_str(r['total'])}
+                              for r in products],
             'tolerance': money_str(services.tolerance()),
         }
 

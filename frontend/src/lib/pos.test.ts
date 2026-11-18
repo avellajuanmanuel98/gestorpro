@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { cartTotals, newClientId, CASH_BILLS, receivedAfterBill, stepQuantity, toCents, type CartLine } from './pos'
+import { cartTotals, newClientId, CASH_BILLS, pressKey, receivedAfterBill, stepQuantity, toCents, type CartLine } from './pos'
 
 const line = (over: Partial<CartLine>): CartLine => ({
   itemId: 1, name: 'x', unit: 'und', unitSymbol: 'und', price: '2000.00', taxRate: '0', quantity: '1', ...over,
@@ -48,5 +48,17 @@ describe('newClientId', () => {
     vi.unstubAllGlobals()
     expect(ids.size).toBe(200)
     for (const id of ids) expect(id).toMatch(UUID_V4)
+  })
+
+  it('el teclado en pantalla escribe lo recibido; la primera tecla reemplaza el total propuesto', () => {
+    let v = pressKey('13140', '5', true)   // reemplaza el exacto propuesto
+    expect(v).toBe('5')
+    v = pressKey(v, '000')
+    expect(v).toBe('5000')
+    v = pressKey(pressKey(v, '0'), 'back')
+    expect(v).toBe('5000')
+    expect(pressKey('', '00')).toBe('')    // sin ceros a la izquierda
+    expect(pressKey('0', '7')).toBe('7')
+    expect(pressKey('25000', 'clear')).toBe('')
   })
 })
