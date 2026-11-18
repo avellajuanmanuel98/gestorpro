@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDownLeft, ArrowUpRight, History, Inbox, Lock, Plus } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, History, Inbox, Lock, Plus, Printer } from 'lucide-react'
 import { cashApi, type CashSession, type CashSessionDetail } from '@/api/pos'
 import OpenSessionCard from '@/components/pos/OpenSessionCard'
 import Alert from '@/components/ui/Alert'
@@ -17,6 +18,7 @@ import StatusMark from '@/components/ui/StatusMark'
 import Tabs from '@/components/ui/Tabs'
 import Textarea from '@/components/ui/Textarea'
 import { openCashDrawer } from '@/lib/cashDrawer'
+import { formatQty } from '@/lib/catalog'
 import { cn } from '@/lib/cn'
 import { formatDateTime, formatTime } from '@/lib/dates'
 import { getErrorMessage } from '@/lib/errors'
@@ -118,57 +120,127 @@ function CloseForm({ session, onDone }: { session: CashSessionDetail; onDone: ()
 
   const outflows = session.movements.filter((m) => m.type === 'expense' || m.type === 'withdrawal')
 
+  const s = session.summary
+
   return (
-    <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); close.mutate() }}>
-      {outflows.length > 0 && (
-        <div className="rounded-xl border border-line">
-          <p className="px-4 pt-3 text-sm font-medium text-ink">Efectivo que salió en este turno</p>
-          <ul className="divide-y divide-line">
-            {outflows.map((m) => (
-              <li key={m.id} className="flex items-center gap-3 px-4 py-2 text-sm">
-                <span className="flex-1 min-w-0 truncate text-ink">{m.type_label} · {m.reason}</span>
-                <span className="text-xs text-ink-muted">{formatTime(m.created_at)} · {m.created_by_name}</span>
-                <span className="num font-medium text-warning">−{formatCOP(Math.abs(Number(m.amount)))}</span>
-              </li>
-            ))}
-          </ul>
+    <form className="grid gap-x-6 gap-y-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" onSubmit={(e) => { e.preventDefault(); close.mutate() }}>
+      {/* Izquierda: lo vendido en el turno (total en pesos y productos) y lo que salió del cajón */}
+      <div className="space-y-3 min-w-0">
+        <div className="rounded-xl bg-surface-muted/70 px-4 py-3 flex items-end justify-between gap-3">
+          <div>
+            <p className="text-xs text-ink-muted">Total vendido en el turno</p>
+            <p className="text-3xl font-semibold num text-ink">{formatCOP(s.sales_total)}</p>
+          </div>
+          <p className="text-xs text-ink-muted text-right">{s.sales_count} {s.sales_count === 1 ? 'venta' : 'ventas'}
+            {s.by_method.map((m) => <span key={m.method} className="block num">{m.method}: {formatCOP(m.total)}</span>)}
+          </p>
         </div>
-      )}
-      <div>
-        <p className="text-sm font-medium text-ink mb-2">Cuenta el efectivo del cajón</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <div className="rounded-xl border border-line">
+          <p className="px-4 pt-3 pb-1 text-sm font-medium text-ink">Productos vendidos</p>
+          {!s.products_sold.length ? <p className="px-4 pb-3 text-sm text-ink-muted">Aún no hay ventas en este turno.</p> : (
+            <ul className="divide-y divide-line max-h-44 overflow-y-auto">
+              {s.products_sold.map((p) => (
+                <li key={`${p.item}-${p.name}`} className="flex items-center gap-3 px-4 py-1.5 text-sm">
+                  <span className="w-14 shrink-0 num text-ink-muted">{formatQty(p.quantity, p.unit_symbol)}</span>
+                  <span className="flex-1 min-w-0 truncate text-ink">{p.name}</span>
+                  <span className="num font-medium text-ink">{formatCOP(p.total)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {outflows.length > 0 && (
+          <div className="rounded-xl border border-line">
+            <p className="px-4 pt-3 pb-1 text-sm font-medium text-ink">Efectivo que salió en este turno</p>
+            <ul className="divide-y divide-line">
+              {outflows.map((m) => (
+                <li key={m.id} className="flex items-center gap-3 px-4 py-1.5 text-sm">
+                  <span className="flex-1 min-w-0 truncate text-ink">{m.type_label} · {m.reason}</span>
+                  <span className="text-xs text-ink-muted">{formatTime(m.created_at)}</span>
+                  <span className="num font-medium text-warning">−{formatCOP(Math.abs(Number(m.amount)))}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <Button type="button" variant="outline" size="sm" icon={<Printer size={14} />} onClick={() => window.print()}>
+          Imprimir resumen del turno
+        </Button>
+        {diff !== 0 && (
+          <Textarea label="¿Qué pasó? (obligatorio si hay diferencia)" required rows={2} value={note} onChange={(e) => setNote(e.target.value)}
+                    placeholder="Ej.: se pagó un domicilio con efectivo de la caja" />
+        )}
+        {overTolerance && !canManage && (
+          <Alert tone="warning">La diferencia supera {formatCOP(s.tolerance)}. Debe cerrar la caja un supervisor.</Alert>
+        )}
+        {close.isError && <Alert tone="danger">{getErrorMessage(close.error)}</Alert>}
+        <CloseSummaryTicket session={session} />
+      </div>
+
+      {/* Derecha: contar el efectivo y cerrar */}
+      <div className="space-y-3 min-w-0">
+        <p className="text-sm font-medium text-ink">Cuenta el efectivo del cajón</p>
+        <div className="grid grid-cols-3 gap-2">
           {DENOMINATIONS.map((d) => (
-            <label key={d} className="flex items-center gap-2 rounded-lg border border-line px-3 py-2">
-              <span className="w-20 text-sm text-ink num">{formatCOP(d)}</span>
+            <label key={d} className="flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5">
+              <span className="shrink-0 text-sm text-ink num">{formatCOP(d)}</span>
               <span className="text-ink-subtle text-xs">×</span>
               <input inputMode="numeric" aria-label={`Cantidad de ${formatCOP(d)}`} value={counts[d] ?? ''} placeholder="0"
                      onChange={(e) => setCounts((c) => ({ ...c, [d]: e.target.value.replace(/\D/g, '') }))}
-                     className="w-full h-8 bg-transparent text-right text-sm num text-ink focus:outline-none" />
+                     className="w-full h-7 bg-transparent text-right text-sm num text-ink focus:outline-none" />
             </label>
           ))}
         </div>
-      </div>
-      <div className="grid grid-cols-3 gap-3 text-center">
-        <div className="rounded-xl bg-surface-muted/70 py-3"><p className="text-xs text-ink-muted">Contado</p><p className="text-lg font-semibold num text-ink">{formatCOP(counted)}</p></div>
-        <div className="rounded-xl bg-surface-muted/70 py-3"><p className="text-xs text-ink-muted">Esperado</p><p className="text-lg font-semibold num text-ink">{formatCOP(session.summary.expected)}</p></div>
-        <div className={cn('rounded-xl py-3', diff === 0 ? 'bg-success-soft' : 'bg-warning-soft')}>
-          <p className="text-xs text-ink-muted">Diferencia</p><p className="text-lg font-semibold"><Difference value={fromCents(diff)} /></p>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-xl bg-surface-muted/70 py-2"><p className="text-xs text-ink-muted">Contado</p><p className="text-base font-semibold num text-ink">{formatCOP(counted)}</p></div>
+          <div className="rounded-xl bg-surface-muted/70 py-2"><p className="text-xs text-ink-muted">Esperado</p><p className="text-base font-semibold num text-ink">{formatCOP(s.expected)}</p></div>
+          <div className={cn('rounded-xl py-2', diff === 0 ? 'bg-success-soft' : 'bg-warning-soft')}>
+            <p className="text-xs text-ink-muted">Diferencia</p><p className="text-base font-semibold"><Difference value={fromCents(diff)} /></p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button type="button" variant="ghost" onClick={onDone}>Cancelar</Button>
+          <Button type="submit" icon={<Lock size={15} />} loading={close.isPending}
+                  disabled={(diff !== 0 && !note.trim()) || (overTolerance && !canManage)}>Cerrar caja</Button>
         </div>
       </div>
-      {diff !== 0 && (
-        <Textarea label="¿Qué pasó? (obligatorio si hay diferencia)" required rows={2} value={note} onChange={(e) => setNote(e.target.value)}
-                  placeholder="Ej.: se pagó un domicilio con efectivo de la caja" />
-      )}
-      {overTolerance && !canManage && (
-        <Alert tone="warning">La diferencia supera {formatCOP(session.summary.tolerance)}. Debe cerrar la caja un supervisor.</Alert>
-      )}
-      {close.isError && <Alert tone="danger">{getErrorMessage(close.error)}</Alert>}
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={onDone}>Cancelar</Button>
-        <Button type="submit" icon={<Lock size={15} />} loading={close.isPending}
-                disabled={(diff !== 0 && !note.trim()) || (overTolerance && !canManage)}>Cerrar caja</Button>
-      </div>
     </form>
+  )
+}
+
+/**
+ * Resumen del turno para la impresora térmica (80 mm): total vendido en pesos, por medio de
+ * pago, productos vendidos y salidas de efectivo. Se monta en <body> y solo se ve al imprimir.
+ */
+function CloseSummaryTicket({ session }: { session: CashSessionDetail }) {
+  const s = session.summary
+  const line = 'my-1.5 border-t border-dashed border-black'
+  const row = 'flex justify-between gap-2'
+  return createPortal(
+    <div className="print-only">
+      <div className="print-ticket font-mono text-[12px] leading-snug text-black bg-white">
+        <p className="text-center font-bold text-[14px]">Resumen del turno</p>
+        <p>{session.register_name} · {session.opened_by_name}</p>
+        <p>Abierta: {formatDateTime(session.opened_at)}</p>
+        <p>Impreso: {formatDateTime(new Date().toISOString())}</p>
+        <div className={line} />
+        <p className={cn(row, 'font-bold text-[14px]')}><span>TOTAL VENDIDO</span><span>{formatCOP(s.sales_total)}</span></p>
+        <p className={row}><span>Ventas</span><span>{s.sales_count}</span></p>
+        {s.by_method.map((m) => <p key={m.method} className={row}><span>{m.method}</span><span>{formatCOP(m.total)}</span></p>)}
+        <div className={line} />
+        <p className="font-bold">Productos vendidos</p>
+        {s.products_sold.map((p) => (
+          <p key={`${p.item}-${p.name}`} className={row}><span>{formatQty(p.quantity, p.unit_symbol)} {p.name}</span><span>{formatCOP(p.total)}</span></p>
+        ))}
+        {!s.products_sold.length && <p>(sin ventas)</p>}
+        <div className={line} />
+        <p className={row}><span>Base inicial</span><span>{formatCOP(s.opening)}</span></p>
+        <p className={row}><span>Ventas en efectivo</span><span>{formatCOP(s.cash_sales)}</span></p>
+        <p className={row}><span>Salidas</span><span>−{formatCOP(Math.abs(Number(s.expenses) + Number(s.withdrawals) + Number(s.voids)))}</span></p>
+        <p className={cn(row, 'font-bold')}><span>Debería haber en caja</span><span>{formatCOP(s.expected)}</span></p>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -247,7 +319,7 @@ function CurrentTab() {
       <Modal title={movement ? MOVEMENT_COPY[movement].title : ''} isOpen={movement !== null} onClose={() => setMovement(null)} size="sm">
         {movement && <MovementForm session={s} type={movement} onDone={() => setMovement(null)} />}
       </Modal>
-      <Modal title="Cerrar caja" subtitle="Cuenta el efectivo y compáralo con lo esperado." isOpen={closing} onClose={() => setClosing(false)} size="lg">
+      <Modal title="Cerrar caja" subtitle="Revisa lo vendido, cuenta el efectivo y compáralo con lo esperado." isOpen={closing} onClose={() => setClosing(false)} size="xl">
         {closing && <CloseForm session={s} onDone={() => setClosing(false)} />}
       </Modal>
     </div>

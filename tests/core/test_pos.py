@@ -333,3 +333,20 @@ def test_pos_catalog_lists_only_sellable_active_items_with_price_including_tax(p
     assert 'Harina' not in names and names['Gaseosa']['price_with_tax'] == '3570.00'
     assert 'avg_cost' not in names['Gaseosa']  # el POS no expone costos
 
+
+
+def test_cash_close_summary_lists_products_sold_without_voided_sales(pos):
+    session = open_session(pos)
+    sell(pos, [{'item': pos['pan'].id, 'quantity': '3'}, {'item': pos['gaseosa'].id, 'quantity': '1'}],
+         cash(pos, '20000'))
+    sell(pos, [{'item': pos['pan'].id, 'quantity': '7'}], cash(pos, '14000'))
+    voided = sell(pos, [{'item': pos['queso'].id, 'quantity': '0.5'}], cash(pos, '13000')).data
+    res = pos['supervisor'].post(f"{SALES}{voided['id']}/void/", {'reason': 'Venta de prueba'}, format='json')
+    assert res.status_code == 200, res.content
+
+    summary = pos['cashier'].get(f"{SESSIONS}{session['id']}/").data['summary']
+    products = {p['name']: (p['quantity'], p['total']) for p in summary['products_sold']}
+    # 10 panes en dos ventas (se muestra "10", no "1E+1"); la gaseosa con IVA; la venta anulada no cuenta
+    assert products == {'Pan de bono': ('10', '20000.00'), 'Gaseosa': ('1', '3570.00')}
+    assert [p['name'] for p in summary['products_sold']] == ['Pan de bono', 'Gaseosa']  # de mayor a menor
+    assert summary['sales_total'] == '23570.00'

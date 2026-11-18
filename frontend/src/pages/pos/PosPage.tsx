@@ -199,24 +199,33 @@ function SaleDone({ sale, onNext }: { sale: Sale; onNext: () => void }) {
     return () => window.clearTimeout(timer)
   }, [saleAction, sale])
   return (
-    <Modal title="Venta registrada" isOpen onClose={onNext} size="md">
-      <div className="space-y-5">
-        <div className="text-center space-y-1">
-          <CheckCircle2 size={36} className="mx-auto text-success" />
-          <p className="text-sm text-ink-muted">{sale.number} · {formatDateTime(sale.created_at)}</p>
-          {Number(sale.change_given) > 0 ? (
-            <>
-              <p className="text-sm text-ink-muted pt-2">Cambio a entregar</p>
-              <p className="text-4xl font-semibold text-ink num">{formatCOP(sale.change_given)}</p>
-            </>
-          ) : <p className="text-2xl font-semibold text-ink num pt-2">{formatCOP(sale.total)}</p>}
+    <Modal title="Venta registrada" isOpen onClose={onNext} size="lg">
+      {/* Dos columnas: el cambio y los botones a la izquierda; el ticket completo, sin desplazarse, a la derecha */}
+      <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_auto] items-start">
+        <div className="space-y-5 sm:pt-4">
+          <div className="text-center space-y-1">
+            <CheckCircle2 size={40} className="mx-auto text-success" />
+            <p className="text-sm text-ink-muted">{sale.number} · {formatDateTime(sale.created_at)}</p>
+            {Number(sale.change_given) > 0 ? (
+              <>
+                <p className="text-sm text-ink-muted pt-3">Cambio a entregar</p>
+                <p className="text-5xl font-semibold text-ink num">{formatCOP(sale.change_given)}</p>
+                <p className="text-sm text-ink-muted pt-1">Total {formatCOP(sale.total)}</p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-ink-muted pt-3">Total cobrado</p>
+                <p className="text-4xl font-semibold text-ink num">{formatCOP(sale.total)}</p>
+              </>
+            )}
+          </div>
+          <div className="space-y-2.5">
+            <Button size="lg" fullWidth autoFocus onClick={onNext} className="h-14 text-lg">Nueva venta</Button>
+            <Button variant="outline" size="lg" fullWidth icon={<Printer size={16} />} onClick={() => window.print()}>Imprimir ticket</Button>
+          </div>
         </div>
-        <div className="max-h-64 overflow-y-auto rounded-xl border border-line bg-white"><Receipt sale={sale} /></div>
+        <div className="rounded-xl border border-line bg-white justify-self-center"><Receipt sale={sale} /></div>
         <PrintableReceipt sale={sale} />
-        <div className="grid grid-cols-2 gap-3">
-          <Button variant="outline" size="lg" icon={<Printer size={16} />} onClick={() => window.print()}>Imprimir ticket</Button>
-          <Button size="lg" autoFocus onClick={onNext}>Nueva venta</Button>
-        </div>
       </div>
     </Modal>
   )

@@ -140,6 +140,7 @@ export interface CashSessionDetail extends CashSession {
     sales_total: string
     voided_count: number
     by_method: { method: string; kind: PaymentMethod['kind']; total: string }[]
+    products_sold: { item: number; name: string; unit_symbol: string; quantity: string; total: string }[]
     tolerance: string
   }
 }

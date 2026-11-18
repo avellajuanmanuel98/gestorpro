@@ -43,6 +43,21 @@ export function receivedAfterBill(currentCents: number, billPesos: number, repla
   return (replace ? 0 : currentCents) + billPesos * 100
 }
 
+/** Teclas del teclado numérico en pantalla para escribir lo recibido con clics. */
+export type PadKey = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '00' | '000' | 'back' | 'clear'
+
+/**
+ * Valor tras tocar una tecla. `replace`: el valor actual lo propuso el sistema (el total
+ * exacto) y la primera tecla lo reemplaza, como al tocar un billete.
+ */
+export function pressKey(current: string, key: PadKey, replace = false): string {
+  const value = replace ? '' : current
+  if (key === 'clear') return ''
+  if (key === 'back') return replace ? '' : value.slice(0, -1)
+  const next = (value + key).replace(/^0+/, '')  // sin ceros a la izquierda ("00" solo no escribe nada)
+  return next.length > 12 ? value : next       // tope sensato: billones de pesos
+}
+
 /** Lo que se vende por unidad va en enteros; por peso o volumen admite decimales. */
 export const isWholeUnit = (unit: string) => unit === 'und'
 
