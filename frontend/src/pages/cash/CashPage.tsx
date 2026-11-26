@@ -171,7 +171,7 @@ function CloseForm({ session, onDone }: { session: CashSessionDetail; onDone: ()
                     placeholder="Ej.: se pagó un domicilio con efectivo de la caja" />
         )}
         {overTolerance && !canManage && (
-          <Alert tone="warning">La diferencia supera {formatCOP(s.tolerance)}. Debe cerrar la caja un supervisor.</Alert>
+          <Alert tone="warning">La diferencia supera {formatCOP(s.tolerance)}. Revisa el conteo y que estén anotados los gastos y retiros. Si sigue igual, la dueña o un supervisor la cierra desde <strong>Caja → Historial</strong>, abriendo este turno.</Alert>
         )}
         {close.isError && <Alert tone="danger">{getErrorMessage(close.error)}</Alert>}
         <CloseSummaryTicket session={session} />
@@ -328,10 +328,24 @@ function CurrentTab() {
 
 function SessionDetailModal({ id, onClose }: { id: number; onClose: () => void }) {
   const { data } = useQuery({ queryKey: ['cash-session', id], queryFn: () => cashApi.session(id) })
+  const canManage = useCan()('cash.manage')
+  // La dueña o un supervisor pueden cerrar el turno abierto de otra persona: es el camino cuando
+  // la diferencia supera la tolerancia y el cajero no puede cerrarlo solo.
+  const [closing, setClosing] = useState(false)
+  const canClose = data?.status === 'open' && canManage
   return (
-    <Modal title={data ? `${data.register_name} · ${formatDateTime(data.opened_at)}` : 'Turno de caja'} isOpen onClose={onClose} size="xl">
-      {!data ? <SkeletonText lines={8} /> : (
+    <Modal title={data ? `${closing ? 'Cerrar caja · ' : ''}${data.register_name} · ${data.opened_by_name} · ${formatDateTime(data.opened_at)}` : 'Turno de caja'}
+           isOpen onClose={onClose} size="xl">
+      {!data ? <SkeletonText lines={8} /> : closing ? <CloseForm session={data} onDone={onClose} /> : (
         <div className="space-y-4">
+          {canClose && (
+            <Alert tone="info">
+              <span className="flex flex-wrap items-center justify-between gap-3">
+                <span>Este turno sigue abierto. Si el cajero no pudo cerrarlo (por ejemplo, porque la diferencia es grande), ciérralo tú.</span>
+                <Button size="sm" icon={<Lock size={14} />} onClick={() => setClosing(true)}>Cerrar este turno</Button>
+              </span>
+            </Alert>
+          )}
           {data.status === 'closed' && (
             <div className="grid grid-cols-3 gap-3 text-center">
               <div className="rounded-xl bg-surface-muted/70 py-3"><p className="text-xs text-ink-muted">Esperado</p><p className="font-semibold num">{formatCOP(data.expected_amount)}</p></div>
